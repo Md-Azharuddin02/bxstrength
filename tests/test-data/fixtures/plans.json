@@ -1,0 +1,40 @@
+[
+  {
+    "id": "starter-protocol",
+    "name": "Starter Performance Protocol",
+    "price": 4900,
+    "currency": "GBP",
+    "interval": "monthly",
+    "features": [
+      "Personalized 3-Day Workout Split",
+      "Macro Nutrient Guidance",
+      "Weekly Check-in via App"
+    ]
+  },
+  {
+    "id": "elite-athlete-monthly",
+    "name": "Elite Athlete 1-on-1 Coaching",
+    "price": 9900,
+    "currency": "GBP",
+    "interval": "monthly",
+    "features": [
+      "Custom 5-Day Periodized Program",
+      "Full Biofeedback & Nutrition Tracking",
+      "Direct Coach WhatsApp Access",
+      "Form Video Analysis"
+    ]
+  },
+  {
+    "id": "vip-transformation",
+    "name": "VIP Total Transformation 12-Week",
+    "price": 24900,
+    "currency": "GBP",
+    "interval": "quarterly",
+    "features": [
+      "Dedicated Head Coach Oversight",
+      "Priority Support Desk",
+      "Unlimited Program Revisions",
+      "Live 1-on-1 Video Consultations"
+    ]
+  }
+]

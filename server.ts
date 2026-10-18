@@ -4630,19 +4630,24 @@ app.use((err: any, req: any, res: any, next: any) => {
   res.status(500).json({ error: 'An unexpected internal error occurred. Please try again later.' });
 });
 
-app.listen(Number(PORT) || 3001, '0.0.0.0', () => {
-  console.log(`  ➜  API Server: http://localhost:${PORT}/`);
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(Number(PORT) || 3001, '0.0.0.0', () => {
+    console.log(`  ➜  API Server: http://localhost:${PORT}/`);
 
-  // Render Anti-Sleep Keep-Alive Heartbeat (Pings health check every 10 mins to maintain 24/7 uptime)
-  const KEEP_ALIVE_INTERVAL_MS = 10 * 60 * 1000;
-  setInterval(() => {
-    const apiHost = process.env.VITE_API_URL || process.env.API_URL || `http://127.0.0.1:${PORT}`;
-    const targetUrl = `${apiHost.replace(/\/$/, '')}/api/health`;
-    fetch(targetUrl)
-      .then((res) => {
-        if (res.ok) console.log(`  ➜  Keep-Alive Heartbeat: Active (${new Date().toLocaleTimeString()})`);
-      })
-      .catch(() => { });
-  }, KEEP_ALIVE_INTERVAL_MS);
-});
+    // Render Anti-Sleep Keep-Alive Heartbeat (Pings health check every 10 mins to maintain 24/7 uptime)
+    const KEEP_ALIVE_INTERVAL_MS = 10 * 60 * 1000;
+    setInterval(() => {
+      const apiHost = process.env.VITE_API_URL || process.env.API_URL || `http://127.0.0.1:${PORT}`;
+      const targetUrl = `${apiHost.replace(/\/$/, '')}/api/health`;
+      fetch(targetUrl)
+        .then((res) => {
+          if (res.ok) console.log(`  ➜  Keep-Alive Heartbeat: Active (${new Date().toLocaleTimeString()})`);
+        })
+        .catch(() => { });
+    }, KEEP_ALIVE_INTERVAL_MS);
+  });
+}
+
+export { app, dbPool, JWT_SECRET };
+export default app;
 

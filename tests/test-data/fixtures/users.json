@@ -1,0 +1,56 @@
+[
+  {
+    "id": "admin-fixture-1",
+    "name": "System Administrator",
+    "email": "admin@bxstrength.com",
+    "role": "admin",
+    "phone": "+447000000001",
+    "isVerified": true,
+    "status": "active"
+  },
+  {
+    "id": "headcoach-fixture-1",
+    "name": "Head Coach Marcus",
+    "email": "headcoach@bxstrength.com",
+    "role": "headcoach",
+    "phone": "+447000000002",
+    "isVerified": true,
+    "status": "active"
+  },
+  {
+    "id": "coach-fixture-1",
+    "name": "Coach Sarah",
+    "email": "coach@bxstrength.com",
+    "role": "coach",
+    "phone": "+447000000003",
+    "isVerified": true,
+    "status": "active"
+  },
+  {
+    "id": "support-fixture-1",
+    "name": "Support Agent James",
+    "email": "support@bxstrength.com",
+    "role": "support",
+    "phone": "+447000000004",
+    "isVerified": true,
+    "status": "active"
+  },
+  {
+    "id": "client-fixture-1",
+    "name": "Client John Doe",
+    "email": "john.doe@example.com",
+    "role": "client",
+    "phone": "+447000000005",
+    "isVerified": true,
+    "status": "active"
+  },
+  {
+    "id": "client-fixture-2",
+    "name": "Client Jane Smith",
+    "email": "jane.smith@example.com",
+    "role": "client",
+    "phone": "+447000000006",
+    "isVerified": true,
+    "status": "active"
+  }
+]

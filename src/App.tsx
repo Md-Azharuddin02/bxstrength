@@ -345,7 +345,7 @@ function AppContent() {
               onOpenAssessment={() => setAssessmentModalOpen(true)}
             />
 
-            <TrustBar />
+            <TrustBar ready={!isLoadingSplash} />
 
             <BeforeAfterShowcase
               onOpenAssessment={() => setAssessmentModalOpen(true)}

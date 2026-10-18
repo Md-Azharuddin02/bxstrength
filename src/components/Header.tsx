@@ -26,6 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [servicesActive, setServicesActive] = useState(false);
 
   useEffect(() => {
     let ticking = false;
@@ -70,6 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   const handleNav = (page: ViewPage, targetElementId?: string) => {
+    setServicesActive(targetElementId === 'service-section');
     onNavigate(page);
     setMobileMenuOpen(false);
     if (targetElementId) {
@@ -272,11 +274,11 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* 3. DEDICATED SUB-NAVBAR FOR SPACED & UNCLUTTERED LINKS */}
-      <div className="hidden lg:block bg-[#121214]/90 backdrop-blur-sm border-b border-zinc-800/80 py-2">
+      {/*<div className="hidden lg:block bg-[#121214]/90 backdrop-blur-sm border-b border-zinc-800/80 py-2">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex items-center justify-center gap-8">
             {navItems.map((item) => {
-              const isActive = currentPage === item.page;
+              const isActive =item.label === 'SERVICES' && currentPage === item.page;
               return (
                 <button
                   key={item.label}
@@ -299,14 +301,48 @@ export const Header: React.FC<HeaderProps> = ({
             })}
           </nav>
         </div>
+      </div>*/}
+      <div className="hidden lg:block bg-[#121214]/90 backdrop-blur-sm border-b border-zinc-800/80 py-2">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex items-center justify-center gap-8">
+            {navItems.map((item) => {
+              const isActive =
+                item.label === 'SERVICES'
+                  ? currentPage === 'home' && servicesActive
+                  : item.label === 'HOME'
+                  ? currentPage === 'home' && !servicesActive
+                  : currentPage === item.page;
+              return (
+                <button
+                  key={item.label}
+                  onClick={() => {
+                    if (item.label === 'SERVICES') {
+                      handleNav('home', 'services-section');
+                    } else {
+                      handleNav(item.page);
+                    }
+                  }}
+                  className={`text-xs font-black tracking-widest uppercase transition-all px-3 py-1.5 rounded-md cursor-pointer flex items-center gap-1.5 ${
+                    isActive
+                      ? 'bg-zinc-800 text-white shadow-sm border-zinc-700'
+                      : 'text-zinc-400 border-transparent hover:text-white hover:bg-zinc-800/50'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
       </div>
+      
 
       {/* 4. MOBILE MENU DRAWER */}
       {mobileMenuOpen && (
         <div className="lg:hidden bg-[#121214] border-b border-zinc-800 px-6 py-6 animate-in slide-in-from-top-4 duration-200">
           <nav className="flex flex-col gap-3">
-            {navItems.map((item) => (
-              <button
+            {navItems.map((item) => {
+              {/*<button
                 key={item.label}
                 onClick={() => {
                   if (item.label === 'SERVICES') {
@@ -321,7 +357,32 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <span>{item.label}</span>
               </button>
-            ))}
+            ))}*/}
+              const isActive =
+                item.label === 'SERVICES'
+                  ? currentPage === 'home' && servicesActive
+                  : item.label === 'HOME'
+                  ? currentPage === 'home' && !servicesActive
+                  : currentPage === item.page;
+              return (
+                <button
+                  key={item.label}
+                  onClick={() => {
+                    if (item.label === 'SERVICES') {
+                      handleNav('home', 'services-section');
+                    } else {
+                      handleNav(item.page);
+                    }
+                  }}
+                  className={`text-left text-xs font-black tracking-widest py-2.5 uppercase border-b border-zinc-800 flex items-center justify-between ${
+                    isActive ? 'text-white' : 'text-zinc-400'
+                  }`}
+                >
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+
 
             <div className="pt-4 flex flex-col gap-2.5">
               {isAuthenticated && user ? (

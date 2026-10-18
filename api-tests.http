@@ -1,0 +1,324 @@
+###############################################################################
+# BxStrength API tests
+#
+# How to use:
+#   1. Install the "REST Client" extension in VS Code (humao.rest-client),
+#      or open this file in JetBrains (WebStorm/IntelliJ) which supports it natively.
+#   2. Pick an environment below by editing @baseUrl, or set it per-request.
+#   3. Click "Send Request" above any request.
+#
+# Auth model:
+#   Login/register set an HttpOnly session cookie + a readable "bx_csrf" cookie,
+#   and return an access token in the JSON body. The REST Client keeps the cookies
+#   automatically. For protected endpoints we send the access token as a Bearer
+#   header. Run "Login" (or "Register" then "Verify OTP") first so {{authToken}}
+#   is filled in for everything below it.
+###############################################################################
+
+@baseUrl = http://localhost:3001
+# Production: @baseUrl = https://bxstrength...........................
+
+# Change these to a real test account before running the protected requests.
+@testEmail = tester@example.com
+@testPassword = Tester@12345
+@testName = QA Tester
+
+
+### Health check -------------------------------------------------------------
+GET {{baseUrl}}/api/health
+
+
+# =============================================================================
+# AUTH
+# =============================================================================
+
+### Register (triggers an email OTP; copy the code from the inbox / server log)
+# @name register
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "{{testName}}",
+  "email": "{{testEmail}}",
+  "password": "{{testPassword}}",
+  "phone": ""
+}
+
+
+### Verify OTP (paste the 6-digit code you received)
+POST {{baseUrl}}/api/auth/verify-otp
+Content-Type: application/json
+
+{
+  "email": "{{testEmail}}",
+  "otp": "000000"
+}
+
+
+### Resend OTP
+POST {{baseUrl}}/api/auth/resend-otp
+Content-Type: application/json
+
+{
+  "email": "{{testEmail}}"
+}
+
+
+### Login  (run this to fill {{authToken}} for the protected requests)
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{testEmail}}",
+  "password": "{{testPassword}}"
+}
+
+@authToken = {{login.response.body.token}}
+
+
+### Who am I (uses the access token)
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{authToken}}
+
+
+### Forgot password (sends a reset link email)
+POST {{baseUrl}}/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "{{testEmail}}"
+}
+
+
+### Reset password (needs the token from the reset email)
+POST {{baseUrl}}/api/auth/reset-password
+Content-Type: application/json
+
+{
+  "email": "{{testEmail}}",
+  "newPassword": "NewTester@12345",
+  "token": "PASTE_RESET_TOKEN"
+}
+
+
+# =============================================================================
+# USERS   (admin-only on the server)
+# =============================================================================
+
+### List users
+GET {{baseUrl}}/api/users
+Authorization: Bearer {{authToken}}
+
+
+### Create user
+POST {{baseUrl}}/api/users
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "name": "Created By Test",
+  "email": "created.by.test@example.com",
+  "role": "client"
+}
+
+
+### Update a user (replace :id)
+PATCH {{baseUrl}}/api/users/USER_ID
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "phone": "9876543210"
+}
+
+
+### Change role (admin)
+PUT {{baseUrl}}/api/admin/users/USER_ID/role
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "role": "coach"
+}
+
+
+### Change status (admin)
+PUT {{baseUrl}}/api/admin/users/USER_ID/status
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "status": "inactive"
+}
+
+
+### Delete a user
+DELETE {{baseUrl}}/api/users/USER_ID
+Authorization: Bearer {{authToken}}
+
+
+# =============================================================================
+# ENQUIRIES
+# =============================================================================
+
+### List enquiries
+GET {{baseUrl}}/api/enquiries
+Authorization: Bearer {{authToken}}
+
+
+### Create enquiry (public lead form)
+POST {{baseUrl}}/api/enquiries
+Content-Type: application/json
+
+{
+  "name": "Lead Example",
+  "email": "lead@example.com",
+  "phone": "9123456780",
+  "message": "I want to know about the coaching plans."
+}
+
+
+### Delete enquiry
+DELETE {{baseUrl}}/api/enquiries/ENQUIRY_ID
+Authorization: Bearer {{authToken}}
+
+
+# =============================================================================
+# SUPPORT TICKETS
+# =============================================================================
+
+### List tickets
+GET {{baseUrl}}/api/tickets
+Authorization: Bearer {{authToken}}
+
+
+### Create ticket
+POST {{baseUrl}}/api/tickets
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "subject": "Cannot access my nutrition plan",
+  "category": "General",
+  "priority": "medium",
+  "description": "The nutrition tab is empty after I log in."
+}
+
+
+### Update ticket (status / reply) — replace :id
+PATCH {{baseUrl}}/api/tickets/TICKET_ID
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "status": "resolved"
+}
+
+
+### Delete ticket
+DELETE {{baseUrl}}/api/tickets/TICKET_ID
+Authorization: Bearer {{authToken}}
+
+
+# =============================================================================
+# REVIEWS / TRAINERS / ANNOUNCEMENTS
+# =============================================================================
+
+### List reviews (public)
+GET {{baseUrl}}/api/reviews
+
+
+### Create review
+POST {{baseUrl}}/api/reviews
+Content-Type: application/json
+
+{
+  "name": "Happy Client",
+  "rating": 5,
+  "text": "Great coaching, saw results in 8 weeks."
+}
+
+
+### List trainers (public)
+GET {{baseUrl}}/api/trainers
+
+
+### List announcements
+GET {{baseUrl}}/api/announcements
+Authorization: Bearer {{authToken}}
+
+
+### Create announcement (admin)
+POST {{baseUrl}}/api/announcements
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "title": "Holiday schedule",
+  "message": "Classes are paused on public holidays."
+}
+
+
+# =============================================================================
+# SUBSCRIPTIONS
+# =============================================================================
+
+### List subscriptions
+GET {{baseUrl}}/api/subscriptions
+Authorization: Bearer {{authToken}}
+
+
+### Create subscription
+POST {{baseUrl}}/api/subscriptions
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "userId": "USER_ID",
+  "planName": "Strength & Conditioning",
+  "price": 80,
+  "billingCycle": "monthly"
+}
+
+
+# =============================================================================
+# PAYMENT JOURNEY  (Razorpay)
+# =============================================================================
+
+### Create a checkout intent (returns an order / checkout URL)
+POST {{baseUrl}}/api/journey/create-checkout-intent
+Content-Type: application/json
+
+{
+  "amount": 8000,
+  "currency": "INR",
+  "userEmail": "{{testEmail}}",
+  "userName": "{{testName}}",
+  "userPhone": "9123456780"
+}
+
+
+### Verify a payment (fields come from Razorpay after checkout)
+POST {{baseUrl}}/api/journey/verify-payment
+Content-Type: application/json
+
+{
+  "razorpay_order_id": "ORDER_ID",
+  "razorpay_payment_id": "PAYMENT_ID",
+  "razorpay_signature": "SIGNATURE"
+}
+
+
+### Get latest booking by email
+GET {{baseUrl}}/api/journey/latest-by-email/{{testEmail}}
+Authorization: Bearer {{authToken}}
+
+
+# =============================================================================
+# AUDIT LOGS
+# =============================================================================
+
+### List audit logs (admin)
+GET {{baseUrl}}/api/audit-logs
+Authorization: Bearer {{authToken}}

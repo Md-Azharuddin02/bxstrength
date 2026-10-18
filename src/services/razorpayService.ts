@@ -1,5 +1,5 @@
-import { getApiUrl } from './api';
-import { getActiveMarketCountry } from '../utils/marketService';
+import { getApiUrl } from "./api";
+import { getActiveMarketCountry } from "../utils/marketService";
 
 export interface RazorpayOrderResponse {
   success: boolean;
@@ -22,7 +22,7 @@ export interface RazorpayVerificationResponse {
 export interface RazorpayCheckoutOptions {
   amount: number; // e.g. 50 for £50 (will be converted to smallest unit >= 100)
   currency?: string;
-  country?: 'GB' | 'IN';
+  country?: "GB" | "IN";
   name?: string;
   description?: string;
   userEmail?: string;
@@ -43,7 +43,7 @@ export interface RazorpayCheckoutOptions {
  */
 export const loadRazorpayScript = (): Promise<boolean> => {
   return new Promise((resolve) => {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       resolve(false);
       return;
     }
@@ -53,15 +53,17 @@ export const loadRazorpayScript = (): Promise<boolean> => {
       return;
     }
 
-    const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+    const existingScript = document.querySelector(
+      'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
+    );
     if (existingScript) {
-      existingScript.addEventListener('load', () => resolve(true));
-      existingScript.addEventListener('error', () => resolve(false));
+      existingScript.addEventListener("load", () => resolve(true));
+      existingScript.addEventListener("error", () => resolve(false));
       return;
     }
 
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.async = true;
     script.onload = () => resolve(true);
     script.onerror = () => resolve(false);
@@ -77,32 +79,38 @@ export const createRazorpayOrder = async (
   currency?: string,
   receipt?: string,
   notes?: any,
-  country?: 'GB' | 'IN',
-  phone?: string
+  country?: "GB" | "IN",
+  phone?: string,
 ): Promise<any> => {
   const activeCountry = country || getActiveMarketCountry();
-  const idempotencyKey = `idemp_${notes?.userEmail || 'client'}_${Date.now()}`;
-  const response = await fetch(getApiUrl('/api/payments/create-intent'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  const idempotencyKey = `idemp_${notes?.userEmail || "client"}_${Date.now()}`;
+  const response = await fetch(getApiUrl("/api/payments/create-intent"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       amount,
       currency,
       country: activeCountry,
       phone: phone || notes?.userPhone,
       receipt,
-      planName: notes?.planName || 'Testing',
-      serviceType: notes?.serviceType || 'individual',
-      customExercises: notes?.customExercises ? String(notes.customExercises).split(', ') : [],
+      planName: notes?.planName || "Testing",
+      serviceType: notes?.serviceType || "individual",
+      customExercises: notes?.customExercises
+        ? String(notes.customExercises).split(", ")
+        : [],
       userEmail: notes?.userEmail,
       userName: notes?.userName,
-      idempotencyKey
-    })
+      idempotencyKey,
+    }),
   });
 
   const data = await response.json();
   if (!response.ok || (!data.order_id && !data.checkoutUrl)) {
-    throw new Error(data.error || data.details || 'Failed to initialize payment gateway intent');
+    throw new Error(
+      data.error ||
+        data.details ||
+        "Failed to initialize payment gateway intent",
+    );
   }
 
   return data;
@@ -117,15 +125,17 @@ export const verifyRazorpayPayment = async (payload: {
   razorpay_signature: string;
   [key: string]: any;
 }): Promise<RazorpayVerificationResponse> => {
-  const response = await fetch(getApiUrl('/api/payments/verify'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+  const response = await fetch(getApiUrl("/api/payments/verify"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   });
 
   const data = await response.json();
   if (!response.ok || !data.success) {
-    throw new Error(data.error || data.message || 'Payment signature verification failed');
+    throw new Error(
+      data.error || data.message || "Payment signature verification failed",
+    );
   }
 
   return data;
@@ -134,7 +144,9 @@ export const verifyRazorpayPayment = async (payload: {
 /**
  * STEP 2: Main Frontend Failover-Aware Checkout Handler
  */
-export const openRazorpayCheckout = async (options: RazorpayCheckoutOptions): Promise<void> => {
+export const openRazorpayCheckout = async (
+  options: RazorpayCheckoutOptions,
+): Promise<void> => {
   try {
     const activeCountry = options.country || getActiveMarketCountry();
     // 1. Create order intent on server (handles Razorpay -> Stripe automatic failover)
@@ -142,13 +154,21 @@ export const openRazorpayCheckout = async (options: RazorpayCheckoutOptions): Pr
       options.amount,
       options.currency,
       `rcpt_${Date.now()}`,
-      { ...options.notes, userEmail: options.userEmail, userName: options.userName, userPhone: options.userPhone },
+      {
+        ...options.notes,
+        userEmail: options.userEmail,
+        userName: options.userName,
+        userPhone: options.userPhone,
+      },
       activeCountry,
-      options.userPhone
+      options.userPhone,
     );
 
     // If primary gateway (Razorpay) failed over to secondary gateway (Cashfree PG)
-    if ((orderData.gateway === 'cashfree' || orderData.gateway === 'stripe') && orderData.checkoutUrl) {
+    if (
+      (orderData.gateway === "cashfree" || orderData.gateway === "stripe") &&
+      orderData.checkoutUrl
+    ) {
       window.location.href = orderData.checkoutUrl;
       return;
     }
@@ -156,7 +176,9 @@ export const openRazorpayCheckout = async (options: RazorpayCheckoutOptions): Pr
     // 2. Ensure Razorpay checkout script is loaded for primary gateway
     const isLoaded = await loadRazorpayScript();
     if (!isLoaded) {
-      throw new Error('Payment gateway SDK failed to load. Please check your network connection.');
+      throw new Error(
+        "Payment gateway SDK failed to load. Please check your network connection.",
+      );
     }
 
     const metaEnv = (import.meta as any).env || {};
@@ -170,19 +192,20 @@ export const openRazorpayCheckout = async (options: RazorpayCheckoutOptions): Pr
       key: keyId,
       amount: orderData.amount,
       currency: orderData.currency,
-      name: options.name || 'BxStrength Performance',
-      description: options.description || '1-on-1 Fitness & Performance Protocol',
+      name: options.name || "BxStrength Performance",
+      description:
+        options.description || "1-on-1 Fitness & Performance Protocol",
       order_id: orderData.order_id,
-      image: '/favicon.svg',
+      image: "/favicon.svg",
       prefill: {
-        name: options.userName || '',
-        email: options.userEmail || '',
-        contact: options.userPhone || ''
+        name: options.userName || "",
+        email: options.userEmail || "",
+        contact: options.userPhone || "",
       },
       notes: options.notes || {},
       theme: {
-        color: '#CCFF00',
-        backdrop_color: 'rgba(10, 10, 12, 0.9)'
+        color: "#CCFF00",
+        backdrop_color: "rgba(10, 10, 12, 0.9)",
       },
       handler: async function (response: {
         razorpay_payment_id: string;
@@ -194,7 +217,7 @@ export const openRazorpayCheckout = async (options: RazorpayCheckoutOptions): Pr
           await verifyRazorpayPayment({
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature
+            razorpay_signature: response.razorpay_signature,
           });
 
           // Execute success callback
@@ -212,15 +235,18 @@ export const openRazorpayCheckout = async (options: RazorpayCheckoutOptions): Pr
           if (options.onDismiss) {
             options.onDismiss();
           }
-        }
-      }
+        },
+      },
     };
 
     // 4. Instantiate and open Razorpay Payment Modal
     const rzp = new (window as any).Razorpay(razorpayOptions);
 
-    rzp.on('payment.failed', function (response: any) {
-      const errorMsg = response.error?.description || response.error?.reason || 'Payment failed';
+    rzp.on("payment.failed", function (response: any) {
+      const errorMsg =
+        response.error?.description ||
+        response.error?.reason ||
+        "Payment failed";
       if (options.onFailure) {
         options.onFailure(new Error(errorMsg));
       } else {

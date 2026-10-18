@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, SupportTicket, TicketCategory, TicketPriority } from '../../types';
-import { VelocityAPI, getApiUrl } from '../../services/api';
+import { VelocityAPI, getApiUrl, apiFetch } from '../../services/api';
 import { sendBrevoTicketEmail } from '../../services/emailService';
 import { LifeBuoy, Plus, CheckCircle2, Clock, AlertCircle, MessageSquare, Tag, X, ShieldAlert, Send, UserCheck } from 'lucide-react';
 
@@ -43,7 +43,7 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
     if (isInitial) setIsLoading(true);
     try {
       const localTickets = VelocityAPI.getTickets(user.id);
-      const res = await fetch(getApiUrl(`/api/tickets?userId=${encodeURIComponent(user.id)}&userEmail=${encodeURIComponent(user.email)}`));
+      const res = await apiFetch(getApiUrl(`/api/tickets?userId=${encodeURIComponent(user.id)}&userEmail=${encodeURIComponent(user.email)}`));
       if (res.ok) {
         const serverTickets: SupportTicket[] = await res.json();
         const map = new Map<string, SupportTicket>();

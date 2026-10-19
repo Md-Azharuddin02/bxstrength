@@ -146,14 +146,12 @@ export const TestimonialsSection: React.FC = () => {
   useEffect(() => {
     if (reviews.length <= 1 || showModal || isPaused || isExpanded) return;
 
-    const text = reviews[currentIndex]?.comment || '';
-    const delay = Math.min(9000, 5000 + text.length * 8);
-
     const timer = setTimeout(() => {
       setCurrentIndex((prev) => (prev + 1) % reviews.length);
-    }, delay);
+    }, 4000);
 
     return () => clearTimeout(timer);
+
   }, [currentIndex, reviews, showModal, isPaused, isExpanded]);
 
   const handleSubmitReview = async (e: React.FormEvent) => {

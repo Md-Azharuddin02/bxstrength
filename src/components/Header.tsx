@@ -13,6 +13,8 @@ interface HeaderProps {
   onOpenRegister: () => void;
 }
 
+const SERVICES_SECTION_ID = 'services-section';
+
 export const Header: React.FC<HeaderProps> = ({
   currentPage,
   onNavigate,
@@ -27,6 +29,10 @@ export const Header: React.FC<HeaderProps> = ({
   const [scrolled, setScrolled] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [servicesActive, setServicesActive] = useState(false);
+
+  useEffect(() => {
+    if (currentPage !== 'home') setServicesActive(false);
+  }, [currentPage]);
 
   useEffect(() => {
     let ticking = false;
@@ -71,7 +77,7 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   const handleNav = (page: ViewPage, targetElementId?: string) => {
-    setServicesActive(targetElementId === 'service-section');
+    setServicesActive(targetElementId === SERVICES_SECTION_ID);
     onNavigate(page);
     setMobileMenuOpen(false);
     if (targetElementId) {
@@ -317,12 +323,12 @@ export const Header: React.FC<HeaderProps> = ({
                   key={item.label}
                   onClick={() => {
                     if (item.label === 'SERVICES') {
-                      handleNav('home', 'services-section');
+                      handleNav('home', SERVICES_SECTION_ID);
                     } else {
                       handleNav(item.page);
                     }
                   }}
-                  className={`text-xs font-black tracking-widest uppercase transition-all px-3 py-1.5 rounded-md cursor-pointer flex items-center gap-1.5 ${
+                  className={`text-xs font-black tracking-widest uppercase transition-colors duration-200 px-3 py-1.5 rounded-md cursor-pointer flex items-center gap-1.5 border ${
                     isActive
                       ? 'bg-zinc-800 text-white shadow-sm border-zinc-700'
                       : 'text-zinc-400 border-transparent hover:text-white hover:bg-zinc-800/50'
@@ -369,7 +375,7 @@ export const Header: React.FC<HeaderProps> = ({
                   key={item.label}
                   onClick={() => {
                     if (item.label === 'SERVICES') {
-                      handleNav('home', 'services-section');
+                      handleNav('home', SERVICES_SECTION_ID);
                     } else {
                       handleNav(item.page);
                     }

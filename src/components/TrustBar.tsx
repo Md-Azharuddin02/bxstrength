@@ -38,7 +38,7 @@ const CounterValue: React.FC<CounterProps> = ({
       const progress = Math.min(elapsed / duration, 1);
 
       // Ease-out cubic formula for premium deceleration feel
-      const easeOutCubic = 1 - Math.pow(1 - progress, 3);
+      const easeOutCubic = 1 - Math.pow(1 - progress, 2);
       const currentCount = Math.floor(easeOutCubic * targetNumber);
 
       setCount(currentCount);
@@ -85,7 +85,7 @@ const CounterValue: React.FC<CounterProps> = ({
   );
 };
 
-export const TrustBar: React.FC = () => {
+export const TrustBar: React.FC<{ ready?: boolean }> = ({ ready = true }) => {
   const sectionRef = useRef<HTMLElement | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [hoverCounts, setHoverCounts] = useState<{ [key: number]: number }>({});
@@ -168,7 +168,7 @@ export const TrustBar: React.FC = () => {
             return (
               <div
                 key={idx}
-                onMouseEnter={() => handleMouseEnter(idx)}
+                //onMouseEnter={() => handleMouseEnter(idx)}
                 className={`flex flex-col items-center justify-center p-3 rounded-xl group cursor-pointer transition-all duration-300 hover:bg-zinc-800/50 hover:border-zinc-700/60 border border-transparent transform ${
                   idx === 4 ? 'col-span-2 sm:col-span-1 lg:col-span-1' : ''
                 } ${
@@ -187,7 +187,7 @@ export const TrustBar: React.FC = () => {
                   fallbackValue={item.fallbackValue}
                   isVisible={isVisible}
                   triggerKey={triggerKey}
-                  duration={10000}
+                  duration={2200}
                 />
                 <span className="text-[11px] font-medium text-zinc-400 mt-0.5 group-hover:text-zinc-300 transition-colors duration-300">
                   {item.label}

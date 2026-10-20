@@ -132,6 +132,7 @@ export const TestimonialsSection: React.FC = () => {
     }
   };
 
+  const touchStartX = useRef<number | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -140,16 +141,18 @@ export const TestimonialsSection: React.FC = () => {
     setIsExpanded(false);
   }, [currentIndex]);
 
-  // Auto-slide reviews every 4 seconds (pauses on hover or when review modal is open)
+  // Auto-slide: reading time adapts to review length (5s to 9s).
+  // Pauses on hover, while "Read Full Review" is open, or when the review modal is open.
   useEffect(() => {
-    if (reviews.length <= 1 || showModal || isPaused) return;
+    if (reviews.length <= 1 || showModal || isPaused || isExpanded) return;
 
     const timer = setTimeout(() => {
       setCurrentIndex((prev) => (prev + 1) % reviews.length);
     }, 4000);
 
     return () => clearTimeout(timer);
-  }, [currentIndex, reviews.length, showModal, isPaused]);
+
+  }, [currentIndex, reviews, showModal, isPaused, isExpanded]);
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,8 +237,6 @@ export const TestimonialsSection: React.FC = () => {
 
   const current = reviews.length > 0 ? reviews[currentIndex] || reviews[0] : null;
 
-  const activeAvatar = current ? formatAvatarSrc(current.avatar) : '';
-
   return (
     <section className="py-12 sm:py-20 bg-[#0a0a0a] text-white border-b border-zinc-800 relative font-sans overflow-hidden">
       
@@ -289,80 +290,134 @@ export const TestimonialsSection: React.FC = () => {
             </p>
           </div>
         ) : current ? (
-          <div 
+          <div
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
-            className="max-w-4xl mx-auto bg-[#121214] border border-zinc-800 p-5 sm:p-10 lg:p-12 relative shadow-2xl text-center rounded-2xl transition-all w-full overflow-hidden"
+            onTouchStart={(e) => {
+              touchStartX.current = e.touches[0].clientX;
+            }}
+            onTouchEnd={(e) => {
+              if (touchStartX.current === null) return;
+              const diff = e.changedTouches[0].clientX - touchStartX.current;
+              if (Math.abs(diff) > 50) {
+                if (diff < 0) nextTestimonial();
+                else prevTestimonial();
+              }
+              touchStartX.current = null;
+            }}
+            className="w-full max-w-6xl mx-auto"
           >
-            <Quote className="w-8 h-8 sm:w-12 sm:h-12 text-zinc-700 mx-auto mb-2 sm:mb-3 opacity-50" />
+            {/* Stage: all cards share one grid cell, so the height fits the tallest card */}
+            <div className="grid overflow-hidden py-4">
+              {reviews.map((r, i) => {
+                const n = reviews.length;
+                const half = Math.floor(n / 2);
+                const offset = ((i - currentIndex + n + half) % n) - half;
+                const isActive = offset === 0;
+                const isNear = Math.abs(offset) === 1;
+                const avatar = formatAvatarSrc(r.avatar);
 
-            {/* Star Rating */}
-            <div className="flex justify-center gap-1 sm:gap-1.5 text-amber-400 mb-2 sm:mb-4">
-              {[...Array(5)].map((_, i) => (
-                <Star 
-                  key={i} 
-                  className={`w-4 h-4 sm:w-5 sm:h-5 ${i < current.rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-700 fill-zinc-800'}`} 
-                />
-              ))}
+                return (
+                  <div
+                    key={r.id}
+                    aria-hidden={!isActive}
+                    onClick={() => {
+                      if (offset === 1) nextTestimonial();
+                      else if (offset === -1) prevTestimonial();
+                    }}
+                    className={`col-start-1 row-start-1 justify-self-center w-[78%] sm:w-[56%] lg:w-[50%] transition-all duration-700 ease-out ${
+                      isActive
+                        ? 'z-10 opacity-100 blur-0'
+                        : isNear
+                        ? 'z-0 opacity-60 blur-[1px] cursor-pointer select-none hover:opacity-80'
+                        : 'z-0 opacity-0 pointer-events-none'
+                    }`}
+                    style={{
+                      transform: `translateX(${offset * 82}%) scale(${isActive ? 1 : 0.9})`,
+                    }}
+                  >
+                    <div
+                      className={`h-full bg-[#121214] border p-5 sm:p-10 text-center rounded-2xl shadow-2xl transition-colors duration-700 ${
+                        isActive ? 'border-zinc-700' : 'border-zinc-800'
+                      }`}
+                    >
+                      <Quote className="w-8 h-8 sm:w-12 sm:h-12 text-zinc-700 mx-auto mb-2 sm:mb-3 opacity-50" />
+
+                      {/* Star Rating */}
+                      <div className="flex justify-center gap-1 sm:gap-1.5 text-amber-400 mb-2 sm:mb-4">
+                        {[...Array(5)].map((_, s) => (
+                          <Star
+                            key={s}
+                            className={`w-4 h-4 sm:w-5 sm:h-5 ${
+                              s < r.rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-700 fill-zinc-800'
+                            }`}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Review comment with Read Full Review */}
+                      <div className="my-3 sm:my-5 px-1 max-w-3xl mx-auto flex flex-col items-center min-h-[110px] sm:min-h-[130px] justify-center">
+                        <div
+                          className={`w-full text-center transition-all duration-300 ${
+                            isActive && isExpanded
+                              ? 'max-h-56 sm:max-h-64 overflow-y-auto pr-1'
+                              : 'line-clamp-3 sm:line-clamp-4 overflow-hidden'
+                          }`}
+                        >
+                          <p className="text-zinc-200 text-sm sm:text-base lg:text-lg font-medium leading-relaxed italic break-words">
+                            "{r.comment}"
+                          </p>
+                        </div>
+
+                        {isActive && r.comment && r.comment.length > 130 && (
+                          <button
+                            type="button"
+                            onClick={() => setIsExpanded(!isExpanded)}
+                            className="mt-2.5 text-[11px] sm:text-xs font-bold font-mono uppercase tracking-wider text-[#CCFF00] hover:text-[#b8e600] inline-flex items-center gap-1.5 cursor-pointer bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700/80 px-3 py-1 rounded-full transition-all shadow-sm active:scale-95"
+                          >
+                            <span>{isExpanded ? 'Read Less' : 'Read Full Review...'}</span>
+                            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Avatar, name, role */}
+                      <div className="flex flex-col items-center justify-center gap-2.5 sm:gap-3 max-w-full px-2 mt-2">
+                        <div
+                          className="relative group cursor-pointer"
+                          onClick={() => isActive && avatar && setSelectedZoomImage(avatar)}
+                          title="Click to view full photo"
+                        >
+                          <img
+                            src={avatar}
+                            alt={r.name}
+                            className="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-emerald-500 shadow-xl bg-zinc-900 group-hover:scale-105 transition-transform"
+                          />
+                          <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Maximize2 className="w-4 h-4 text-white" />
+                          </div>
+                        </div>
+                        <div className="max-w-full">
+                          <h3 className="text-sm sm:text-base font-black text-white uppercase tracking-tight flex flex-wrap items-center justify-center gap-1.5 break-words">
+                            <span>{r.name}</span>
+                            {avatar.includes('data:image') && (
+                              <span className="text-[9px] font-mono bg-emerald-950/80 border border-emerald-800 text-emerald-300 px-1.5 py-0.5 rounded-full uppercase shrink-0">
+                                PHOTO VERIFIED
+                              </span>
+                            )}
+                          </h3>
+                          <p className="text-[11px] sm:text-xs font-bold text-emerald-400 uppercase tracking-wider mt-0.5 break-words">
+                            {r.role}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Review Comment Container with Read More / Read Less & Scrollable Option */}
-            <div className="my-3 sm:my-5 px-1 max-w-3xl mx-auto flex flex-col items-center min-h-[110px] sm:min-h-[130px] justify-center">
-              <div 
-                className={`w-full text-center transition-all duration-300 ${
-                  isExpanded 
-                    ? 'max-h-56 sm:max-h-64 overflow-y-auto pr-1' 
-                    : 'line-clamp-3 sm:line-clamp-4 overflow-hidden'
-                }`}
-              >
-                <p className="text-zinc-200 text-sm sm:text-base lg:text-lg font-medium leading-relaxed italic break-words">
-                  "{current.comment}"
-                </p>
-              </div>
-
-              {current.comment && current.comment.length > 130 && (
-                <button
-                  type="button"
-                  onClick={() => setIsExpanded(!isExpanded)}
-                  className="mt-2.5 text-[11px] sm:text-xs font-bold font-mono uppercase tracking-wider text-[#CCFF00] hover:text-[#b8e600] inline-flex items-center gap-1.5 cursor-pointer bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700/80 px-3 py-1 rounded-full transition-all shadow-sm active:scale-95"
-                >
-                  <span>{isExpanded ? 'Read Less' : 'Read Full Review...'}</span>
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
-                </button>
-              )}
-            </div>
-
-            <div className="flex flex-col items-center justify-center gap-2.5 sm:gap-3 max-w-full px-2 mt-2">
-              <div 
-                className="relative group cursor-pointer"
-                onClick={() => activeAvatar && setSelectedZoomImage(activeAvatar)}
-                title="Click to view full photo"
-              >
-                <img
-                  src={activeAvatar}
-                  alt={current.name}
-                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-emerald-500 shadow-xl bg-zinc-900 group-hover:scale-105 transition-transform"
-                />
-                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Maximize2 className="w-4 h-4 text-white" />
-                </div>
-              </div>
-              <div className="max-w-full">
-                <h3 className="text-sm sm:text-base font-black text-white uppercase tracking-tight flex flex-wrap items-center justify-center gap-1.5 break-words">
-                  <span>{current.name}</span>
-                  {activeAvatar.includes('data:image') && (
-                    <span className="text-[9px] font-mono bg-emerald-950/80 border border-emerald-800 text-emerald-300 px-1.5 py-0.5 rounded-full uppercase shrink-0">
-                      PHOTO VERIFIED
-                    </span>
-                  )}
-                </h3>
-                <p className="text-[11px] sm:text-xs font-bold text-emerald-400 uppercase tracking-wider mt-0.5 break-words">
-                  {current.role}
-                </p>
-              </div>
-            </div>
-
-            {/* Clean Carousel Controls (Prev/Next Arrows Only) */}
+            {/* Arrows with counter */}
             {reviews.length > 1 && (
               <div className="mt-6 sm:mt-8 flex justify-center items-center gap-4 w-full">
                 <button
@@ -372,6 +427,9 @@ export const TestimonialsSection: React.FC = () => {
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
+                <span className="text-xs font-mono font-bold text-zinc-400 tabular-nums min-w-[56px] text-center">
+                  {currentIndex + 1} / {reviews.length}
+                </span>
                 <button
                   onClick={nextTestimonial}
                   className="w-10 h-10 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-[#CCFF00] text-white flex items-center justify-center transition-all cursor-pointer shrink-0 active:scale-95 shadow-md"
@@ -591,4 +649,3 @@ export const TestimonialsSection: React.FC = () => {
     </section>
   );
 };
-

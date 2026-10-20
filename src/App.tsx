@@ -41,6 +41,7 @@ import { ServiceCustomizationModal } from './components/ServiceCustomizationModa
 import { Preloader } from './components/ui/Preloader';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { CheckCircle2, X, WifiOff, AlertTriangle } from 'lucide-react';
+import { TrainerCompact } from './components/TrainerCompact';
 
 function AppContent() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -341,11 +342,23 @@ function AppContent() {
               onOpenAssessment={() => setAssessmentModalOpen(true)}
             />
 
+            <TrustBar ready={!isLoadingSplash} />
+
+
             <AssessmentSection
               onOpenAssessment={() => setAssessmentModalOpen(true)}
             />
 
-            <TrustBar ready={!isLoadingSplash} />
+
+            <ServicesSection
+              onOpenBooking={() => {
+                setSelectedClassForBooking(undefined);
+                setSelectedTrainerForBooking(undefined);
+                setBookingModalOpen(true);
+              }}
+              onSelectService={handleSelectService}
+            />
+
 
             <BeforeAfterShowcase
               onOpenAssessment={() => setAssessmentModalOpen(true)}
@@ -357,17 +370,8 @@ function AppContent() {
               onOpenConsultation={() => setBookingModalOpen(true)}
             />
 
-            <ServicesSection
-              onOpenBooking={() => {
-                setSelectedClassForBooking(undefined);
-                setSelectedTrainerForBooking(undefined);
-                setBookingModalOpen(true);
-              }}
-              onSelectService={handleSelectService}
-            />
 
-            <TrainersSection
-              onSelectTrainer={handleSelectTrainer}
+            <TrainerCompact
               onNavigate={(page) => setCurrentPage(page)}
               onOpenBookingWithTrainer={handleOpenBookingWithTrainer}
             />

@@ -46,24 +46,15 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
 
     const urlStr = window.location.href;
     if (urlStr.includes('reset-password') || urlStr.includes('token=')) {
-      try {
-        const urlObj = new URL(urlStr.replace('#', '?'));
-        const urlEmail = urlObj.searchParams.get('email');
-        const token = urlObj.searchParams.get('token');
-        if (urlEmail) {
-          setEmail(decodeURIComponent(urlEmail));
-        }
-        if (token) {
-          setResetTokenFromUrl(token);
-        }
-        setStep('set_new_password');
-      } catch {
-        const match = urlStr.match(/email=([^&]+)/);
-        if (match && match[1]) {
-          setEmail(decodeURIComponent(match[1]));
-          setStep('set_new_password');
-        }
-      }
+      // The reset link carries its params in the hash: #reset-password?email=..&token=..
+      const afterHash = window.location.hash + window.location.search;
+      const q = afterHash.indexOf('?');
+      const params = new URLSearchParams(q >= 0 ? afterHash.slice(q + 1) : '');
+      const urlEmail = params.get('email');
+      const token = params.get('token');
+      if (urlEmail) setEmail(urlEmail);
+      if (token) setResetTokenFromUrl(token);
+      setStep('set_new_password');
     }
 
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -125,7 +116,7 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
       setErrorMsg(null);
       setLoading(true);
       
-      // Call backend API endpoint to update password in NeonDB PostgreSQL
+      // Call backend API endpoint to update password in database
       const res = await fetch(getApiUrl('/api/auth/reset-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

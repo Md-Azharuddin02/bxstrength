@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Enquiry, User, EnquiryActivityLog } from '../../types';
-import { VelocityAPI } from '../../services/api';
+import { VelocityAPI, apiFetch } from '../../services/api';
 import { 
   Mail, Trash2, CheckCircle2, Phone, Calendar, RefreshCw, Search, X, Filter, 
   UserCheck, Clock, ShieldAlert, Plus, Tag, Flame, Zap, Check, ChevronDown, ChevronUp, History, MessageSquare, Award, CornerUpRight
@@ -191,7 +191,7 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
       let serverData: Enquiry[] = [];
 
       try {
-        const res = await fetch('/api/enquiries');
+        const res = await apiFetch('/api/enquiries');
         if (res.ok) {
           serverData = await res.json();
         }
@@ -370,7 +370,7 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
       VelocityAPI.deleteEnquiry(targetId);
 
       try {
-        await fetch(`/api/enquiries/${targetId}`, { method: 'DELETE' });
+        await apiFetch(`/api/enquiries/${targetId}`, { method: 'DELETE' });
       } catch (err) {
         console.error('Failed to delete enquiry from server:', err);
       }

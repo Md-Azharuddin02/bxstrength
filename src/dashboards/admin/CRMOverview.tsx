@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, ClassSchedule, Subscription, AuditLog, Enquiry, LeadPipelineStage } from '../../types';
-import { VelocityAPI, getApiUrl } from '../../services/api';
+import { VelocityAPI, getApiUrl, apiFetch } from '../../services/api';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { AssignedTasksSection } from '../head-coach/AssignedTasksSection';
 import { 
@@ -131,7 +131,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
 
   const fetchJourneyBookings = async () => {
     try {
-      const res = await fetch(getApiUrl('/api/admin/journey/bookings'));
+      const res = await apiFetch(getApiUrl('/api/admin/journey/bookings'));
       const data = await res.json();
       if (res.ok && data.bookings) {
         setPendingJourneyBookings(data.bookings);
@@ -151,7 +151,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
     setIsAssigning(true);
 
     try {
-      const res = await fetch(getApiUrl('/api/admin/journey/confirm-booking'), {
+      const res = await apiFetch(getApiUrl('/api/admin/journey/confirm-booking'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

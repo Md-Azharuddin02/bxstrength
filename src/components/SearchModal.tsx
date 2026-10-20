@@ -169,7 +169,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Load real coaches from NeonDB database on open
+  // Load real coaches from database on open
   useEffect(() => {
     if (!isOpen) return;
     const loadRealCoaches = async () => {
@@ -351,7 +351,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     });
   }, [query]);
 
-  // String Capture Submission Handler to NeonDB & CRM Pipeline
+  // String Capture Submission Handler to database & CRM Pipeline
   const handleStringCaptureSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientName || !clientEmail) return;

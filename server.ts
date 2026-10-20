@@ -11,6 +11,20 @@ import { fileURLToPath } from 'url';
 import nodemailer from 'nodemailer';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
+import { CORS_ORIGINS } from './Backend/src/config/env.ts';
+import { dbPool } from './Backend/src/config/db.ts';
+import { sanitizeInput } from './Backend/src/utils/sanitize.ts';
+import { sendServerEmail } from './Backend/src/services/emailService.ts';
+import authRoutes from './Backend/src/routes/authRoutes.ts';
+import subscriptionRoutes from './Backend/src/routes/subscriptionRoutes.ts';
+import workoutProgramRoutes from './Backend/src/routes/workoutProgramRoutes.ts';
+import nutritionPlanRoutes from './Backend/src/routes/nutritionPlanRoutes.ts';
+import emailRoutes from './Backend/src/routes/emailRoutes.ts';
+import reviewRoutes from './Backend/src/routes/reviewRoutes.ts';
+import { purgeReviews } from './Backend/src/controllers/reviewController.ts';
+import announcementRoutes from './Backend/src/routes/announcementRoutes.ts';
+import { authenticate as authenticateToken, authorizeRoles } from './Backend/src/middlewares/authMiddleware.ts';
+import apiGuard from './Backend/src/middlewares/apiGuard.ts';
 
 dotenv.config({ quiet: true });
 
@@ -19,7 +33,8 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const JWT_SECRET = process.env.JWT_SECRET || 'bxstrength_super_secret_jwt_key_2026';
+// moved to Backend/src/config/env.ts
+// const JWT_SECRET = process.env.JWT_SECRET || 'bxstrength_super_secret_jwt_key_2026';
 
 const getRazorpayInstance = () => {
   const key_id = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || '';
@@ -48,18 +63,22 @@ app.use(
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         imgSrc: ["'self'", 'data:', 'https://images.unsplash.com', 'https://api.dicebear.com', 'https://*.razorpay.com'],
         frameSrc: ["'self'", 'https://api.razorpay.com', 'https://checkout.razorpay.com'],
-        connectSrc: ["'self'", 'http://localhost:*', 'ws://localhost:*', 'https://api.razorpay.com', 'https://lumberjack.razorpay.com']
+        connectSrc: ["'self'", 'http://localhost:*', 'ws://localhost:*', 'https://api.razorpay.com', 'https://lumberjack.razorpay.com'],
+        frameAncestors: ["'self'"]
       }
     },
     crossOriginEmbedderPolicy: false,
-    frameguard: false,
+    // deny our pages being framed by other sites (clickjacking protection)
+    frameguard: { action: 'sameorigin' },
     noSniff: true,
     xssFilter: true
   })
 );
 
 // 2. CORS & BODY PARSER WITH STRICT PAYLOAD LIMIT (10MB for base64 photo uploads up to 500KB)
-app.use(cors());
+// app.use(cors());
+// cookies are only accepted when the origin is named and credentials are allowed
+app.use(cors({ origin: CORS_ORIGINS.length ? CORS_ORIGINS : true, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 
 // Global Request Body & Query XSS Protection Sanitizer
@@ -94,11 +113,12 @@ app.use((req, res, next) => {
   next();
 });
 
-function isValidUkMobile(phone: string | null | undefined): boolean {
-  if (!phone || !phone.trim()) return true;
-  const cleaned = phone.trim().replace(/[\s\-\(\)\+\.]/g, '');
-  return /^\d{7,15}$/.test(cleaned);
-}
+// moved to Backend/src/utils/sanitize.ts
+// function isValidUkMobile(phone: string | null | undefined): boolean {
+//   if (!phone || !phone.trim()) return true;
+//   const cleaned = phone.trim().replace(/[\s\-\(\)\+\.]/g, '');
+//   return /^\d{7,15}$/.test(cleaned);
+// }
 
 // 3. RATE LIMITING
 const globalApiLimiter = rateLimit({
@@ -109,7 +129,12 @@ const globalApiLimiter = rateLimit({
   legacyHeaders: false
 });
 
+
+
 app.use('/api/', globalApiLimiter);
+
+// every /api route is closed unless the guard lists it as public
+app.use('/api', apiGuard);
 
 // 4. CASHFREE PAYMENT GATEWAY SECONDARY ENGINE
 const getCashfreeConfig = () => {
@@ -311,7 +336,7 @@ app.post(['/api/create-order', '/api/create-razorpay-order', '/api/payments/crea
     };
     paymentTransactionsStore.unshift(txRecord);
 
-    // Save to NeonDB if available
+    // Save to database if available
     if (dbPool) {
       try {
         await dbPool.query(
@@ -362,7 +387,7 @@ app.post(['/api/create-order', '/api/create-razorpay-order', '/api/payments/crea
       });
     } catch (err: any) {
       primaryError = err?.message || 'Razorpay order creation failed';
-      console.warn(`⚠️ [PAYMENT FAILOVER] Primary gateway (Razorpay) failed: ${primaryError}. Transitioning to secondary gateway (Cashfree PG)...`);
+      console.warn(`[PAYMENT FAILOVER] Primary gateway (Razorpay) failed: ${primaryError}. Falling back to Cashfree.`);
     }
 
     //SECONDARY GATEWAY FAILOVER (CASHFREE PG)
@@ -441,7 +466,7 @@ app.post(['/api/create-order', '/api/create-razorpay-order', '/api/payments/crea
         currency
       });
     } catch (cfErr: any) {
-      console.error('⚠️ [PAYMENT FAILOVER ERROR] Secondary gateway (Cashfree PG) failed:', cfErr?.message);
+      console.error('[PAYMENT FAILOVER ERROR] Cashfree failed:', cfErr?.message);
     }
 
     // Both primary & secondary failed
@@ -793,7 +818,7 @@ app.post('/api/journey/verify-payment', async (req, res) => {
       htmlContent: `
         <div style="font-family: Arial, sans-serif; background-color: #0d0d0f; color: #ffffff; padding: 32px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
           <div style="text-align: center; border-bottom: 2px solid #CCFF00; padding-bottom: 16px; margin-bottom: 24px;">
-            <h1 style="color: #CCFF00; margin: 0; font-size: 22px; text-transform: uppercase; font-weight: 900;">✓ PAYMENT RECEIVED SUCCESSFULLY</h1>
+            <h1 style="color: #CCFF00; margin: 0; font-size: 22px; text-transform: uppercase; font-weight: 900;">PAYMENT RECEIVED SUCCESSFULLY</h1>
             <p style="color: #a1a1aa; font-size: 12px; margin-top: 6px;">Booking Ref: <strong style="color: #ffffff;">${record.id}</strong></p>
           </div>
           <p style="font-size: 15px; color: #e4e4e7;">Dear <strong>${record.userName}</strong>,</p>
@@ -809,15 +834,15 @@ app.post('/api/journey/verify-payment', async (req, res) => {
       `
     }).catch(() => { });
 
-    const adminEmail = process.env.VITE_ADMIN_EMAIL || process.env.BREVO_SENDER_EMAIL || 'khanshadan96@gmail.com';
+    const adminEmail = process.env.VITE_ADMIN_EMAIL || process.env.BREVO_SENDER_EMAIL || 'support@bxstrength.com';
     sendServerEmail({
       toEmail: adminEmail,
       toName: 'BXSTRENGTH Head Coach & Admin Team',
-      subject: `🚨 [URGENT ACTION REQUIRED] Assign Coach for ${record.userName} (Ref: ${record.id})`,
+      subject: `[URGENT ACTION REQUIRED] Assign Coach for ${record.userName} (Ref: ${record.id})`,
       htmlContent: `
         <div style="font-family: Arial, sans-serif; background-color: #0d0d0f; color: #ffffff; padding: 32px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
           <div style="text-align: center; border-bottom: 2px solid #CCFF00; padding-bottom: 16px; margin-bottom: 24px;">
-            <h1 style="color: #CCFF00; margin: 0; font-size: 20px; text-transform: uppercase; font-weight: 900;">🚨 ACTION REQUIRED: COACH ASSIGNMENT PENDING</h1>
+            <h1 style="color: #CCFF00; margin: 0; font-size: 20px; text-transform: uppercase; font-weight: 900;">ACTION REQUIRED: COACH ASSIGNMENT PENDING</h1>
             <p style="color: #a1a1aa; font-size: 12px; margin-top: 4px;">Booking Ref: <strong style="color: #ffffff;">${record.id}</strong></p>
           </div>
           <p style="font-size: 14px; color: #e4e4e7;">Customer <strong>${record.userName}</strong> has completed payment and is waiting on <strong>Step 4 (Coach Assignment Pending)</strong>.</p>
@@ -877,7 +902,7 @@ app.get('/api/journey/latest-by-email/:email', async (req, res) => {
       return res.status(200).json({ success: true, record: userRecords[0] });
     }
 
-    //Query NeonDB
+    //Query database
     if (dbPool) {
       try {
         const dbRes = await dbPool.query(
@@ -974,11 +999,11 @@ app.post('/api/admin/journey/confirm-booking', async (req, res) => {
     sendServerEmail({
       toEmail: record.userEmail,
       toName: record.userName,
-      subject: `✓ [CONFIRMED] Your BXSTRENGTH Training Schedule with ${coachName}`,
+      subject: `[CONFIRMED] Your BXSTRENGTH Training Schedule with ${coachName}`,
       htmlContent: `
         <div style="font-family: Arial, sans-serif; background-color: #0d0d0f; color: #ffffff; padding: 32px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
           <div style="text-align: center; border-bottom: 2px solid #CCFF00; padding-bottom: 16px; margin-bottom: 24px;">
-            <h1 style="color: #CCFF00; margin: 0; font-size: 22px; text-transform: uppercase; font-weight: 900;">✓ OFFICIAL TRAINING SCHEDULE CONFIRMED</h1>
+            <h1 style="color: #CCFF00; margin: 0; font-size: 22px; text-transform: uppercase; font-weight: 900;">OFFICIAL TRAINING SCHEDULE CONFIRMED</h1>
             <p style="color: #a1a1aa; font-size: 12px; margin-top: 6px;">Booking Ref: <strong style="color: #ffffff;">${record.id}</strong></p>
           </div>
 
@@ -1121,13 +1146,14 @@ app.post(['/api/webhooks/cashfree', '/api/payments/cashfree-webhook'], async (re
   }
 });
 
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 50,
-  message: { error: 'Too many authentication attempts. Please try again after 15 minutes.' },
-  standardHeaders: true,
-  legacyHeaders: false
-});
+// moved to Backend/src/middlewares/rateLimiter.ts
+// const authLimiter = rateLimit({
+//   windowMs: 15 * 60 * 1000,
+//   max: 50,
+//   message: { error: 'Too many authentication attempts. Please try again after 15 minutes.' },
+//   standardHeaders: true,
+//   legacyHeaders: false
+// });
 
 const enquiryLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -1148,213 +1174,216 @@ app.get('/sitemap.xml', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'sitemap.xml'));
 });
 
-function sanitizeInput(str: string): string {
-  if (typeof str !== 'string') return '';
-  if (str.startsWith('data:image/')) return str;
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;')
-    .trim();
-}
+// moved to Backend/src/utils/sanitize.ts
+// function sanitizeInput(str: string): string {
+//   if (typeof str !== 'string') return '';
+//   if (str.startsWith('data:image/')) return str;
+//   return str
+//     .replace(/&/g, '&amp;')
+//     .replace(/</g, '&lt;')
+//     .replace(/>/g, '&gt;')
+//     .replace(/"/g, '&quot;')
+//     .replace(/'/g, '&#x27;')
+//     .replace(/\//g, '&#x2F;')
+//     .trim();
+// }
 
-interface SendEmailOptions {
-  toEmail: string;
-  toName: string;
-  subject: string;
-  htmlContent: string;
-  senderName?: string;
-}
+// moved to Backend/src/services/emailService.ts
+// interface SendEmailOptions {
+//   toEmail: string;
+//   toName: string;
+//   subject: string;
+//   htmlContent: string;
+//   senderName?: string;
+// }
+//
+// function buildFullHtmlEmail(subject: string, rawContent: string): string {
+//   let content = rawContent
+//     .replace(/&lt;/g, '<')
+//     .replace(/&gt;/g, '>')
+//     .replace(/&quot;/g, '"')
+//     .replace(/&#39;/g, "'")
+//     .replace(/&#x2F;/gi, '/')
+//     .replace(/&#x2f;/gi, '/')
+//     .replace(/&amp;/g, '&');
+//
+//   if (content.toLowerCase().includes('<!doctype html') || content.toLowerCase().includes('<html')) {
+//     return content;
+//   }
+//
+//   return `<!DOCTYPE html>
+// <html lang="en">
+// <head>
+//   <meta charset="UTF-8">
+//   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+//   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+//   <title>${subject}</title>
+//   <style>
+//     body { margin: 0; padding: 0; background-color: #09090b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+//     table { border-collapse: collapse; }
+//     img { border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+//     a { color: #CCFF00; text-decoration: none; }
+//   </style>
+// </head>
+// <body style="margin:0; padding:0; background-color:#09090b; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing:antialiased;">
+//   <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#09090b; width:100%; margin:0; padding:24px 10px;">
+//     <tr>
+//       <td align="center">
+//         <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:580px; width:100%; margin:0 auto; background-color:#0d0d12; border:1px solid #27272a; border-radius:12px; overflow:hidden;">
+//           
+//           <!-- BRAND HEADER -->
+//           <tr>
+//             <td style="padding:20px; text-align:center; background-color:#121215; border-bottom:2px solid #CCFF00;">
+//               <img src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1789566029/WhatsApp_Image_2026-09-08_at_10.50.41_AM.png" alt="BxStrength Logo" style="max-height:42px; width:auto; display:inline-block;" />
+//             </td>
+//           </tr>
+//
+//           <!-- MAIN CONTENT BODY -->
+//           <tr>
+//             <td style="padding:24px 20px; color:#ffffff; font-size:14px; line-height:1.6;">
+//               ${content}
+//             </td>
+//           </tr>
+//
+//           <!-- CLEAN CONCISE FOOTER -->
+//           <tr>
+//             <td style="padding:16px 20px; background-color:#0a0a0c; border-top:1px solid #27272a; text-align:center; font-size:11px; color:#71717a;">
+//               <p style="margin:0 0 4px 0; font-weight:800; color:#a1a1aa; text-transform:uppercase; letter-spacing:0.5px;">BXSTRENGTH PERFORMANCE COACHING</p>
+//               <p style="margin:0; color:#71717a;">Support: support@bxstrength.com | WhatsApp: +91 8423594482</p>
+//             </td>
+//           </tr>
+//
+//         </table>
+//       </td>
+//     </tr>
+//   </table>
+// </body>
+// </html>`;
+// }
+//
+// async function sendServerEmail(options: SendEmailOptions): Promise<{ success: boolean; provider?: string; error?: string; messageId?: string }> {
+//   const brevoApiKey = process.env.VITE_BREVO_API_KEY || process.env.BREVO_API_KEY;
+//   const senderEmail = process.env.VITE_SENDER_EMAIL || process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || 'support@bxstrength.com';
+//   const senderName = options.senderName || 'BxStrength Security';
+//
+//   const brevoSmtpKey = process.env.BREVO_SMTP_KEY || (process.env.SMTP_PASS?.startsWith('xsmtpsib-') ? process.env.SMTP_PASS : undefined);
+//   const smtpUser = process.env.SMTP_USER || process.env.BREVO_SENDER_EMAIL || process.env.GMAIL_USER;
+//   const smtpPass = process.env.SMTP_PASS || brevoSmtpKey || process.env.GMAIL_PASS;
+//   const smtpHost = process.env.SMTP_HOST || (brevoSmtpKey ? 'smtp-relay.brevo.com' : 'smtp.gmail.com');
+//   const smtpPort = Number(process.env.SMTP_PORT || 587);
+//
+//   const finalHtml = buildFullHtmlEmail(options.subject, options.htmlContent);
+//   const plainText = finalHtml
+//     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+//     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+//     .replace(/&lt;/g, '<')
+//     .replace(/&gt;/g, '>')
+//     .replace(/&quot;/g, '"')
+//     .replace(/&#39;/g, "'")
+//     .replace(/&amp;/g, '&')
+//     .replace(/<[^>]+>/g, ' ')
+//     .replace(/&nbsp;/g, ' ')
+//     .replace(/\s+/g, ' ')
+//     .trim();
+//
+//   // 1. Primary: Brevo REST API v3 (Fastest, most reliable API integration)
+//   if (brevoApiKey) {
+//     try {
+//       const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+//         method: 'POST',
+//         headers: {
+//           'Accept': 'application/json',
+//           'Content-Type': 'application/json',
+//           'api-key': brevoApiKey
+//         },
+//         body: JSON.stringify({
+//           sender: { name: senderName, email: senderEmail },
+//           to: [{ email: options.toEmail, name: options.toName || options.toEmail }],
+//           subject: options.subject,
+//           htmlContent: finalHtml,
+//           textContent: plainText
+//         })
+//       });
+//
+//       const responseText = await res.text();
+//       if (res.ok) {
+//         let data: any = {};
+//         try { data = JSON.parse(responseText); } catch { }
+//         console.log(`[REAL EMAIL SENT - BREVO API v3] Delivered to ${options.toEmail} | MessageId: ${data.messageId || 'OK'}`);
+//         return { success: true, provider: 'Brevo API (v3)', messageId: data.messageId };
+//       } else {
+//         let errorMessage = `Brevo API HTTP ${res.status}`;
+//         try {
+//           const errData = JSON.parse(responseText);
+//           errorMessage = errData.message || errorMessage;
+//         } catch { }
+//
+//         console.error(`❌ [EMAIL BREVO ERROR ${res.status}] Failed sending to ${options.toEmail}: ${responseText}`);
+//
+//         if (responseText.includes('unrecognised IP address') || responseText.includes('authorised_ips')) {
+//           console.error(`Brevo IP Whitelist Alert: Server IP is not whitelisted in Brevo Security. To send emails via Brevo, whitelist your IP at https://app.brevo.com/security/authorised_ips or add SMTP_USER & SMTP_PASS in .env.`);
+//         }
+//       }
+//     } catch (err: any) {
+//       console.error(`❌ [EMAIL BREVO EXCEPTION] ${err.message}`);
+//     }
+//   }
+//
+//   // 2. Fallback: SMTP Transport (Only attempted if Brevo API is missing or failed)
+//   if (smtpUser && smtpPass && smtpPass !== 'xsmtpsib-' && smtpPass.length > 5) {
+//     try {
+//       const transporter = nodemailer.createTransport({
+//         host: smtpHost,
+//         port: smtpPort,
+//         secure: smtpPort === 465,
+//         auth: { user: smtpUser, pass: smtpPass }
+//       });
+//
+//       const info = await transporter.sendMail({
+//         from: `"${senderName}" <${senderEmail}>`,
+//         to: options.toEmail,
+//         subject: options.subject,
+//         html: finalHtml,
+//         text: plainText
+//       });
+//
+//       console.log(`[REAL EMAIL SENT - SMTP (${smtpHost})] Delivered to ${options.toEmail} | MessageId: ${info.messageId}`);
+//       return { success: true, provider: `SMTP (${smtpHost})`, messageId: info.messageId };
+//     } catch (smtpErr: any) {
+//       console.error(`❌ [EMAIL SMTP ERROR] Failed sending to ${options.toEmail}: ${smtpErr.message}`);
+//     }
+//   }
+//
+//   return {
+//     success: false,
+//     error: 'No valid email transport configured (BREVO_API_KEY or SMTP credentials).'
+//   };
+// }
 
-function buildFullHtmlEmail(subject: string, rawContent: string): string {
-  let content = rawContent
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&#x2F;/gi, '/')
-    .replace(/&#x2f;/gi, '/')
-    .replace(/&amp;/g, '&');
-
-  if (content.toLowerCase().includes('<!doctype html') || content.toLowerCase().includes('<html')) {
-    return content;
-  }
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>${subject}</title>
-  <style>
-    body { margin: 0; padding: 0; background-color: #09090b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
-    table { border-collapse: collapse; }
-    img { border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
-    a { color: #CCFF00; text-decoration: none; }
-  </style>
-</head>
-<body style="margin:0; padding:0; background-color:#09090b; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing:antialiased;">
-  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#09090b; width:100%; margin:0; padding:24px 10px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:580px; width:100%; margin:0 auto; background-color:#0d0d12; border:1px solid #27272a; border-radius:12px; overflow:hidden;">
-          
-          <!-- BRAND HEADER -->
-          <tr>
-            <td style="padding:20px; text-align:center; background-color:#121215; border-bottom:2px solid #CCFF00;">
-              <img src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1789566029/WhatsApp_Image_2026-09-08_at_10.50.41_AM.png" alt="BxStrength Logo" style="max-height:42px; width:auto; display:inline-block;" />
-            </td>
-          </tr>
-
-          <!-- MAIN CONTENT BODY -->
-          <tr>
-            <td style="padding:24px 20px; color:#ffffff; font-size:14px; line-height:1.6;">
-              ${content}
-            </td>
-          </tr>
-
-          <!-- CLEAN CONCISE FOOTER -->
-          <tr>
-            <td style="padding:16px 20px; background-color:#0a0a0c; border-top:1px solid #27272a; text-align:center; font-size:11px; color:#71717a;">
-              <p style="margin:0 0 4px 0; font-weight:800; color:#a1a1aa; text-transform:uppercase; letter-spacing:0.5px;">BXSTRENGTH PERFORMANCE COACHING</p>
-              <p style="margin:0; color:#71717a;">Support: support@bxstrength.com | WhatsApp: +91 8423594482</p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-}
-
-async function sendServerEmail(options: SendEmailOptions): Promise<{ success: boolean; provider?: string; error?: string; messageId?: string }> {
-  const brevoApiKey = process.env.VITE_BREVO_API_KEY || process.env.BREVO_API_KEY;
-  const senderEmail = process.env.VITE_SENDER_EMAIL || process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || 'khanshadan96@gmail.com';
-  const senderName = options.senderName || 'BxStrength Security';
-
-  const brevoSmtpKey = process.env.BREVO_SMTP_KEY || (process.env.SMTP_PASS?.startsWith('xsmtpsib-') ? process.env.SMTP_PASS : undefined);
-  const smtpUser = process.env.SMTP_USER || process.env.BREVO_SENDER_EMAIL || process.env.GMAIL_USER;
-  const smtpPass = process.env.SMTP_PASS || brevoSmtpKey || process.env.GMAIL_PASS;
-  const smtpHost = process.env.SMTP_HOST || (brevoSmtpKey ? 'smtp-relay.brevo.com' : 'smtp.gmail.com');
-  const smtpPort = Number(process.env.SMTP_PORT || 587);
-
-  const finalHtml = buildFullHtmlEmail(options.subject, options.htmlContent);
-  const plainText = finalHtml
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  // 1. Primary: Brevo REST API v3 (Fastest, most reliable API integration)
-  if (brevoApiKey) {
-    try {
-      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'api-key': brevoApiKey
-        },
-        body: JSON.stringify({
-          sender: { name: senderName, email: senderEmail },
-          to: [{ email: options.toEmail, name: options.toName || options.toEmail }],
-          subject: options.subject,
-          htmlContent: finalHtml,
-          textContent: plainText
-        })
-      });
-
-      const responseText = await res.text();
-      if (res.ok) {
-        let data: any = {};
-        try { data = JSON.parse(responseText); } catch { }
-        console.log(`✅ [REAL EMAIL SENT - BREVO API v3] Delivered to ${options.toEmail} | MessageId: ${data.messageId || 'OK'}`);
-        return { success: true, provider: 'Brevo API (v3)', messageId: data.messageId };
-      } else {
-        let errorMessage = `Brevo API HTTP ${res.status}`;
-        try {
-          const errData = JSON.parse(responseText);
-          errorMessage = errData.message || errorMessage;
-        } catch { }
-
-        console.error(`❌ [EMAIL BREVO ERROR ${res.status}] Failed sending to ${options.toEmail}: ${responseText}`);
-
-        if (responseText.includes('unrecognised IP address') || responseText.includes('authorised_ips')) {
-          console.error(`👉 Brevo IP Whitelist Alert: Server IP is not whitelisted in Brevo Security. To send emails via Brevo, whitelist your IP at https://app.brevo.com/security/authorised_ips or add SMTP_USER & SMTP_PASS in .env.`);
-        }
-      }
-    } catch (err: any) {
-      console.error(`❌ [EMAIL BREVO EXCEPTION] ${err.message}`);
-    }
-  }
-
-  // 2. Fallback: SMTP Transport (Only attempted if Brevo API is missing or failed)
-  if (smtpUser && smtpPass && smtpPass !== 'xsmtpsib-' && smtpPass.length > 5) {
-    try {
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: { user: smtpUser, pass: smtpPass }
-      });
-
-      const info = await transporter.sendMail({
-        from: `"${senderName}" <${senderEmail}>`,
-        to: options.toEmail,
-        subject: options.subject,
-        html: finalHtml,
-        text: plainText
-      });
-
-      console.log(`✅ [REAL EMAIL SENT - SMTP (${smtpHost})] Delivered to ${options.toEmail} | MessageId: ${info.messageId}`);
-      return { success: true, provider: `SMTP (${smtpHost})`, messageId: info.messageId };
-    } catch (smtpErr: any) {
-      console.error(`❌ [EMAIL SMTP ERROR] Failed sending to ${options.toEmail}: ${smtpErr.message}`);
-    }
-  }
-
-  return {
-    success: false,
-    error: 'No valid email transport configured (BREVO_API_KEY or SMTP credentials).'
-  };
-}
-
-let dbUrl = process.env.DATABASE_URL || '';
-if (dbUrl) {
-  dbUrl = dbUrl
-    .replace(/[?&]channel_binding=[^&]+/g, '')
-    .replace('sslmode=require', 'sslmode=verify-full');
-}
-
-const dbPool = process.env.DATABASE_URL
-  ? new Pool({
-    connectionString: dbUrl,
-    ssl: { rejectUnauthorized: false },
-    max: 25,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000
-  })
-  : null;
+// moved to Backend/src/config/db.ts
+// let dbUrl = process.env.DATABASE_URL || '';
+// if (dbUrl) {
+//   dbUrl = dbUrl
+//     .replace(/[?&]channel_binding=[^&]+/g, '')
+//     .replace('sslmode=require', 'sslmode=verify-full');
+// }
+//
+// const dbPool = process.env.DATABASE_URL
+//   ? new Pool({
+//     connectionString: dbUrl,
+//     ssl: { rejectUnauthorized: false },
+//     max: 25,
+//     idleTimeoutMillis: 30000,
+//     connectionTimeoutMillis: 5000
+//   })
+//   : null;
 
 if (dbPool) {
   dbPool.on('error', () => { });
 
   dbPool.query('SELECT NOW()', async (err, res) => {
     if (!err) {
-      console.log(`  ➜  NeonDB:     Connected successfully (${res.rows[0].now})`);
+      console.log(`  ➜  Database:   connected (${res.rows[0].now})`);
       try {
         await dbPool.query(`
           CREATE TABLE IF NOT EXISTS users (
@@ -1699,36 +1728,38 @@ if (dbPool) {
     }
   });
 } else {
-  console.log('ℹ️ [DATABASE_URL] Running in BxStrength local sync fallback mode.');
+  console.log('ℹ[DATABASE_URL] Running in BxStrength local sync fallback mode.');
 }
 
-const authenticateToken = (req: any, res: any, next: any) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+// moved to Backend/src/middlewares/authMiddleware.ts (authenticate)
+// const authenticateToken = (req: any, res: any, next: any) => {
+//   const authHeader = req.headers['authorization'];
+//   const token = authHeader && authHeader.split(' ')[1];
+//
+//   if (!token) {
+//     req.user = { id: 'admin-1', email: 'admin@bxstrength.com', role: 'admin', name: 'System Admin' };
+//     return next();
+//   }
+//
+//   jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+//     if (err) {
+//       req.user = { id: 'admin-1', email: 'admin@bxstrength.com', role: 'admin', name: 'System Admin' };
+//       return next();
+//     }
+//     req.user = user;
+//     next();
+//   });
+// };
 
-  if (!token) {
-    req.user = { id: 'admin-1', email: 'admin@bxstrength.com', role: 'admin', name: 'System Admin' };
-    return next();
-  }
-
-  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-    if (err) {
-      req.user = { id: 'admin-1', email: 'admin@bxstrength.com', role: 'admin', name: 'System Admin' };
-      return next();
-    }
-    req.user = user;
-    next();
-  });
-};
-
-const authorizeRoles = (...allowedRoles: string[]) => {
-  return (req: any, res: any, next: any) => {
-    if (!req.user || !allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Forbidden: Insufficient privileges' });
-    }
-    next();
-  };
-};
+// moved to Backend/src/middlewares/authMiddleware.ts
+// const authorizeRoles = (...allowedRoles: string[]) => {
+//   return (req: any, res: any, next: any) => {
+//     if (!req.user || !allowedRoles.includes(req.user.role)) {
+//       return res.status(403).json({ error: 'Forbidden: Insufficient privileges' });
+//     }
+//     next();
+//   };
+// };
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -1740,789 +1771,806 @@ app.get('/api/health', (req, res) => {
       sqlInjectionDefense: 'Active (Parameterized Queries)',
       xssSanitization: 'Active'
     },
-    database: dbPool ? 'NeonDB SSL Connected' : 'Client Sync Fallback Active',
+    database: dbPool ? 'connected' : 'not connected',
     timestamp: new Date().toISOString()
   });
 });
 
 // --- TWO-STEP EMAIL VERIFICATION OTP ENGINE ---
-interface ServerOtpRecord {
-  code: string;
-  expiresAt: number;
-  attempts: number;
-  lastSentAt: number;
-}
+// moved to Backend/src/services/otpService.ts
+// interface ServerOtpRecord {
+//   code: string;
+//   expiresAt: number;
+//   attempts: number;
+//   lastSentAt: number;
+// }
+//
+// const serverOtpStore = new Map<string, ServerOtpRecord>();
+//
+// function generate6DigitOtp(): string {
+//   return crypto.randomInt(100000, 999999).toString();
+// }
+//
+// async function sendOtpEmail(toEmail: string, toName: string, otpCode: string): Promise<boolean> {
+//   const senderEmail = process.env.VITE_SENDER_EMAIL || process.env.BREVO_SENDER_EMAIL || 'support@bxstrength.com';
+//
+//   console.log(`================================================================`);
+//   console.log(`🔑 [REAL EMAIL OTP DISPATCHED] Recipient Email: ${toEmail}`);
+//   console.log(`🔑 [VERIFICATION OTP CODE]: ${otpCode}`);
+//   console.log(`================================================================`);
+//
+//   const result = await sendServerEmail({
+//     toEmail: toEmail,
+//     toName: toName,
+//     subject: `🔑 [ACTION REQUIRED] ${otpCode} is your BxStrength Verification Code`,
+//     senderName: 'BxStrength Security',
+//     htmlContent: `
+//       <div style="font-family: Arial, sans-serif; background-color: #0d0d0f; color: #ffffff; padding: 32px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
+//         <div style="text-align: center; margin-bottom: 24px;">
+//           <img src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1788842924/bxlogo.jpg" alt="BxStrength Logo" style="height: 48px; width: auto; border-radius: 8px; margin: 0 auto;" />
+//         </div>
+//         <h2 style="color: #CCFF00; margin: 0; text-transform: uppercase; text-align: center; font-size: 20px; font-weight: 900; letter-spacing: 1px;">
+//           VERIFY YOUR EMAIL ADDRESS
+//         </h2>
+//         <p style="text-align: center; color: #a1a1aa; font-size: 13px; margin-top: 4px;">
+//           Mandatory 2-Step Athlete Security Verification
+//         </p>
+//
+//         <div style="margin-top: 24px; font-size: 14px; line-height: 1.6; color: #e4e4e7;">
+//           <p>Dear <strong>${toName}</strong>,</p>
+//           <p>Welcome to BxStrength! To complete your registration and activate your Athlete Portal, enter the 6-digit verification code below:</p>
+//         </div>
+//
+//         <div style="background-color: #18181b; padding: 24px; border-radius: 12px; margin: 24px 0; border: 1px solid #3f3f46; text-align: center;">
+//           <span style="font-size: 38px; font-weight: 900; letter-spacing: 10px; color: #CCFF00; font-family: monospace; display: block;">
+//             ${otpCode}
+//           </span>
+//           <p style="margin-top: 12px; margin-bottom: 0; color: #a1a1aa; font-size: 12px; font-weight: bold;">
+//             ⏱Expires in <span style="color: #ffffff;">10 Minutes</span>
+//           </p>
+//         </div>
+//
+//         <div style="font-size: 12px; color: #71717a; line-height: 1.6; border-top: 1px solid #27272a; margin-top: 24px; padding-top: 16px;">
+//           <p style="margin: 4px 0;">If you did not initiate this request, please disregard this email.</p>
+//           <p style="margin: 4px 0;">BxStrength Support: <a href="mailto:${senderEmail}" style="color: #a1a1aa; text-decoration: underline;">${senderEmail}</a></p>
+//         </div>
+//       </div>
+//     `
+//   });
+//
+//   return result.success;
+// }
 
-const serverOtpStore = new Map<string, ServerOtpRecord>();
+app.use('/api/auth', authRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/workout-programs', workoutProgramRoutes);
+app.use('/api/nutrition-plans', nutritionPlanRoutes);
+app.use('/api/send-email', emailRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.get('/api/admin/purge-reviews', purgeReviews);
+app.use('/api/announcements', announcementRoutes);
 
-function generate6DigitOtp(): string {
-  return crypto.randomInt(100000, 999999).toString();
-}
-
-async function sendOtpEmail(toEmail: string, toName: string, otpCode: string): Promise<boolean> {
-  const senderEmail = process.env.VITE_SENDER_EMAIL || process.env.BREVO_SENDER_EMAIL || 'support@bxstrength.com';
-
-  console.log(`================================================================`);
-  console.log(`🔑 [REAL EMAIL OTP DISPATCHED] Recipient Email: ${toEmail}`);
-  console.log(`🔑 [VERIFICATION OTP CODE]: ${otpCode}`);
-  console.log(`================================================================`);
-
-  const result = await sendServerEmail({
-    toEmail: toEmail,
-    toName: toName,
-    subject: `🔑 [ACTION REQUIRED] ${otpCode} is your BxStrength Verification Code`,
-    senderName: 'BxStrength Security',
-    htmlContent: `
-      <div style="font-family: Arial, sans-serif; background-color: #0d0d0f; color: #ffffff; padding: 32px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
-        <div style="text-align: center; margin-bottom: 24px;">
-          <img src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1788842924/bxlogo.jpg" alt="BxStrength Logo" style="height: 48px; width: auto; border-radius: 8px; margin: 0 auto;" />
-        </div>
-        <h2 style="color: #CCFF00; margin: 0; text-transform: uppercase; text-align: center; font-size: 20px; font-weight: 900; letter-spacing: 1px;">
-          VERIFY YOUR EMAIL ADDRESS
-        </h2>
-        <p style="text-align: center; color: #a1a1aa; font-size: 13px; margin-top: 4px;">
-          Mandatory 2-Step Athlete Security Verification
-        </p>
-
-        <div style="margin-top: 24px; font-size: 14px; line-height: 1.6; color: #e4e4e7;">
-          <p>Dear <strong>${toName}</strong>,</p>
-          <p>Welcome to BxStrength! To complete your registration and activate your Athlete Portal, enter the 6-digit verification code below:</p>
-        </div>
-
-        <div style="background-color: #18181b; padding: 24px; border-radius: 12px; margin: 24px 0; border: 1px solid #3f3f46; text-align: center;">
-          <span style="font-size: 38px; font-weight: 900; letter-spacing: 10px; color: #CCFF00; font-family: monospace; display: block;">
-            ${otpCode}
-          </span>
-          <p style="margin-top: 12px; margin-bottom: 0; color: #a1a1aa; font-size: 12px; font-weight: bold;">
-            ⏱️ Expires in <span style="color: #ffffff;">10 Minutes</span>
-          </p>
-        </div>
-
-        <div style="font-size: 12px; color: #71717a; line-height: 1.6; border-top: 1px solid #27272a; margin-top: 24px; padding-top: 16px;">
-          <p style="margin: 4px 0;">If you did not initiate this request, please disregard this email.</p>
-          <p style="margin: 4px 0;">BxStrength Support: <a href="mailto:${senderEmail}" style="color: #a1a1aa; text-decoration: underline;">${senderEmail}</a></p>
-        </div>
-      </div>
-    `
-  });
-
-  return result.success;
-}
-
-app.post('/api/auth/register', authLimiter, async (req, res) => {
-  try {
-    const rawName = req.body.name;
-    const rawEmail = req.body.email;
-    const rawPassword = req.body.password;
-    const rawPhone = req.body.phone;
-
-    if (!rawName || !rawEmail || !rawPassword) {
-      return res.status(400).json({ error: 'Name, email, and password are required' });
-    }
-
-    if (typeof rawPassword !== 'string' || rawPassword.length < 6 || rawPassword.length > 128) {
-      return res.status(400).json({ error: 'Security Policy Alert: Provided password does not fulfill security compliance requirements.' });
-    }
-
-    if (typeof rawName !== 'string' || rawName.length > 100 || typeof rawEmail !== 'string' || rawEmail.length > 150) {
-      return res.status(400).json({ error: 'Invalid input format provided.' });
-    }
-
-    const name = sanitizeInput(rawName);
-    const email = sanitizeInput(rawEmail).toLowerCase();
-    const phone = sanitizeInput(rawPhone || '');
-
-    if (phone && !isValidUkMobile(phone)) {
-      return res.status(400).json({ error: 'Please enter a valid mobile phone number (7 to 15 digits).' });
-    }
-
-    const userRole = 'client';
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(rawPassword, salt);
-    const userId = `user-${Date.now()}`;
-
-    const requestedMethod = req.body.signupMethod || req.body.signup_method;
-    const isGoogleSso = requestedMethod === 'Google SSO' || rawPassword.includes('GoogleAuthPass@');
-    const signupMethod = isGoogleSso ? 'Google SSO' : 'Email / Password';
-
-    // Mandatory 2-step verification requirement:
-    // Email/password signups are created with is_verified = false, status = 'pending_verification'
-    const isVerified = isGoogleSso; // Google accounts already verified by provider
-    const userStatus = isVerified ? 'active' : 'pending_verification';
-
-    let registeredUser: any = null;
-
-    if (dbPool) {
-      try {
-        const result = await dbPool.query(
-          `INSERT INTO users (id, name, email, password_hash, role, phone, avatar_url, is_verified, status, signup_method)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-           RETURNING id, name, email, role, phone, avatar_url, is_verified, status, signup_method, created_at`,
-          [userId, name, email, passwordHash, userRole, phone, `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`, isVerified, userStatus, signupMethod]
-        );
-        registeredUser = result.rows[0];
-      } catch (e: any) {
-        if (e.code === '23505') {
-          return res.status(400).json({ error: 'An account with this email address already exists.' });
-        }
-        console.error('NeonDB Registration Query Error:', e.message);
-        return res.status(500).json({ error: `NeonDB error: ${e.message}` });
-      }
-    } else {
-      registeredUser = {
-        id: userId,
-        name,
-        email,
-        role: userRole,
-        phone,
-        avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
-        isVerified: isVerified,
-        status: userStatus,
-        createdAt: new Date().toISOString()
-      };
-    }
-
-    const adminEmail = process.env.VITE_ADMIN_EMAIL || 'support@bxstrength.com';
-
-    sendServerEmail({
-      toEmail: adminEmail,
-      toName: 'BxStrength Admin',
-      subject: `🔔 [NEW ATHLETE REGISTRATION] ${name} (${email})`,
-      senderName: 'BxStrength Security Bot',
-      htmlContent: `
-        <div style="font-family: Arial, sans-serif; background-color: #0d0d0f; color: #ffffff; padding: 24px; border-radius: 10px; max-width: 500px; margin: 0 auto; border: 1px solid #27272a;">
-          <h3 style="color: #CCFF00; margin: 0; text-transform: uppercase;">NEW USER SIGNUP DETECTED</h3>
-          <div style="background-color: #18181b; padding: 14px; border-radius: 6px; margin: 14px 0; font-size: 13px;">
-            <p style="margin: 4px 0;"><strong>Name:</strong> ${name}</p>
-            <p style="margin: 4px 0;"><strong>Email:</strong> ${email}</p>
-            <p style="margin: 4px 0;"><strong>Signup Method:</strong> ${signupMethod}</p>
-            <p style="margin: 4px 0;"><strong>Verification Status:</strong> ${isVerified ? 'VERIFIED' : 'PENDING OTP'}</p>
-            <p style="margin: 4px 0;"><strong>Timestamp:</strong> ${new Date().toUTCString()}</p>
-          </div>
-          <p style="font-size: 11px; color: #71717a;">Stored in NeonDB PostgreSQL database.</p>
-        </div>
-      `
-    }).catch(() => { });
-
-    // If Google SSO, return active JWT token immediately
-    if (isVerified) {
-      const token = jwt.sign({ id: registeredUser.id, email: registeredUser.email, role: registeredUser.role, name: registeredUser.name }, JWT_SECRET, { expiresIn: '7d' });
-      return res.status(201).json({ user: registeredUser, token, requireOtp: false });
-    }
-
-    // Mandatory Email / Password 2-Step OTP Verification Flow
-    const otpCode = generate6DigitOtp();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
-
-    if (dbPool) {
-      await dbPool.query(
-        `INSERT INTO otps (email, otp_code, expires_at, attempts, last_sent_at)
-         VALUES ($1, $2, $3, 0, CURRENT_TIMESTAMP)
-         ON CONFLICT (email) DO UPDATE SET
-         otp_code = EXCLUDED.otp_code,
-         expires_at = EXCLUDED.expires_at,
-         attempts = 0,
-         last_sent_at = CURRENT_TIMESTAMP`,
-        [email, otpCode, expiresAt]
-      ).catch((err) => console.error('NeonDB OTP Save Error:', err.message));
-    }
-
-    serverOtpStore.set(email, {
-      code: otpCode,
-      expiresAt: expiresAt.getTime(),
-      attempts: 0,
-      lastSentAt: Date.now()
-    });
-
-    // Send 6-Digit OTP Email
-    sendOtpEmail(email, name, otpCode).catch((err) => console.error('[OTP EMAIL ERROR]', err.message));
-
-    return res.status(201).json({
-      requireOtp: true,
-      email: email,
-      user: registeredUser,
-      message: 'Registration created successfully! A 6-digit verification code has been sent to your email.'
-    });
-
-  } catch (err: any) {
-    console.error('Registration error:', err.message);
-    res.status(500).json({ error: 'Registration failed due to a server error.' });
-  }
-});
+// moved to Backend/src/controllers/authController.ts
+// app.post('/api/auth/register', authLimiter, async (req, res) => {
+//   try {
+//     const rawName = req.body.name;
+//     const rawEmail = req.body.email;
+//     const rawPassword = req.body.password;
+//     const rawPhone = req.body.phone;
+//
+//     if (!rawName || !rawEmail || !rawPassword) {
+//       return res.status(400).json({ error: 'Name, email, and password are required' });
+//     }
+//
+//     if (typeof rawPassword !== 'string' || rawPassword.length < 6 || rawPassword.length > 128) {
+//       return res.status(400).json({ error: 'Security Policy Alert: Provided password does not fulfill security compliance requirements.' });
+//     }
+//
+//     if (typeof rawName !== 'string' || rawName.length > 100 || typeof rawEmail !== 'string' || rawEmail.length > 150) {
+//       return res.status(400).json({ error: 'Invalid input format provided.' });
+//     }
+//
+//     const name = sanitizeInput(rawName);
+//     const email = sanitizeInput(rawEmail).toLowerCase();
+//     const phone = sanitizeInput(rawPhone || '');
+//
+//     if (phone && !isValidUkMobile(phone)) {
+//       return res.status(400).json({ error: 'Please enter a valid mobile phone number (7 to 15 digits).' });
+//     }
+//
+//     const userRole = 'client';
+//     const salt = await bcrypt.genSalt(10);
+//     const passwordHash = await bcrypt.hash(rawPassword, salt);
+//     const userId = `user-${Date.now()}`;
+//
+//     const requestedMethod = req.body.signupMethod || req.body.signup_method;
+//     const isGoogleSso = requestedMethod === 'Google SSO' || rawPassword.includes('GoogleAuthPass@');
+//     const signupMethod = isGoogleSso ? 'Google SSO' : 'Email / Password';
+//
+//     // Mandatory 2-step verification requirement:
+//     // Email/password signups are created with is_verified = false, status = 'pending_verification'
+//     const isVerified = isGoogleSso; // Google accounts already verified by provider
+//     const userStatus = isVerified ? 'active' : 'pending_verification';
+//
+//     let registeredUser: any = null;
+//
+//     if (dbPool) {
+//       try {
+//         const result = await dbPool.query(
+//           `INSERT INTO users (id, name, email, password_hash, role, phone, avatar_url, is_verified, status, signup_method)
+//            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+//            RETURNING id, name, email, role, phone, avatar_url, is_verified, status, signup_method, created_at`,
+//           [userId, name, email, passwordHash, userRole, phone, `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`, isVerified, userStatus, signupMethod]
+//         );
+//         registeredUser = result.rows[0];
+//       } catch (e: any) {
+//         if (e.code === '23505') {
+//           return res.status(400).json({ error: 'An account with this email address already exists.' });
+//         }
+//         console.error('database Registration Query Error:', e.message);
+//         return res.status(500).json({ error: `database error: ${e.message}` });
+//       }
+//     } else {
+//       registeredUser = {
+//         id: userId,
+//         name,
+//         email,
+//         role: userRole,
+//         phone,
+//         avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
+//         isVerified: isVerified,
+//         status: userStatus,
+//         createdAt: new Date().toISOString()
+//       };
+//     }
+//
+//     const adminEmail = process.env.VITE_ADMIN_EMAIL || 'support@bxstrength.com';
+//
+//     sendServerEmail({
+//       toEmail: adminEmail,
+//       toName: 'BxStrength Admin',
+//       subject: `[NEW ATHLETE REGISTRATION] ${name} (${email})`,
+//       senderName: 'BxStrength Security Bot',
+//       htmlContent: `
+//         <div style="font-family: Arial, sans-serif; background-color: #0d0d0f; color: #ffffff; padding: 24px; border-radius: 10px; max-width: 500px; margin: 0 auto; border: 1px solid #27272a;">
+//           <h3 style="color: #CCFF00; margin: 0; text-transform: uppercase;">NEW USER SIGNUP DETECTED</h3>
+//           <div style="background-color: #18181b; padding: 14px; border-radius: 6px; margin: 14px 0; font-size: 13px;">
+//             <p style="margin: 4px 0;"><strong>Name:</strong> ${name}</p>
+//             <p style="margin: 4px 0;"><strong>Email:</strong> ${email}</p>
+//             <p style="margin: 4px 0;"><strong>Signup Method:</strong> ${signupMethod}</p>
+//             <p style="margin: 4px 0;"><strong>Verification Status:</strong> ${isVerified ? 'VERIFIED' : 'PENDING OTP'}</p>
+//             <p style="margin: 4px 0;"><strong>Timestamp:</strong> ${new Date().toUTCString()}</p>
+//           </div>
+//           <p style="font-size: 11px; color: #71717a;">Stored in database.</p>
+//         </div>
+//       `
+//     }).catch(() => { });
+//
+//     // If Google SSO, return active JWT token immediately
+//     if (isVerified) {
+//       const token = jwt.sign({ id: registeredUser.id, email: registeredUser.email, role: registeredUser.role, name: registeredUser.name }, JWT_SECRET, { expiresIn: '7d' });
+//       return res.status(201).json({ user: registeredUser, token, requireOtp: false });
+//     }
+//
+//     // Mandatory Email / Password 2-Step OTP Verification Flow
+//     const otpCode = generate6DigitOtp();
+//     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+//
+//     if (dbPool) {
+//       await dbPool.query(
+//         `INSERT INTO otps (email, otp_code, expires_at, attempts, last_sent_at)
+//          VALUES ($1, $2, $3, 0, CURRENT_TIMESTAMP)
+//          ON CONFLICT (email) DO UPDATE SET
+//          otp_code = EXCLUDED.otp_code,
+//          expires_at = EXCLUDED.expires_at,
+//          attempts = 0,
+//          last_sent_at = CURRENT_TIMESTAMP`,
+//         [email, otpCode, expiresAt]
+//       ).catch((err) => console.error('database OTP Save Error:', err.message));
+//     }
+//
+//     serverOtpStore.set(email, {
+//       code: otpCode,
+//       expiresAt: expiresAt.getTime(),
+//       attempts: 0,
+//       lastSentAt: Date.now()
+//     });
+//
+//     // Send 6-Digit OTP Email
+//     sendOtpEmail(email, name, otpCode).catch((err) => console.error('[OTP EMAIL ERROR]', err.message));
+//
+//     return res.status(201).json({
+//       requireOtp: true,
+//       email: email,
+//       user: registeredUser,
+//       message: 'Registration created successfully! A 6-digit verification code has been sent to your email.'
+//     });
+//
+//   } catch (err: any) {
+//     console.error('Registration error:', err.message);
+//     res.status(500).json({ error: 'Registration failed due to a server error.' });
+//   }
+// });
 
 // --- VERIFY OTP ENDPOINT ---
-app.post('/api/auth/verify-otp', authLimiter, async (req, res) => {
-  try {
-    const rawEmail = req.body.email;
-    const rawOtp = req.body.otp;
-
-    if (!rawEmail || !rawOtp) {
-      return res.status(400).json({ error: 'Email and 6-digit OTP code are required.' });
-    }
-
-    const email = sanitizeInput(rawEmail).toLowerCase();
-    const otpInput = String(rawOtp).trim();
-
-    if (!/^\d{6}$/.test(otpInput)) {
-      return res.status(400).json({ error: 'Verification code must consist of exactly 6 numeric digits.' });
-    }
-
-    let otpRecord: ServerOtpRecord | null = null;
-
-    if (dbPool) {
-      try {
-        const dbRes = await dbPool.query('SELECT * FROM otps WHERE email = $1', [email]);
-        if (dbRes.rows.length > 0) {
-          const row = dbRes.rows[0];
-          otpRecord = {
-            code: row.otp_code,
-            expiresAt: new Date(row.expires_at).getTime(),
-            attempts: Number(row.attempts || 0),
-            lastSentAt: new Date(row.last_sent_at || Date.now()).getTime()
-          };
-        }
-      } catch (e: any) {
-        console.error('NeonDB OTP fetch error:', e.message);
-      }
-    }
-
-    if (!otpRecord) {
-      const mem = serverOtpStore.get(email);
-      if (mem) otpRecord = mem;
-    }
-
-    if (!otpRecord) {
-      return res.status(400).json({
-        error: 'No active verification code found for this email address. Please click "Resend Code".',
-        code: 'OTP_NOT_FOUND'
-      });
-    }
-
-    // 1. Check Max Verification Attempts (5 max)
-    if (otpRecord.attempts >= 5) {
-      return res.status(429).json({
-        error: 'Maximum verification attempts (5) exceeded. Please click "Resend Code" to receive a new OTP.',
-        code: 'MAX_ATTEMPTS_EXCEEDED'
-      });
-    }
-
-    // 2. Check Expiry Period (10 minutes)
-    if (Date.now() > otpRecord.expiresAt) {
-      return res.status(400).json({
-        error: 'Verification code has expired (valid for 10 minutes). Please click "Resend Code" to receive a new OTP.',
-        code: 'OTP_EXPIRED'
-      });
-    }
-
-    // 3. Check OTP Match
-    if (otpRecord.code !== otpInput) {
-      const updatedAttempts = otpRecord.attempts + 1;
-      const remaining = Math.max(0, 5 - updatedAttempts);
-
-      if (dbPool) {
-        await dbPool.query('UPDATE otps SET attempts = $1 WHERE email = $2', [updatedAttempts, email]).catch(() => {});
-      }
-      serverOtpStore.set(email, { ...otpRecord, attempts: updatedAttempts });
-
-      if (remaining <= 0) {
-        return res.status(429).json({
-          error: 'Maximum verification attempts (5) exceeded. Please click "Resend Code" to get a new code.',
-          remainingAttempts: 0,
-          code: 'MAX_ATTEMPTS_EXCEEDED'
-        });
-      }
-
-      return res.status(400).json({
-        error: `Incorrect verification code. ${remaining} attempt(s) remaining.`,
-        remainingAttempts: remaining,
-        code: 'INVALID_OTP'
-      });
-    }
-
-    // OTP VERIFIED SUCCESSFULLY: Delete OTP Record
-    if (dbPool) {
-      await dbPool.query('DELETE FROM otps WHERE email = $1', [email]).catch(() => {});
-    }
-    serverOtpStore.delete(email);
-
-    // Update User Account in Database (is_verified = true, status = 'active')
-    let verifiedUser: any = null;
-    if (dbPool) {
-      try {
-        const updateRes = await dbPool.query(
-          `UPDATE users SET is_verified = true, status = 'active' WHERE LOWER(email) = $1
-           RETURNING id, name, email, role, phone, avatar_url, is_verified, status, signup_method, created_at`,
-          [email]
-        );
-        if (updateRes.rows.length > 0) {
-          verifiedUser = updateRes.rows[0];
-        }
-      } catch (e: any) {
-        console.error('NeonDB User Verification Update Error:', e.message);
-      }
-    }
-
-    if (!verifiedUser) {
-      verifiedUser = {
-        id: `user-${Date.now()}`,
-        name: email.split('@')[0],
-        email: email,
-        role: 'client',
-        isVerified: true,
-        status: 'active',
-        createdAt: new Date().toISOString()
-      };
-    }
-
-    const senderEmail = process.env.VITE_SENDER_EMAIL || process.env.BREVO_SENDER_EMAIL || 'support@bxstrength.com';
-
-    // Send Welcome Email upon successful OTP verification
-    sendServerEmail({
-      toEmail: verifiedUser.email,
-      toName: verifiedUser.name,
-      subject: 'WELCOME TO BXSTRENGTH | Your Account Is Active 🥊',
-      senderName: 'BxStrength Support',
-      htmlContent: `
-        <div style="font-family: Arial, sans-serif; background-color: #0d0d0f; color: #ffffff; padding: 32px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
-          <div style="text-align: center; margin-bottom: 24px;">
-            <img src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1788842924/bxlogo.jpg" alt="BxStrength Logo" style="height: 48px; width: auto; border-radius: 8px; margin: 0 auto;" />
-          </div>
-          <h2 style="color: #CCFF00; margin: 0; text-transform: uppercase; text-align: center; font-size: 20px; font-weight: 900;">WELCOME TO BXSTRENGTH</h2>
-          <p style="text-align: center; color: #a1a1aa; font-size: 13px; margin-top: 4px;">Premier Digital Boxing, Strength &amp; Fitness Coaching</p>
-          
-          <div style="margin-top: 24px; font-size: 14px; line-height: 1.6; color: #e4e4e7;">
-            <p>Dear <strong>${verifiedUser.name}</strong>,</p>
-            <p>Your email address has been successfully verified! Your athlete profile is now active.</p>
-          </div>
-
-          <div style="background-color: #18181b; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #27272a; font-size: 13px; line-height: 1.7;">
-            <p style="margin: 4px 0; color: #a1a1aa;"><strong style="color: #ffffff;">Registered Name:</strong> ${verifiedUser.name}</p>
-            <p style="margin: 4px 0; color: #a1a1aa;"><strong style="color: #ffffff;">Email Address:</strong> ${verifiedUser.email}</p>
-            <p style="margin: 4px 0; color: #a1a1aa;"><strong style="color: #ffffff;">Verification Status:</strong> <span style="color: #CCFF00; font-weight: bold;">VERIFIED &amp; ACTIVE</span></p>
-          </div>
-
-          <div style="text-align: center; margin: 28px 0;">
-            <a href="${req.headers.origin || 'https://bxstrength.com'}" style="background-color: #CCFF00; color: #000000; font-weight: 900; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; display: inline-block; box-shadow: 0 4px 14px rgba(204, 255, 0, 0.3);">
-              ACCESS YOUR ATHLETE PORTAL
-            </a>
-          </div>
-        </div>
-      `
-    }).catch(() => {});
-
-    // Generate JWT Access Token
-    const token = jwt.sign({ id: verifiedUser.id, email: verifiedUser.email, role: verifiedUser.role, name: verifiedUser.name }, JWT_SECRET, { expiresIn: '7d' });
-
-    return res.json({
-      success: true,
-      message: 'Account successfully verified! Welcome to BxStrength.',
-      user: verifiedUser,
-      token
-    });
-
-  } catch (err: any) {
-    console.error('Verify OTP error:', err.message);
-    res.status(500).json({ error: 'OTP verification failed due to a server error.' });
-  }
-});
+// moved to Backend/src/controllers/authController.ts
+// app.post('/api/auth/verify-otp', authLimiter, async (req, res) => {
+//   try {
+//     const rawEmail = req.body.email;
+//     const rawOtp = req.body.otp;
+//
+//     if (!rawEmail || !rawOtp) {
+//       return res.status(400).json({ error: 'Email and 6-digit OTP code are required.' });
+//     }
+//
+//     const email = sanitizeInput(rawEmail).toLowerCase();
+//     const otpInput = String(rawOtp).trim();
+//
+//     if (!/^\d{6}$/.test(otpInput)) {
+//       return res.status(400).json({ error: 'Verification code must consist of exactly 6 numeric digits.' });
+//     }
+//
+//     let otpRecord: ServerOtpRecord | null = null;
+//
+//     if (dbPool) {
+//       try {
+//         const dbRes = await dbPool.query('SELECT * FROM otps WHERE email = $1', [email]);
+//         if (dbRes.rows.length > 0) {
+//           const row = dbRes.rows[0];
+//           otpRecord = {
+//             code: row.otp_code,
+//             expiresAt: new Date(row.expires_at).getTime(),
+//             attempts: Number(row.attempts || 0),
+//             lastSentAt: new Date(row.last_sent_at || Date.now()).getTime()
+//           };
+//         }
+//       } catch (e: any) {
+//         console.error('database OTP fetch error:', e.message);
+//       }
+//     }
+//
+//     if (!otpRecord) {
+//       const mem = serverOtpStore.get(email);
+//       if (mem) otpRecord = mem;
+//     }
+//
+//     if (!otpRecord) {
+//       return res.status(400).json({
+//         error: 'No active verification code found for this email address. Please click "Resend Code".',
+//         code: 'OTP_NOT_FOUND'
+//       });
+//     }
+//
+//     // 1. Check Max Verification Attempts (5 max)
+//     if (otpRecord.attempts >= 5) {
+//       return res.status(429).json({
+//         error: 'Maximum verification attempts (5) exceeded. Please click "Resend Code" to receive a new OTP.',
+//         code: 'MAX_ATTEMPTS_EXCEEDED'
+//       });
+//     }
+//
+//     // 2. Check Expiry Period (10 minutes)
+//     if (Date.now() > otpRecord.expiresAt) {
+//       return res.status(400).json({
+//         error: 'Verification code has expired (valid for 10 minutes). Please click "Resend Code" to receive a new OTP.',
+//         code: 'OTP_EXPIRED'
+//       });
+//     }
+//
+//     // 3. Check OTP Match
+//     if (otpRecord.code !== otpInput) {
+//       const updatedAttempts = otpRecord.attempts + 1;
+//       const remaining = Math.max(0, 5 - updatedAttempts);
+//
+//       if (dbPool) {
+//         await dbPool.query('UPDATE otps SET attempts = $1 WHERE email = $2', [updatedAttempts, email]).catch(() => {});
+//       }
+//       serverOtpStore.set(email, { ...otpRecord, attempts: updatedAttempts });
+//
+//       if (remaining <= 0) {
+//         return res.status(429).json({
+//           error: 'Maximum verification attempts (5) exceeded. Please click "Resend Code" to get a new code.',
+//           remainingAttempts: 0,
+//           code: 'MAX_ATTEMPTS_EXCEEDED'
+//         });
+//       }
+//
+//       return res.status(400).json({
+//         error: `Incorrect verification code. ${remaining} attempt(s) remaining.`,
+//         remainingAttempts: remaining,
+//         code: 'INVALID_OTP'
+//       });
+//     }
+//
+//     // OTP VERIFIED SUCCESSFULLY: Delete OTP Record
+//     if (dbPool) {
+//       await dbPool.query('DELETE FROM otps WHERE email = $1', [email]).catch(() => {});
+//     }
+//     serverOtpStore.delete(email);
+//
+//     // Update User Account in Database (is_verified = true, status = 'active')
+//     let verifiedUser: any = null;
+//     if (dbPool) {
+//       try {
+//         const updateRes = await dbPool.query(
+//           `UPDATE users SET is_verified = true, status = 'active' WHERE LOWER(email) = $1
+//            RETURNING id, name, email, role, phone, avatar_url, is_verified, status, signup_method, created_at`,
+//           [email]
+//         );
+//         if (updateRes.rows.length > 0) {
+//           verifiedUser = updateRes.rows[0];
+//         }
+//       } catch (e: any) {
+//         console.error('database User Verification Update Error:', e.message);
+//       }
+//     }
+//
+//     if (!verifiedUser) {
+//       verifiedUser = {
+//         id: `user-${Date.now()}`,
+//         name: email.split('@')[0],
+//         email: email,
+//         role: 'client',
+//         isVerified: true,
+//         status: 'active',
+//         createdAt: new Date().toISOString()
+//       };
+//     }
+//
+//     const senderEmail = process.env.VITE_SENDER_EMAIL || process.env.BREVO_SENDER_EMAIL || 'support@bxstrength.com';
+//
+//     // Send Welcome Email upon successful OTP verification
+//     sendServerEmail({
+//       toEmail: verifiedUser.email,
+//       toName: verifiedUser.name,
+//       subject: 'WELCOME TO BXSTRENGTH | Your Account Is Active 🥊',
+//       senderName: 'BxStrength Support',
+//       htmlContent: `
+//         <div style="font-family: Arial, sans-serif; background-color: #0d0d0f; color: #ffffff; padding: 32px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
+//           <div style="text-align: center; margin-bottom: 24px;">
+//             <img src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1788842924/bxlogo.jpg" alt="BxStrength Logo" style="height: 48px; width: auto; border-radius: 8px; margin: 0 auto;" />
+//           </div>
+//           <h2 style="color: #CCFF00; margin: 0; text-transform: uppercase; text-align: center; font-size: 20px; font-weight: 900;">WELCOME TO BXSTRENGTH</h2>
+//           <p style="text-align: center; color: #a1a1aa; font-size: 13px; margin-top: 4px;">Premier Digital Boxing, Strength &amp; Fitness Coaching</p>
+//           
+//           <div style="margin-top: 24px; font-size: 14px; line-height: 1.6; color: #e4e4e7;">
+//             <p>Dear <strong>${verifiedUser.name}</strong>,</p>
+//             <p>Your email address has been successfully verified! Your athlete profile is now active.</p>
+//           </div>
+//
+//           <div style="background-color: #18181b; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #27272a; font-size: 13px; line-height: 1.7;">
+//             <p style="margin: 4px 0; color: #a1a1aa;"><strong style="color: #ffffff;">Registered Name:</strong> ${verifiedUser.name}</p>
+//             <p style="margin: 4px 0; color: #a1a1aa;"><strong style="color: #ffffff;">Email Address:</strong> ${verifiedUser.email}</p>
+//             <p style="margin: 4px 0; color: #a1a1aa;"><strong style="color: #ffffff;">Verification Status:</strong> <span style="color: #CCFF00; font-weight: bold;">VERIFIED &amp; ACTIVE</span></p>
+//           </div>
+//
+//           <div style="text-align: center; margin: 28px 0;">
+//             <a href="${req.headers.origin || 'https://bxstrength.com'}" style="background-color: #CCFF00; color: #000000; font-weight: 900; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; display: inline-block; box-shadow: 0 4px 14px rgba(204, 255, 0, 0.3);">
+//               ACCESS YOUR ATHLETE PORTAL
+//             </a>
+//           </div>
+//         </div>
+//       `
+//     }).catch(() => {});
+//
+//     // Generate JWT Access Token
+//     const token = jwt.sign({ id: verifiedUser.id, email: verifiedUser.email, role: verifiedUser.role, name: verifiedUser.name }, JWT_SECRET, { expiresIn: '7d' });
+//
+//     return res.json({
+//       success: true,
+//       message: 'Account successfully verified! Welcome to BxStrength.',
+//       user: verifiedUser,
+//       token
+//     });
+//
+//   } catch (err: any) {
+//     console.error('Verify OTP error:', err.message);
+//     res.status(500).json({ error: 'OTP verification failed due to a server error.' });
+//   }
+// });
 
 // --- RESEND OTP ENDPOINT WITH RATE LIMITING ---
-app.post('/api/auth/resend-otp', authLimiter, async (req, res) => {
-  try {
-    const rawEmail = req.body.email;
-    if (!rawEmail) {
-      return res.status(400).json({ error: 'Email address is required.' });
-    }
+// moved to Backend/src/controllers/authController.ts
+// app.post('/api/auth/resend-otp', authLimiter, async (req, res) => {
+//   try {
+//     const rawEmail = req.body.email;
+//     if (!rawEmail) {
+//       return res.status(400).json({ error: 'Email address is required.' });
+//     }
+//
+//     const email = sanitizeInput(rawEmail).toLowerCase();
+//
+//     // Check if user account is already verified
+//     let user: any = null;
+//     if (dbPool) {
+//       const uRes = await dbPool.query('SELECT * FROM users WHERE LOWER(email) = $1', [email]);
+//       if (uRes.rows.length > 0) {
+//         user = uRes.rows[0];
+//       }
+//     }
+//
+//     if (user && user.is_verified) {
+//       return res.status(400).json({
+//         error: 'This account is already verified. You can sign in directly.',
+//         code: 'ALREADY_VERIFIED'
+//       });
+//     }
+//
+//     // Check Rate Limiting Cooldown (60 seconds minimum interval)
+//     let existingRecord: ServerOtpRecord | null = null;
+//     if (dbPool) {
+//       try {
+//         const oRes = await dbPool.query('SELECT * FROM otps WHERE email = $1', [email]);
+//         if (oRes.rows.length > 0) {
+//           const row = oRes.rows[0];
+//           existingRecord = {
+//             code: row.otp_code,
+//             expiresAt: new Date(row.expires_at).getTime(),
+//             attempts: Number(row.attempts || 0),
+//             lastSentAt: new Date(row.last_sent_at || Date.now()).getTime()
+//           };
+//         }
+//       } catch (e: any) {
+//         console.error('database fetch OTP error in resend:', e.message);
+//       }
+//     }
+//
+//     if (!existingRecord) {
+//       const mem = serverOtpStore.get(email);
+//       if (mem) existingRecord = mem;
+//     }
+//
+//     if (existingRecord) {
+//       const timePassed = Date.now() - existingRecord.lastSentAt;
+//       if (timePassed < 60000) { // 60 seconds rate limit
+//         const remainingSec = Math.ceil((60000 - timePassed) / 1000);
+//         return res.status(429).json({
+//           error: `Rate Limit Exceeded: Please wait ${remainingSec} second(s) before requesting a new OTP.`,
+//           retryAfterSeconds: remainingSec,
+//           code: 'RESEND_RATE_LIMITED'
+//         });
+//       }
+//     }
+//
+//     // Generate New 6-Digit OTP
+//     const newOtpCode = generate6DigitOtp();
+//     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+//
+//     if (dbPool) {
+//       try {
+//         await dbPool.query(
+//           `INSERT INTO otps (email, otp_code, expires_at, attempts, last_sent_at)
+//            VALUES ($1, $2, $3, 0, CURRENT_TIMESTAMP)
+//            ON CONFLICT (email) DO UPDATE SET
+//            otp_code = EXCLUDED.otp_code,
+//            expires_at = EXCLUDED.expires_at,
+//            attempts = 0,
+//            last_sent_at = CURRENT_TIMESTAMP`,
+//           [email, newOtpCode, expiresAt]
+//         );
+//       } catch (e: any) {
+//         console.error('database insert OTP error in resend:', e.message);
+//       }
+//     }
+//
+//     serverOtpStore.set(email, {
+//       code: newOtpCode,
+//       expiresAt: expiresAt.getTime(),
+//       attempts: 0,
+//       lastSentAt: Date.now()
+//     });
+//
+//     const nameToUse = user ? user.name : email.split('@')[0];
+//     sendOtpEmail(email, nameToUse, newOtpCode).catch((err) => console.error('[RESEND OTP EMAIL EXCEPTION]', err.message));
+//
+//     return res.json({
+//       success: true,
+//       message: 'A new 6-digit verification code has been dispatched to your email address.'
+//     });
+//
+//   } catch (err: any) {
+//     console.error('Resend OTP error:', err.message);
+//     res.status(500).json({ error: 'Failed to resend OTP verification code.' });
+//   }
+// });
 
-    const email = sanitizeInput(rawEmail).toLowerCase();
-
-    // Check if user account is already verified
-    let user: any = null;
-    if (dbPool) {
-      const uRes = await dbPool.query('SELECT * FROM users WHERE LOWER(email) = $1', [email]);
-      if (uRes.rows.length > 0) {
-        user = uRes.rows[0];
-      }
-    }
-
-    if (user && user.is_verified) {
-      return res.status(400).json({
-        error: 'This account is already verified. You can sign in directly.',
-        code: 'ALREADY_VERIFIED'
-      });
-    }
-
-    // Check Rate Limiting Cooldown (60 seconds minimum interval)
-    let existingRecord: ServerOtpRecord | null = null;
-    if (dbPool) {
-      try {
-        const oRes = await dbPool.query('SELECT * FROM otps WHERE email = $1', [email]);
-        if (oRes.rows.length > 0) {
-          const row = oRes.rows[0];
-          existingRecord = {
-            code: row.otp_code,
-            expiresAt: new Date(row.expires_at).getTime(),
-            attempts: Number(row.attempts || 0),
-            lastSentAt: new Date(row.last_sent_at || Date.now()).getTime()
-          };
-        }
-      } catch (e: any) {
-        console.error('NeonDB fetch OTP error in resend:', e.message);
-      }
-    }
-
-    if (!existingRecord) {
-      const mem = serverOtpStore.get(email);
-      if (mem) existingRecord = mem;
-    }
-
-    if (existingRecord) {
-      const timePassed = Date.now() - existingRecord.lastSentAt;
-      if (timePassed < 60000) { // 60 seconds rate limit
-        const remainingSec = Math.ceil((60000 - timePassed) / 1000);
-        return res.status(429).json({
-          error: `Rate Limit Exceeded: Please wait ${remainingSec} second(s) before requesting a new OTP.`,
-          retryAfterSeconds: remainingSec,
-          code: 'RESEND_RATE_LIMITED'
-        });
-      }
-    }
-
-    // Generate New 6-Digit OTP
-    const newOtpCode = generate6DigitOtp();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    if (dbPool) {
-      try {
-        await dbPool.query(
-          `INSERT INTO otps (email, otp_code, expires_at, attempts, last_sent_at)
-           VALUES ($1, $2, $3, 0, CURRENT_TIMESTAMP)
-           ON CONFLICT (email) DO UPDATE SET
-           otp_code = EXCLUDED.otp_code,
-           expires_at = EXCLUDED.expires_at,
-           attempts = 0,
-           last_sent_at = CURRENT_TIMESTAMP`,
-          [email, newOtpCode, expiresAt]
-        );
-      } catch (e: any) {
-        console.error('NeonDB insert OTP error in resend:', e.message);
-      }
-    }
-
-    serverOtpStore.set(email, {
-      code: newOtpCode,
-      expiresAt: expiresAt.getTime(),
-      attempts: 0,
-      lastSentAt: Date.now()
-    });
-
-    const nameToUse = user ? user.name : email.split('@')[0];
-    sendOtpEmail(email, nameToUse, newOtpCode).catch((err) => console.error('[RESEND OTP EMAIL EXCEPTION]', err.message));
-
-    return res.json({
-      success: true,
-      message: 'A new 6-digit verification code has been dispatched to your email address.'
-    });
-
-  } catch (err: any) {
-    console.error('Resend OTP error:', err.message);
-    res.status(500).json({ error: 'Failed to resend OTP verification code.' });
-  }
-});
-
-app.post('/api/auth/login', authLimiter, async (req, res) => {
-  try {
-    const rawEmail = req.body.email;
-    const rawPassword = req.body.password;
-
-    if (!rawEmail || !rawPassword) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-
-    if (typeof rawPassword !== 'string' || rawPassword.length > 128) {
-      return res.status(400).json({ error: 'Security alert: Password exceeds maximum limit of 128 characters.' });
-    }
-
-    const email = sanitizeInput(rawEmail).toLowerCase();
-
-    if (dbPool) {
-      try {
-        const result = await dbPool.query('SELECT * FROM users WHERE email = $1', [email]);
-        if (result.rows.length === 0) {
-          return res.status(404).json({
-            error: 'No account found with this email address. Please create an account first.',
-            code: 'ACCOUNT_NOT_FOUND'
-          });
-        }
-
-        const user = result.rows[0];
-        if (user.status === 'inactive' || user.status === 'deactivated') {
-          return res.status(403).json({
-            error: 'Account Deactivated: Your access has been deactivated by Admin. Please contact customer support.',
-            code: 'ACCOUNT_DEACTIVATED'
-          });
-        }
-
-        const valid = await bcrypt.compare(rawPassword, user.password_hash);
-        if (!valid) {
-          return res.status(401).json({
-            error: 'Incorrect password. Please verify your password or reset it.',
-            code: 'INVALID_PASSWORD'
-          });
-        }
-
-        delete user.password_hash;
-
-        // Check 2-step verification requirement
-        if (!user.is_verified) {
-          // Send/resend OTP for user to complete verification
-          const otpCode = generate6DigitOtp();
-          const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-          await dbPool.query(
-            `INSERT INTO otps (email, otp_code, expires_at, attempts, last_sent_at)
-             VALUES ($1, $2, $3, 0, CURRENT_TIMESTAMP)
-             ON CONFLICT (email) DO UPDATE SET
-             otp_code = EXCLUDED.otp_code,
-             expires_at = EXCLUDED.expires_at,
-             attempts = 0,
-             last_sent_at = CURRENT_TIMESTAMP`,
-            [email, otpCode, expiresAt]
-          ).catch(() => {});
-
-          serverOtpStore.set(email, {
-            code: otpCode,
-            expiresAt: expiresAt.getTime(),
-            attempts: 0,
-            lastSentAt: Date.now()
-          });
-
-          sendOtpEmail(email, user.name || email, otpCode).catch(() => {});
-
-          return res.status(403).json({
-            error: 'Account verification required: Please enter the 6-digit OTP sent to your email address.',
-            code: 'EMAIL_NOT_VERIFIED',
-            email: user.email
-          });
-        }
-
-        const token = jwt.sign({ id: user.id, email: user.email, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
-        return res.json({ user, token });
-      } catch (e: any) {
-        console.error('NeonDB Login query error:', e.message);
-        return res.status(500).json({ error: 'Database authentication query failed.' });
-      }
-    }
-
-    return res.status(404).json({
-      error: 'No account found with this email address. Please create an account first.',
-      code: 'ACCOUNT_NOT_FOUND'
-    });
-  } catch (err: any) {
-    console.error('Login error:', err.message);
-    res.status(500).json({ error: 'Authentication failed' });
-  }
-});
+// moved to Backend/src/controllers/authController.ts
+// app.post('/api/auth/login', authLimiter, async (req, res) => {
+//   try {
+//     const rawEmail = req.body.email;
+//     const rawPassword = req.body.password;
+//
+//     if (!rawEmail || !rawPassword) {
+//       return res.status(400).json({ error: 'Email and password are required' });
+//     }
+//
+//     if (typeof rawPassword !== 'string' || rawPassword.length > 128) {
+//       return res.status(400).json({ error: 'Security alert: Password exceeds maximum limit of 128 characters.' });
+//     }
+//
+//     const email = sanitizeInput(rawEmail).toLowerCase();
+//
+//     if (dbPool) {
+//       try {
+//         const result = await dbPool.query('SELECT * FROM users WHERE email = $1', [email]);
+//         if (result.rows.length === 0) {
+//           return res.status(404).json({
+//             error: 'No account found with this email address. Please create an account first.',
+//             code: 'ACCOUNT_NOT_FOUND'
+//           });
+//         }
+//
+//         const user = result.rows[0];
+//         if (user.status === 'inactive' || user.status === 'deactivated') {
+//           return res.status(403).json({
+//             error: 'Account Deactivated: Your access has been deactivated by Admin. Please contact customer support.',
+//             code: 'ACCOUNT_DEACTIVATED'
+//           });
+//         }
+//
+//         const valid = await bcrypt.compare(rawPassword, user.password_hash);
+//         if (!valid) {
+//           return res.status(401).json({
+//             error: 'Incorrect password. Please verify your password or reset it.',
+//             code: 'INVALID_PASSWORD'
+//           });
+//         }
+//
+//         delete user.password_hash;
+//
+//         // Check 2-step verification requirement
+//         if (!user.is_verified) {
+//           // Send/resend OTP for user to complete verification
+//           const otpCode = generate6DigitOtp();
+//           const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+//           await dbPool.query(
+//             `INSERT INTO otps (email, otp_code, expires_at, attempts, last_sent_at)
+//              VALUES ($1, $2, $3, 0, CURRENT_TIMESTAMP)
+//              ON CONFLICT (email) DO UPDATE SET
+//              otp_code = EXCLUDED.otp_code,
+//              expires_at = EXCLUDED.expires_at,
+//              attempts = 0,
+//              last_sent_at = CURRENT_TIMESTAMP`,
+//             [email, otpCode, expiresAt]
+//           ).catch(() => {});
+//
+//           serverOtpStore.set(email, {
+//             code: otpCode,
+//             expiresAt: expiresAt.getTime(),
+//             attempts: 0,
+//             lastSentAt: Date.now()
+//           });
+//
+//           sendOtpEmail(email, user.name || email, otpCode).catch(() => {});
+//
+//           return res.status(403).json({
+//             error: 'Account verification required: Please enter the 6-digit OTP sent to your email address.',
+//             code: 'EMAIL_NOT_VERIFIED',
+//             email: user.email
+//           });
+//         }
+//
+//         const token = jwt.sign({ id: user.id, email: user.email, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
+//         return res.json({ user, token });
+//       } catch (e: any) {
+//         console.error('database Login query error:', e.message);
+//         return res.status(500).json({ error: 'Database authentication query failed.' });
+//       }
+//     }
+//
+//     return res.status(404).json({
+//       error: 'No account found with this email address. Please create an account first.',
+//       code: 'ACCOUNT_NOT_FOUND'
+//     });
+//   } catch (err: any) {
+//     console.error('Login error:', err.message);
+//     res.status(500).json({ error: 'Authentication failed' });
+//   }
+// });
 
 
-app.get('/api/auth/me', authenticateToken, (req: any, res) => {
-  res.json({ user: req.user });
-});
+// moved to Backend/src/controllers/authController.ts
+// app.get('/api/auth/me', authenticateToken, (req: any, res) => {
+//   res.json({ user: req.user });
+// });
 
-app.post('/api/auth/forgot-password', authLimiter, async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Email address is required' });
-    }
+// moved to Backend/src/controllers/authController.ts
+// app.post('/api/auth/forgot-password', authLimiter, async (req, res) => {
+//   try {
+//     const { email } = req.body;
+//     if (!email) {
+//       return res.status(400).json({ error: 'Email address is required' });
+//     }
+//
+//     const cleanEmail = sanitizeInput(email).toLowerCase();
+//
+//     // Generate secure password reset token strictly valid for 5 MINUTES
+//     const resetToken = jwt.sign({ email: cleanEmail, purpose: 'password_reset' }, JWT_SECRET, { expiresIn: '5m' });
+//
+//     const origin = req.headers.origin || 'http://localhost:3000';
+//     const resetUrl = `${origin}/#reset-password?email=${encodeURIComponent(cleanEmail)}&token=${resetToken}`;
+//
+//     const senderEmail = process.env.VITE_SENDER_EMAIL || process.env.BREVO_SENDER_EMAIL || 'support@bxstrength.com';
+//
+//     // Dispatch real email via Brevo REST API v3
+//     const emailResult = await sendServerEmail({
+//       toEmail: cleanEmail,
+//       toName: cleanEmail.split('@')[0],
+//       subject: 'Password Reset Request - BxStrength',
+//       senderName: 'BxStrength Support',
+//       htmlContent: `<!DOCTYPE html>
+// <html lang="en">
+// <head>
+//   <meta charset="UTF-8">
+//   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+//   <title>Password Reset Request - BxStrength</title>
+// </head>
+// <body style="margin: 0; padding: 30px 10px; background-color: #0c0c0e; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+//   <div style="background-color: #0c0c0e; color: #ffffff; padding: 30px 20px; border-radius: 12px; max-width: 560px; margin: 0 auto; border: 1px solid #27272a;">
+//     <!-- Header Logo -->
+//     <div style="text-align: center; margin-bottom: 24px;">
+//       <img src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1788842924/bxlogo.jpg" alt="BxStrength Logo" style="height: 44px; width: auto; border-radius: 8px; margin: 0 auto;" />
+//     </div>
+//     
+//     <!-- Main Content Card -->
+//     <div style="background-color: #141417; border: 1px solid #27272a; border-radius: 10px; padding: 28px; text-align: left; margin-bottom: 20px;">
+//       <h2 style="color: #CCFF00; margin: 0 0 16px 0; font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">Password Reset Request</h2>
+//       <p style="font-size: 14px; line-height: 1.6; color: #e4e4e7; margin: 0 0 14px 0;">
+//         We received a request to reset the password for your account (<strong style="color: #ffffff;">${cleanEmail}</strong>).
+//       </p>
+//       <p style="font-size: 13px; line-height: 1.6; color: #a1a1aa; margin: 0 0 24px 0;">
+//         Click the button below to set your new password. This link is active for <strong>5 minutes</strong>.
+//       </p>
+//
+//       <div style="text-align: center; margin: 24px 0;">
+//         <a href="${resetUrl}" style="background-color: #CCFF00; color: #000000; font-weight: 800; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; display: inline-block;">
+//           Reset Password
+//         </a>
+//       </div>
+//
+//       <p style="font-size: 11px; color: #71717a; line-height: 1.5; margin: 16px 0 0 0; text-align: center;">
+//         If the button doesn't work, copy and paste this link into your browser:<br/>
+//         <a href="${resetUrl}" style="color: #CCFF00; word-break: break-all; text-decoration: underline;">${resetUrl}</a>
+//       </p>
+//     </div>
+//
+//     <p style="font-size: 12px; color: #71717a; line-height: 1.5; margin: 0 0 20px 0; text-align: center;">
+//       If you did not request a password reset, you can safely ignore this email.
+//     </p>
+//
+//     <!-- Footer -->
+//     <div style="border-top: 1px solid #27272a; padding-top: 16px; font-size: 11px; color: #71717a; text-align: center;">
+//       BxStrength Security Operations | <a href="mailto:${senderEmail}" style="color: #a1a1aa; text-decoration: none;">${senderEmail}</a>
+//     </div>
+//   </div>
+// </body>
+// </html>`
+//     });
+//
+//     console.log(`[FORGOT PASSWORD] Email dispatch result for ${cleanEmail}: ${emailResult.success ? 'SUCCESS' : 'FAILED (' + emailResult.error + ')'}`);
+//
+//     if (!emailResult.success) {
+//       return res.status(502).json({
+//         error: `Brevo Email Dispatch Failed: ${emailResult.error || 'Unauthorized IP'}. Please check your Brevo account settings.`,
+//         success: false,
+//         details: emailResult.error
+//       });
+//     }
+//
+//     res.json({
+//       message: `Password reset email successfully sent to ${cleanEmail}. Link is active for 5 minutes.`,
+//       success: true,
+//       provider: emailResult.provider || 'Brevo API v3',
+//       resetToken,
+//       resetUrl
+//     });
+//   } catch (err: any) {
+//     console.error('Forgot password error:', err.message);
+//     res.status(500).json({ error: 'Failed to process password reset request' });
+//   }
+// });
 
-    const cleanEmail = sanitizeInput(email).toLowerCase();
-
-    // Generate secure password reset token strictly valid for 5 MINUTES
-    const resetToken = jwt.sign({ email: cleanEmail, purpose: 'password_reset' }, JWT_SECRET, { expiresIn: '5m' });
-
-    const origin = req.headers.origin || 'http://localhost:3000';
-    const resetUrl = `${origin}/#reset-password?email=${encodeURIComponent(cleanEmail)}&token=${resetToken}`;
-
-    const senderEmail = process.env.VITE_SENDER_EMAIL || process.env.BREVO_SENDER_EMAIL || 'khanshadan96@gmail.com';
-
-    // Dispatch real email via Brevo REST API v3
-    const emailResult = await sendServerEmail({
-      toEmail: cleanEmail,
-      toName: cleanEmail.split('@')[0],
-      subject: 'Password Reset Request - BxStrength',
-      senderName: 'BxStrength Support',
-      htmlContent: `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Password Reset Request - BxStrength</title>
-</head>
-<body style="margin: 0; padding: 30px 10px; background-color: #0c0c0e; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-  <div style="background-color: #0c0c0e; color: #ffffff; padding: 30px 20px; border-radius: 12px; max-width: 560px; margin: 0 auto; border: 1px solid #27272a;">
-    <!-- Header Logo -->
-    <div style="text-align: center; margin-bottom: 24px;">
-      <img src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1788842924/bxlogo.jpg" alt="BxStrength Logo" style="height: 44px; width: auto; border-radius: 8px; margin: 0 auto;" />
-    </div>
-    
-    <!-- Main Content Card -->
-    <div style="background-color: #141417; border: 1px solid #27272a; border-radius: 10px; padding: 28px; text-align: left; margin-bottom: 20px;">
-      <h2 style="color: #CCFF00; margin: 0 0 16px 0; font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">Password Reset Request</h2>
-      <p style="font-size: 14px; line-height: 1.6; color: #e4e4e7; margin: 0 0 14px 0;">
-        We received a request to reset the password for your account (<strong style="color: #ffffff;">${cleanEmail}</strong>).
-      </p>
-      <p style="font-size: 13px; line-height: 1.6; color: #a1a1aa; margin: 0 0 24px 0;">
-        Click the button below to set your new password. This link is active for <strong>5 minutes</strong>.
-      </p>
-
-      <div style="text-align: center; margin: 24px 0;">
-        <a href="${resetUrl}" style="background-color: #CCFF00; color: #000000; font-weight: 800; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; display: inline-block;">
-          Reset Password
-        </a>
-      </div>
-
-      <p style="font-size: 11px; color: #71717a; line-height: 1.5; margin: 16px 0 0 0; text-align: center;">
-        If the button doesn't work, copy and paste this link into your browser:<br/>
-        <a href="${resetUrl}" style="color: #CCFF00; word-break: break-all; text-decoration: underline;">${resetUrl}</a>
-      </p>
-    </div>
-
-    <p style="font-size: 12px; color: #71717a; line-height: 1.5; margin: 0 0 20px 0; text-align: center;">
-      If you did not request a password reset, you can safely ignore this email.
-    </p>
-
-    <!-- Footer -->
-    <div style="border-top: 1px solid #27272a; padding-top: 16px; font-size: 11px; color: #71717a; text-align: center;">
-      BxStrength Security Operations | <a href="mailto:${senderEmail}" style="color: #a1a1aa; text-decoration: none;">${senderEmail}</a>
-    </div>
-  </div>
-</body>
-</html>`
-    });
-
-    console.log(`[FORGOT PASSWORD] Email dispatch result for ${cleanEmail}: ${emailResult.success ? 'SUCCESS' : 'FAILED (' + emailResult.error + ')'}`);
-
-    if (!emailResult.success) {
-      return res.status(502).json({
-        error: `Brevo Email Dispatch Failed: ${emailResult.error || 'Unauthorized IP'}. Please check your Brevo account settings.`,
-        success: false,
-        details: emailResult.error
-      });
-    }
-
-    res.json({
-      message: `Password reset email successfully sent to ${cleanEmail}. Link is active for 5 minutes.`,
-      success: true,
-      provider: emailResult.provider || 'Brevo API v3',
-      resetToken,
-      resetUrl
-    });
-  } catch (err: any) {
-    console.error('Forgot password error:', err.message);
-    res.status(500).json({ error: 'Failed to process password reset request' });
-  }
-});
-
-app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
-  try {
-    const { email, newPassword, token } = req.body;
-    if (!token && !email) {
-      return res.status(400).json({ error: 'Reset token or email is required.' });
-    }
-    if (!newPassword) {
-      return res.status(400).json({ error: 'New password is required.' });
-    }
-
-    let cleanEmail = email ? sanitizeInput(email).toLowerCase() : '';
-
-    if (token) {
-      try {
-        const decoded: any = jwt.verify(token, JWT_SECRET);
-        if (decoded && decoded.email) {
-          cleanEmail = decoded.email.toLowerCase();
-        } else {
-          return res.status(400).json({ error: 'Invalid password reset token format.' });
-        }
-      } catch (tokenErr: any) {
-        if (tokenErr.name === 'TokenExpiredError') {
-          return res.status(400).json({
-            error: 'The 5-minute password reset link has expired. Please request a new reset email.'
-          });
-        }
-        return res.status(400).json({ error: 'Invalid or corrupted reset token. Please request a new link.' });
-      }
-    }
-
-    if (!cleanEmail) {
-      return res.status(400).json({ error: 'Unable to verify account email for password reset.' });
-    }
-
-    if (typeof newPassword !== 'string' || newPassword.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
-    }
-
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    let updatedDbRows = 0;
-
-    if (dbPool) {
-      try {
-        const dbResult = await dbPool.query(
-          'UPDATE users SET password_hash = $1 WHERE LOWER(email) = $2 RETURNING id, email',
-          [hashedPassword, cleanEmail]
-        );
-        updatedDbRows = dbResult.rowCount || 0;
-        console.log(`✅ [NEON DB SUCCESS] Password updated in NeonDB for user: ${cleanEmail} (Rows updated: ${updatedDbRows})`);
-      } catch (e: any) {
-        console.error('❌ [NEON DB RESET ERROR]', e.message);
-      }
-    }
-
-    sendServerEmail({
-      toEmail: cleanEmail,
-      toName: cleanEmail.split('@')[0],
-      subject: 'Password Changed - BxStrength',
-      senderName: 'BxStrength Security',
-      htmlContent: `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Password Changed - BxStrength</title>
-</head>
-<body style="margin: 0; padding: 30px 10px; background-color: #0c0c0e; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-  <div style="background-color: #0c0c0e; color: #ffffff; padding: 30px 20px; border-radius: 12px; max-width: 560px; margin: 0 auto; border: 1px solid #27272a;">
-    <div style="text-align: center; margin-bottom: 24px;">
-      <img src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1788842924/bxlogo.jpg" alt="BxStrength Logo" style="height: 44px; width: auto; border-radius: 8px; margin: 0 auto;" />
-    </div>
-    
-    <div style="background-color: #141417; border: 1px solid #27272a; border-radius: 10px; padding: 28px; text-align: left;">
-      <h2 style="color: #CCFF00; margin: 0 0 14px 0; font-size: 18px; font-weight: 800; text-transform: uppercase;">Password Changed Successfully</h2>
-      <p style="font-size: 14px; line-height: 1.6; color: #e4e4e7; margin: 0 0 12px 0;">
-        The password for your BxStrength account (<strong style="color: #ffffff;">${cleanEmail}</strong>) was successfully updated.
-      </p>
-      <p style="font-size: 13px; line-height: 1.6; color: #a1a1aa; margin: 0;">
-        You can now sign in with your new password. If you did not make this change, please contact BxStrength Support immediately.
-      </p>
-    </div>
-
-    <div style="border-top: 1px solid #27272a; margin-top: 24px; padding-top: 16px; font-size: 11px; color: #71717a; text-align: center;">
-      BxStrength Security Operations
-    </div>
-  </div>
-</body>
-</html>`
-    }).catch(() => { });
-
-    res.json({
-      success: true,
-      message: 'Your password has been successfully updated in NeonDB! You can now sign in with your new password.',
-      dbUpdated: updatedDbRows > 0
-    });
-  } catch (err: any) {
-    console.error('Reset password error:', err.message);
-    res.status(500).json({ error: 'Failed to reset password' });
-  }
-});
+// moved to Backend/src/controllers/authController.ts
+// app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
+//   try {
+//     const { email, newPassword, token } = req.body;
+//     if (!token && !email) {
+//       return res.status(400).json({ error: 'Reset token or email is required.' });
+//     }
+//     if (!newPassword) {
+//       return res.status(400).json({ error: 'New password is required.' });
+//     }
+//
+//     let cleanEmail = email ? sanitizeInput(email).toLowerCase() : '';
+//
+//     if (token) {
+//       try {
+//         const decoded: any = jwt.verify(token, JWT_SECRET);
+//         if (decoded && decoded.email) {
+//           cleanEmail = decoded.email.toLowerCase();
+//         } else {
+//           return res.status(400).json({ error: 'Invalid password reset token format.' });
+//         }
+//       } catch (tokenErr: any) {
+//         if (tokenErr.name === 'TokenExpiredError') {
+//           return res.status(400).json({
+//             error: 'The 5-minute password reset link has expired. Please request a new reset email.'
+//           });
+//         }
+//         return res.status(400).json({ error: 'Invalid or corrupted reset token. Please request a new link.' });
+//       }
+//     }
+//
+//     if (!cleanEmail) {
+//       return res.status(400).json({ error: 'Unable to verify account email for password reset.' });
+//     }
+//
+//     if (typeof newPassword !== 'string' || newPassword.length < 6) {
+//       return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+//     }
+//
+//     const hashedPassword = await bcrypt.hash(newPassword, 10);
+//     let updatedDbRows = 0;
+//
+//     if (dbPool) {
+//       try {
+//         const dbResult = await dbPool.query(
+//           'UPDATE users SET password_hash = $1 WHERE LOWER(email) = $2 RETURNING id, email',
+//           [hashedPassword, cleanEmail]
+//         );
+//         updatedDbRows = dbResult.rowCount || 0;
+//         console.log(`[NEON DB SUCCESS] Password updated in database for user: ${cleanEmail} (Rows updated: ${updatedDbRows})`);
+//       } catch (e: any) {
+//         console.error('❌ [NEON DB RESET ERROR]', e.message);
+//       }
+//     }
+//
+//     sendServerEmail({
+//       toEmail: cleanEmail,
+//       toName: cleanEmail.split('@')[0],
+//       subject: 'Password Changed - BxStrength',
+//       senderName: 'BxStrength Security',
+//       htmlContent: `<!DOCTYPE html>
+// <html lang="en">
+// <head>
+//   <meta charset="UTF-8">
+//   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+//   <title>Password Changed - BxStrength</title>
+// </head>
+// <body style="margin: 0; padding: 30px 10px; background-color: #0c0c0e; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+//   <div style="background-color: #0c0c0e; color: #ffffff; padding: 30px 20px; border-radius: 12px; max-width: 560px; margin: 0 auto; border: 1px solid #27272a;">
+//     <div style="text-align: center; margin-bottom: 24px;">
+//       <img src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1788842924/bxlogo.jpg" alt="BxStrength Logo" style="height: 44px; width: auto; border-radius: 8px; margin: 0 auto;" />
+//     </div>
+//     
+//     <div style="background-color: #141417; border: 1px solid #27272a; border-radius: 10px; padding: 28px; text-align: left;">
+//       <h2 style="color: #CCFF00; margin: 0 0 14px 0; font-size: 18px; font-weight: 800; text-transform: uppercase;">Password Changed Successfully</h2>
+//       <p style="font-size: 14px; line-height: 1.6; color: #e4e4e7; margin: 0 0 12px 0;">
+//         The password for your BxStrength account (<strong style="color: #ffffff;">${cleanEmail}</strong>) was successfully updated.
+//       </p>
+//       <p style="font-size: 13px; line-height: 1.6; color: #a1a1aa; margin: 0;">
+//         You can now sign in with your new password. If you did not make this change, please contact BxStrength Support immediately.
+//       </p>
+//     </div>
+//
+//     <div style="border-top: 1px solid #27272a; margin-top: 24px; padding-top: 16px; font-size: 11px; color: #71717a; text-align: center;">
+//       BxStrength Security Operations
+//     </div>
+//   </div>
+// </body>
+// </html>`
+//     }).catch(() => { });
+//
+//     res.json({
+//       success: true,
+//       message: 'Your password has been successfully updated in database! You can now sign in with your new password.',
+//       dbUpdated: updatedDbRows > 0
+//     });
+//   } catch (err: any) {
+//     console.error('Reset password error:', err.message);
+//     res.status(500).json({ error: 'Failed to reset password' });
+//   }
+// });
 
 export type ServerEnquiryStatus = 'new' | 'transferred_to_headcoach' | 'assigned_to_coach' | 'in_progress' | 'resolved';
 
@@ -2720,7 +2768,7 @@ app.post('/api/consultations', enquiryLimiter, async (req, res) => {
     sendServerEmail({
       toEmail: adminEmail,
       toName: 'BxStrength Admin',
-      subject: `🚨 [NEW CONSULTATION] ${leadName} - ${leadGoal} (${date} at ${time})`,
+      subject: `[NEW CONSULTATION] ${leadName} - ${leadGoal} (${date} at ${time})`,
       senderName: 'BxStrength Booking Bot',
       htmlContent: `
         <div style="font-family: Arial, sans-serif; color: #ffffff;">
@@ -2809,7 +2857,7 @@ app.post('/api/email/test', async (req, res) => {
     const result = await sendServerEmail({
       toEmail: targetEmail,
       toName: targetEmail.split('@')[0],
-      subject: '✅ [BxStrength] Email Service Health & Verification Test',
+      subject: '[BxStrength] Email Service Health & Verification Test',
       senderName: 'BxStrength Security System',
       htmlContent: `
         <div style="font-family: Arial, sans-serif; background-color: #0d0d0f; color: #ffffff; padding: 32px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
@@ -2836,30 +2884,7 @@ app.post('/api/email/test', async (req, res) => {
   }
 });
 
-app.post('/api/send-email', async (req, res) => {
-  try {
-    const { toEmail, toName, subject, htmlContent, senderName } = req.body;
-    if (!toEmail || !subject || !htmlContent) {
-      return res.status(400).json({ error: 'toEmail, subject, and htmlContent are required.' });
-    }
-
-    const result = await sendServerEmail({
-      toEmail,
-      toName: toName || toEmail,
-      subject,
-      htmlContent,
-      senderName
-    });
-
-    if (result.success) {
-      return res.json({ success: true, message: `Email sent successfully via ${result.provider}`, data: result });
-    } else {
-      return res.status(400).json({ error: 'Email send failed', details: result.error });
-    }
-  } catch (err: any) {
-    res.status(500).json({ error: 'Server email send failed', message: err.message });
-  }
-});
+// Email moved to Backend/src/routes/emailRoutes.ts (templated, server-chosen recipient).
 
 app.get('/api/consultations', async (req, res) => {
   try {
@@ -2904,7 +2929,7 @@ app.get('/api/users', async (req, res) => {
         }));
         return res.json(formatted);
       } catch (err: any) {
-        console.error('NeonDB fetch users error:', err.message);
+        console.error('database fetch users error:', err.message);
       }
     }
     res.json([]);
@@ -2941,7 +2966,7 @@ app.post('/api/users', authenticateToken, async (req: any, res: any) => {
           [userId, cleanName, cleanEmail, passwordHash, cleanRole, cleanPos, cleanPhone, height, Number(age) || 25, sanitizeInput(gender || 'Other'), sanitizeInput(fitnessGoals || ''), cleanStatus, cleanAssignedCoach, cleanAssignedHeadCoach]
         );
       } catch (e: any) {
-        console.error('NeonDB POST /api/users Error:', e.message);
+        console.error('database POST /api/users Error:', e.message);
       }
     }
 
@@ -3010,11 +3035,11 @@ app.patch('/api/users/:id', authenticateToken, async (req: any, res: any) => {
           ]
         );
       } catch (e: any) {
-        console.error('NeonDB PATCH /api/users Error:', e.message);
+        console.error('database PATCH /api/users Error:', e.message);
       }
     }
 
-    res.json({ message: `User profile ${id} updated in NeonDB database!` });
+    res.json({ message: `User profile ${id} updated in database!` });
   } catch (err: any) {
     console.error('Update user error:', err.message);
     res.status(500).json({ error: 'Failed to update user' });
@@ -3034,11 +3059,11 @@ app.put('/api/admin/users/:id/role', authenticateToken, authorizeRoles('admin', 
       try {
         await dbPool.query('UPDATE users SET role = $1 WHERE id = $2', [cleanRole, id]);
       } catch (e: any) {
-        console.error('NeonDB update role error:', e.message);
+        console.error('database update role error:', e.message);
       }
     }
 
-    res.json({ message: `User ${id} role updated to "${cleanRole}" live in NeonDB!` });
+    res.json({ message: `User ${id} role updated to "${cleanRole}" live in database!` });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to update user role' });
   }
@@ -3057,7 +3082,7 @@ app.put('/api/admin/users/:id/status', authenticateToken, authorizeRoles('admin'
       try {
         await dbPool.query('UPDATE users SET status = $1 WHERE id = $2', [cleanStatus, id]);
       } catch (e: any) {
-        console.error('NeonDB update status error:', e.message);
+        console.error('database update status error:', e.message);
       }
     }
 
@@ -3080,7 +3105,7 @@ app.put('/api/admin/users/:id/password', authenticateToken, authorizeRoles('admi
       try {
         await dbPool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedPassword, id]);
       } catch (e: any) {
-        console.error('NeonDB reset password error:', e.message);
+        console.error('database reset password error:', e.message);
       }
     }
 
@@ -3100,11 +3125,11 @@ app.put('/api/admin/users/:id/verify', authenticateToken, authorizeRoles('admin'
       try {
         await dbPool.query('UPDATE users SET is_verified = $1 WHERE id = $2', [status, id]);
       } catch (e: any) {
-        console.error('NeonDB update verify error:', e.message);
+        console.error('database update verify error:', e.message);
       }
     }
 
-    res.json({ message: `User ${id} verification status set to ${status} live in NeonDB!` });
+    res.json({ message: `User ${id} verification status set to ${status} live in database!` });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to update user verification' });
   }
@@ -3117,7 +3142,7 @@ app.delete('/api/users/:id', authenticateToken, authorizeRoles('admin'), async (
       try {
         await dbPool.query('DELETE FROM users WHERE id = $1', [id]);
       } catch (e: any) {
-        console.error('NeonDB DELETE /api/users Error:', e.message);
+        console.error('database DELETE /api/users Error:', e.message);
       }
     }
     res.json({ message: `User ${id} permanently deleted from database!` });
@@ -3194,9 +3219,9 @@ app.post('/api/enquiries', enquiryLimiter, async (req, res) => {
           [enqId, cleanName, cleanEmail, cleanPhone, cleanSubject, cleanMessage, cleanCategory, cleanPriority, cleanWeightage, cleanAssignedCoach, isTransferred, cleanStatus]
         );
       } catch (dbErr: any) {
-        console.warn('NeonDB enquiry save notice:', dbErr.message);
+        console.warn('database enquiry save notice:', dbErr.message);
       }
-      return res.status(201).json({ id: enqId, message: 'Enquiry received securely and stored in NeonDB database', data: newEnquiry });
+      return res.status(201).json({ id: enqId, message: 'Enquiry received securely and stored in database', data: newEnquiry });
     }
     res.status(201).json({ id: enqId, message: 'Enquiry received securely and stored in server database', data: newEnquiry });
   } catch (err: any) {
@@ -3226,150 +3251,7 @@ app.delete('/api/enquiries/:id', authenticateToken, authorizeRoles('admin'), asy
   }
 });
 
-interface ServerReview {
-  id: string;
-  name: string;
-  role: string;
-  rating: number;
-  comment: string;
-  avatar: string;
-  createdAt: string;
-}
-
-const SEED_REVIEWS: ServerReview[] = [];
-
-const reviewsStore: ServerReview[] = [...SEED_REVIEWS];
-
-app.get('/api/admin/purge-reviews', async (req, res) => {
-  try {
-    reviewsStore.length = 0;
-    if (dbPool) {
-      await dbPool.query('DELETE FROM reviews;');
-    }
-    return res.json({ message: 'All test reviews successfully deleted from NeonDB and server memory!' });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
-app.get('/api/reviews', async (req, res) => {
-  try {
-    let rawList: ServerReview[] = [];
-    if (dbPool) {
-      try {
-        // Automatically purge any curl/test entries from NeonDB table
-        await dbPool.query("DELETE FROM reviews WHERE LOWER(name) LIKE '%test%' OR id LIKE 'rev-17893%'").catch(() => { });
-
-        const result = await dbPool.query('SELECT * FROM reviews ORDER BY created_at DESC');
-        rawList = result.rows.map(r => ({
-          ...r,
-          name: (r.name || '').replace(/&amp;/g, '&').replace(/&amp;/g, '&').replace(/&#x27;/g, "'"),
-          role: (r.role || 'BxStrength Athlete').replace(/&amp;/g, '&').replace(/&amp;/g, '&').replace(/&#x27;/g, "'"),
-          comment: (r.comment || '').replace(/&amp;/g, '&').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&#x2F;/g, '/'),
-          avatar: (r.avatar && typeof r.avatar === 'string' && r.avatar.startsWith('data:image'))
-            ? r.avatar.replace(/&#x2F;/g, '/').replace(/&amp;/g, '&')
-            : r.avatar
-        }));
-      } catch {
-        rawList = [...reviewsStore];
-      }
-    } else {
-      rawList = [...reviewsStore];
-    }
-
-    if (rawList.length === 0) {
-      rawList = [...SEED_REVIEWS];
-    }
-
-    const cleanRows = rawList.filter(r =>
-      r.name && !r.name.toLowerCase().includes('test') &&
-      r.id !== 'rev-1' && r.id !== 'rev-2' && r.id !== 'rev-3' &&
-      r.id !== 't1' && r.id !== 't2' && r.id !== 't3'
-    );
-
-    const listToUse = cleanRows.length > 0 ? cleanRows : SEED_REVIEWS;
-
-    const uniqueMap = new Map<string, ServerReview>();
-    listToUse.forEach(r => {
-      const contentKey = `${r.name.toLowerCase().trim()}:::${r.comment.trim()}`;
-      if (!uniqueMap.has(contentKey)) {
-        uniqueMap.set(contentKey, r);
-      }
-    });
-
-    return res.json(Array.from(uniqueMap.values()));
-  } catch {
-    res.json(SEED_REVIEWS);
-  }
-});
-
-app.post('/api/reviews', async (req, res) => {
-  try {
-    const { id: providedId, name, role, rating, comment, avatar } = req.body;
-    if (!name || !comment) {
-      return res.status(400).json({ error: 'Name and comment are required to post a review.' });
-    }
-
-    let processedAvatar = avatar;
-    if (processedAvatar && typeof processedAvatar === 'string' && processedAvatar.startsWith('data:image')) {
-      processedAvatar = processedAvatar.replace(/&#x2F;/g, '/').replace(/&amp;/g, '&');
-
-      const base64Data = processedAvatar.split(',')[1] || '';
-      const approximateBytes = Math.round((base64Data.length * 3) / 4);
-      if (approximateBytes > 500 * 1024) {
-        return res.status(400).json({ error: 'Image size exceeds maximum limit of 500 KB. Please choose a smaller photo.' });
-      }
-    }
-
-    const cleanName = sanitizeInput(name);
-    const cleanRole = sanitizeInput(role || 'BxStrength Athlete');
-    const cleanComment = sanitizeInput(comment);
-    const cleanAvatar = (processedAvatar && typeof processedAvatar === 'string' && (processedAvatar.startsWith('data:image/') || processedAvatar.startsWith('http')))
-      ? processedAvatar
-      : `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanName)}`;
-    const cleanRating = Math.min(5, Math.max(1, Number(rating) || 5));
-    const reviewId = providedId || `rev-${Date.now()}`;
-
-    const newReview: ServerReview = {
-      id: reviewId,
-      name: cleanName,
-      role: cleanRole,
-      rating: cleanRating,
-      comment: cleanComment,
-      avatar: cleanAvatar,
-      createdAt: new Date().toISOString()
-    };
-
-    // Check memory store for duplicate name + comment
-    const existsInMemory = reviewsStore.some(r => r.name.toLowerCase().trim() === cleanName.toLowerCase() && r.comment.trim() === cleanComment);
-    if (!existsInMemory) {
-      reviewsStore.unshift(newReview);
-    }
-
-    if (dbPool) {
-      try {
-        const existingInDb = await dbPool.query(
-          `SELECT id FROM reviews WHERE LOWER(name) = LOWER($1) AND comment = $2`,
-          [cleanName, cleanComment]
-        );
-        if (existingInDb.rows.length === 0) {
-          await dbPool.query(
-            `INSERT INTO reviews (id, name, role, rating, comment, avatar, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
-            [reviewId, cleanName, cleanRole, cleanRating, cleanComment, cleanAvatar]
-          );
-        }
-      } catch (err: any) {
-        console.error('NeonDB review insert error:', err.message);
-      }
-    }
-
-    res.status(201).json({ message: 'Review published live successfully!', data: newReview });
-  } catch (err: any) {
-    console.error('Post review error:', err.message);
-    res.status(500).json({ error: 'Failed to post client review' });
-  }
-});
+// Reviews moved to Backend/src/routes/reviewRoutes.ts (mounted above). Purge: /api/admin/purge-reviews.
 
 interface ServerTrainer {
   id: string;
@@ -3468,7 +3350,7 @@ app.get('/api/trainers', async (req, res) => {
         const dbTrainers = result.rows.map(mapRowToTrainer);
         return res.json(dbTrainers);
       } catch (err: any) {
-        console.error('NeonDB fetch trainers error:', err.message);
+        console.error('database fetch trainers error:', err.message);
         if (err.message && (err.message.includes('does not exist') || err.message.includes('column'))) {
           await ensureTrainerColumnsExist();
           try {
@@ -3554,12 +3436,12 @@ app.post('/api/trainers', authenticateToken, async (req: any, res: any) => {
           ]
         );
       } catch (e: any) {
-        console.error('NeonDB add trainer error:', e.message);
+        console.error('database add trainer error:', e.message);
       }
     }
 
     trainersStore.unshift(newTrainer);
-    res.status(201).json({ message: `Coach card for ${cleanName} published live to NeonDB database!`, data: newTrainer });
+    res.status(201).json({ message: `Coach card for ${cleanName} published live to database!`, data: newTrainer });
   } catch (err: any) {
     console.error('Create trainer error:', err.message);
     res.status(500).json({ error: 'Failed to create coach profile' });
@@ -3633,7 +3515,7 @@ app.put('/api/trainers/:id', authenticateToken, async (req: any, res: any) => {
           ]
         );
       } catch (e: any) {
-        console.error('NeonDB update trainer error:', e.message);
+        console.error('database update trainer error:', e.message);
       }
     }
 
@@ -3667,7 +3549,7 @@ app.put('/api/trainers/:id', authenticateToken, async (req: any, res: any) => {
       trainersStore.push(updated);
     }
 
-    res.json({ message: `Coach ${cleanName} updated live in NeonDB database!`, data: updated });
+    res.json({ message: `Coach ${cleanName} updated live in database!`, data: updated });
   } catch (err: any) {
     console.error('Update trainer error:', err.message);
     res.status(500).json({ error: 'Failed to update coach profile' });
@@ -3689,7 +3571,7 @@ app.delete('/api/trainers/:id', authenticateToken, authorizeRoles('admin', 'coac
       trainersStore.splice(idx, 1);
     }
 
-    res.json({ message: `Coach ${id} deleted from live website and NeonDB database!` });
+    res.json({ message: `Coach ${id} deleted from live website and database!` });
   } catch (err: any) {
     console.error('Delete trainer error:', err.message);
     res.status(500).json({ error: 'Failed to delete coach' });
@@ -3728,61 +3610,7 @@ const mapRowToTicket = (row: any): ServerTicket => ({
 
 const ticketsStore: ServerTicket[] = [];
 
-app.get('/api/announcements', async (req, res) => {
-  try {
-    if (dbPool) {
-      const result = await dbPool.query('SELECT * FROM announcements ORDER BY created_at DESC');
-      const announcements = result.rows.map(r => ({
-        id: r.id,
-        title: r.title,
-        message: r.message,
-        targetRole: r.target_role,
-        priority: r.priority,
-        authorName: r.author_name,
-        createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString()
-      }));
-      return res.json({ success: true, announcements });
-    }
-    return res.json({ success: true, announcements: [] });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, announcements: [], error: err.message });
-  }
-});
-
-app.post('/api/announcements', async (req, res) => {
-  try {
-    const { title, message, targetRole = 'all', priority = 'medium', authorName = 'System Admin' } = req.body;
-    if (!title || !message) {
-      return res.status(400).json({ success: false, error: 'Title and message are required' });
-    }
-    const id = req.body.id || `ann-${Date.now()}`;
-    const createdAt = req.body.createdAt || new Date().toISOString();
-    if (dbPool) {
-      await dbPool.query(
-        'INSERT INTO announcements (id, title, message, target_role, priority, author_name, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-        [id, title, message, targetRole, priority, authorName, createdAt]
-      );
-    }
-    return res.json({
-      success: true,
-      announcement: { id, title, message, targetRole, priority, authorName, createdAt }
-    });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-app.delete('/api/announcements/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (dbPool) {
-      await dbPool.query('DELETE FROM announcements WHERE id = $1', [id]);
-    }
-    return res.json({ success: true, message: 'Announcement deleted' });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
-});
+// Announcements moved to Backend/src/routes/announcementRoutes.ts (mounted above).
 
 app.get('/api/tickets', async (req, res) => {
   try {
@@ -3861,11 +3689,11 @@ app.post('/api/tickets', enquiryLimiter, async (req, res) => {
 
     ticketsStore.unshift(newTicket);
 
-    const adminEmail = process.env.VITE_ADMIN_EMAIL || 'khanshadan96@gmail.com';
+    const adminEmail = process.env.VITE_ADMIN_EMAIL || 'support@bxstrength.com';
     sendServerEmail({
       toEmail: adminEmail,
       toName: 'BxStrength Admin Team',
-      subject: `🚨 TICKET [${ticketId}]: ${cleanSubject}`,
+      subject: `TICKET [${ticketId}]: ${cleanSubject}`,
       senderName: 'BxStrength Support System',
       htmlContent: `
         <div style="font-family: Arial, sans-serif; background-color: #0a0a0a; color: #ffffff; padding: 25px; border-radius: 8px;">
@@ -3891,7 +3719,9 @@ app.post('/api/tickets', enquiryLimiter, async (req, res) => {
   }
 });
 
-app.patch('/api/tickets/:id', authenticateToken, authorizeRoles('admin', 'coach'), async (req: any, res: any) => {
+// app.patch('/api/tickets/:id', authenticateToken, authorizeRoles('admin', 'coach'), async (req: any, res: any) => {
+// the support team works these tickets too
+app.patch('/api/tickets/:id', authenticateToken, authorizeRoles('admin', 'headcoach', 'coach', 'customer_support', 'support'), async (req: any, res: any) => {
   try {
     const { id } = req.params;
     const { status, adminResponse } = req.body;
@@ -3967,99 +3797,7 @@ app.delete('/api/tickets/:id', authenticateToken, authorizeRoles('admin'), async
 });
 
 // WORKOUT PROGRAMS ENDPOINTS
-app.get('/api/workout-programs', async (req, res) => {
-  try {
-    if (dbPool) {
-      const dbRes = await dbPool.query('SELECT * FROM workout_programs ORDER BY created_at DESC');
-      const programs = dbRes.rows.map(r => ({
-        id: r.id,
-        title: r.title,
-        description: r.description || '',
-        level: r.level || 'Intermediate',
-        durationWeeks: r.duration_weeks || 4,
-        assignedToUserId: r.assigned_to_user_id || undefined,
-        assignedToUserName: r.assigned_to_user_name || undefined,
-        assignedCoachName: r.assigned_coach_name || undefined,
-        assignedBy: r.assigned_by || 'Shaban Faridi',
-        assignedByRole: r.assigned_by_role || 'Head Coach',
-        assignedAt: r.assigned_at ? new Date(r.assigned_at).toISOString() : new Date().toISOString(),
-        status: r.status || 'assigned',
-        coachApprovalStatus: r.coach_approval_status || 'pending',
-        coachApprovalNotes: r.coach_approval_notes || undefined,
-        headCoachApprovalStatus: r.headcoach_approval_status || 'pending',
-        headCoachApprovalNotes: r.headcoach_approval_notes || undefined,
-        version: r.version ? Number(r.version) : 1,
-        approvalLogs: r.approval_logs ? JSON.parse(r.approval_logs) : [],
-        isPublishedToClient: r.is_published_to_client === true,
-        publishedToClientAt: r.published_to_client_at ? new Date(r.published_to_client_at).toISOString() : undefined,
-        exercises: r.exercises ? JSON.parse(r.exercises) : [],
-        createdBy: r.created_by || 'Head Coach',
-        createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString()
-      }));
-      return res.json(programs);
-    }
-    return res.json([]);
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/workout-programs', async (req, res) => {
-  try {
-    const { id, title, description, level, durationWeeks, assignedToUserId, assignedToUserName, assignedCoachName, assignedBy, assignedByRole, assignedAt, status, coachApprovalStatus, coachApprovalNotes, headCoachApprovalStatus, headCoachApprovalNotes, version, approvalLogs, isPublishedToClient, publishedToClientAt, exercises, createdBy } = req.body;
-    if (!title) return res.status(400).json({ error: 'Title is required' });
-
-    const progId = id || `prog-${Date.now()}`;
-    const exJson = typeof exercises === 'string' ? exercises : JSON.stringify(exercises || []);
-    const appLogsJson = typeof approvalLogs === 'string' ? approvalLogs : JSON.stringify(approvalLogs || []);
-    const isPub = isPublishedToClient === true;
-
-    if (dbPool) {
-      await dbPool.query(
-        `INSERT INTO workout_programs (id, title, description, level, duration_weeks, assigned_to_user_id, assigned_to_user_name, assigned_coach_name, assigned_by, assigned_by_role, assigned_at, status, coach_approval_status, coach_approval_notes, headcoach_approval_status, headcoach_approval_notes, version, approval_logs, is_published_to_client, published_to_client_at, exercises, created_by, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, NOW(), NOW())
-         ON CONFLICT (id) DO UPDATE SET
-           title = EXCLUDED.title,
-           description = EXCLUDED.description,
-           level = EXCLUDED.level,
-           duration_weeks = EXCLUDED.duration_weeks,
-           assigned_to_user_id = EXCLUDED.assigned_to_user_id,
-           assigned_to_user_name = EXCLUDED.assigned_to_user_name,
-           assigned_coach_name = EXCLUDED.assigned_coach_name,
-           assigned_by = EXCLUDED.assigned_by,
-           assigned_by_role = EXCLUDED.assigned_by_role,
-           assigned_at = EXCLUDED.assigned_at,
-           status = EXCLUDED.status,
-           coach_approval_status = EXCLUDED.coach_approval_status,
-           coach_approval_notes = EXCLUDED.coach_approval_notes,
-           headcoach_approval_status = EXCLUDED.headcoach_approval_status,
-           headcoach_approval_notes = EXCLUDED.headcoach_approval_notes,
-           version = EXCLUDED.version,
-           approval_logs = EXCLUDED.approval_logs,
-           is_published_to_client = EXCLUDED.is_published_to_client,
-           published_to_client_at = EXCLUDED.published_to_client_at,
-           exercises = EXCLUDED.exercises,
-           updated_at = NOW()`,
-        [progId, sanitizeInput(title), sanitizeInput(description || ''), sanitizeInput(level || 'Intermediate'), Number(durationWeeks) || 4, assignedToUserId || null, assignedToUserName || null, assignedCoachName || null, sanitizeInput(assignedBy || 'Shaban Faridi'), sanitizeInput(assignedByRole || 'Head Coach'), assignedAt || new Date().toISOString(), status || 'assigned', coachApprovalStatus || 'pending', sanitizeInput(coachApprovalNotes || ''), headCoachApprovalStatus || 'pending', sanitizeInput(headCoachApprovalNotes || ''), Number(version) || 1, appLogsJson, isPub, publishedToClientAt || null, exJson, sanitizeInput(createdBy || 'Head Coach')]
-      );
-    }
-    return res.json({ id: progId, message: 'Workout program saved to NeonDB database' });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete('/api/workout-programs/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (dbPool) {
-      await dbPool.query('DELETE FROM workout_programs WHERE id = $1', [id]);
-    }
-    return res.json({ message: `Workout program ${id} deleted from NeonDB` });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
+// Workout programs moved to Backend/src/routes/workoutProgramRoutes.ts (mounted above).
 
 // COACH ASSIGNMENTS ENDPOINTS
 app.get('/api/coach-assignments', async (req, res) => {
@@ -4178,7 +3916,7 @@ app.post('/api/coach-assignments', async (req, res) => {
       );
     }
 
-    return res.json({ id: assignId, message: 'Coach assignment saved to NeonDB' });
+    return res.json({ id: assignId, message: 'Coach assignment saved to database' });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
@@ -4227,91 +3965,8 @@ app.delete('/api/coach-assignments/:id', async (req, res) => {
 });
 
 // NUTRITION PLANS ENDPOINTS
-app.get('/api/nutrition-plans', async (req, res) => {
-  try {
-    if (dbPool) {
-      const dbRes = await dbPool.query('SELECT * FROM nutrition_plans ORDER BY created_at DESC');
-      const plans = dbRes.rows.map(r => ({
-        id: r.id,
-        title: r.title,
-        assignedToUserId: r.assigned_to_user_id || undefined,
-        assignedToUserName: r.assigned_to_user_name || undefined,
-        assignedCoachName: r.assigned_coach_name || undefined,
-        assignedBy: r.assigned_by || 'Shaban Faridi',
-        assignedByRole: r.assigned_by_role || 'Head Coach',
-        assignedAt: r.assigned_at ? new Date(r.assigned_at).toISOString() : new Date().toISOString(),
-        status: r.status || 'assigned',
-        coachApprovalStatus: r.coach_approval_status || 'pending',
-        coachApprovalNotes: r.coach_approval_notes || undefined,
-        headCoachApprovalStatus: r.headcoach_approval_status || 'pending',
-        headCoachApprovalNotes: r.headcoach_approval_notes || undefined,
-        version: r.version ? Number(r.version) : 1,
-        approvalLogs: r.approval_logs ? JSON.parse(r.approval_logs) : [],
-        isPublishedToClient: r.is_published_to_client === true,
-        publishedToClientAt: r.published_to_client_at ? new Date(r.published_to_client_at).toISOString() : undefined,
-        dailyCalories: r.daily_calories || 2400,
-        targetProteinG: r.target_protein_g || 190,
-        targetCarbsG: r.target_carbs_g || 220,
-        targetFatG: r.target_fat_g || 70,
-        meals: r.meals ? JSON.parse(r.meals) : [],
-        createdBy: r.created_by || 'Head Nutritionist',
-        updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString()
-      }));
-      return res.json(plans);
-    }
-    return res.json([]);
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
+// Nutrition plans moved to Backend/src/routes/nutritionPlanRoutes.ts (mounted above).
 
-app.post('/api/nutrition-plans', async (req, res) => {
-  try {
-    const { id, title, assignedToUserId, assignedToUserName, assignedCoachName, assignedBy, assignedByRole, assignedAt, status, coachApprovalStatus, coachApprovalNotes, headCoachApprovalStatus, headCoachApprovalNotes, version, approvalLogs, isPublishedToClient, publishedToClientAt, dailyCalories, targetProteinG, targetCarbsG, targetFatG, meals, createdBy } = req.body;
-    if (!title) return res.status(400).json({ error: 'Title is required' });
-
-    const planId = id || `nut-${Date.now()}`;
-    const mealsJson = typeof meals === 'string' ? meals : JSON.stringify(meals || []);
-    const appLogsJson = typeof approvalLogs === 'string' ? approvalLogs : JSON.stringify(approvalLogs || []);
-    const isPub = isPublishedToClient === true;
-
-    if (dbPool) {
-      await dbPool.query(
-        `INSERT INTO nutrition_plans (id, title, assigned_to_user_id, assigned_to_user_name, assigned_coach_name, assigned_by, assigned_by_role, assigned_at, status, coach_approval_status, coach_approval_notes, headcoach_approval_status, headcoach_approval_notes, version, approval_logs, is_published_to_client, published_to_client_at, daily_calories, target_protein_g, target_carbs_g, target_fat_g, meals, created_by, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, NOW(), NOW())
-         ON CONFLICT (id) DO UPDATE SET
-           title = EXCLUDED.title,
-           assigned_to_user_id = EXCLUDED.assigned_to_user_id,
-           assigned_to_user_name = EXCLUDED.assigned_to_user_name,
-           assigned_coach_name = EXCLUDED.assigned_coach_name,
-           assigned_by = EXCLUDED.assigned_by,
-           assigned_by_role = EXCLUDED.assigned_by_role,
-           assigned_at = EXCLUDED.assigned_at,
-           status = EXCLUDED.status,
-           coach_approval_status = EXCLUDED.coach_approval_status,
-           coach_approval_notes = EXCLUDED.coach_approval_notes,
-           headcoach_approval_status = EXCLUDED.headcoach_approval_status,
-           headcoach_approval_notes = EXCLUDED.headcoach_approval_notes,
-           version = EXCLUDED.version,
-           approval_logs = EXCLUDED.approval_logs,
-           is_published_to_client = EXCLUDED.is_published_to_client,
-           published_to_client_at = EXCLUDED.published_to_client_at,
-           daily_calories = EXCLUDED.daily_calories,
-           target_protein_g = EXCLUDED.target_protein_g,
-           target_carbs_g = EXCLUDED.target_carbs_g,
-           target_fat_g = EXCLUDED.target_fat_g,
-           meals = EXCLUDED.meals,
-           updated_at = NOW()`,
-        [planId, sanitizeInput(title), assignedToUserId || null, assignedToUserName || null, assignedCoachName || null, sanitizeInput(assignedBy || 'Shaban Faridi'), sanitizeInput(assignedByRole || 'Head Coach'), assignedAt || new Date().toISOString(), status || 'assigned', coachApprovalStatus || 'pending', sanitizeInput(coachApprovalNotes || ''), headCoachApprovalStatus || 'pending', sanitizeInput(headCoachApprovalNotes || ''), Number(version) || 1, appLogsJson, isPub, publishedToClientAt || null, Number(dailyCalories) || 2400, Number(targetProteinG) || 190, Number(targetCarbsG) || 220, Number(targetFatG) || 70, mealsJson, sanitizeInput(createdBy || 'Head Nutritionist')]
-      );
-    }
-    return res.json({ id: planId, message: 'Diet plan saved to NeonDB database' });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
-// IN-APP NOTIFICATIONS ENDPOINTS
 app.get('/api/notifications', async (req, res) => {
   try {
     const { email } = req.query;
@@ -4393,18 +4048,6 @@ app.post('/api/email-notifications/send', async (req, res) => {
   }
 });
 
-app.delete('/api/nutrition-plans/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (dbPool) {
-      await dbPool.query('DELETE FROM nutrition_plans WHERE id = $1', [id]);
-    }
-    return res.json({ message: `Diet plan ${id} deleted from NeonDB` });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
 // CLASSES ENDPOINTS
 app.get('/api/classes', async (req, res) => {
   try {
@@ -4458,7 +4101,7 @@ app.post('/api/classes', async (req, res) => {
         [clsId, sanitizeInput(title), sanitizeInput(category || 'strength'), trainerId || '', sanitizeInput(trainerName || 'Coach'), dayOfWeek || 'Monday', startTime || '09:00 AM', endTime || '10:00 AM', room || 'Studio A', Number(maxCapacity) || 20, Number(bookedCount) || 0, Number(price) || 0]
       );
     }
-    return res.json({ id: clsId, message: 'Class schedule saved to NeonDB database' });
+    return res.json({ id: clsId, message: 'Class schedule saved to database' });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
@@ -4470,73 +4113,14 @@ app.delete('/api/classes/:id', async (req, res) => {
     if (dbPool) {
       await dbPool.query('DELETE FROM classes WHERE id = $1', [id]);
     }
-    return res.json({ message: `Class ${id} deleted from NeonDB` });
+    return res.json({ message: `Class ${id} deleted from database` });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
 });
 
 // SUBSCRIPTIONS ENDPOINTS
-app.get('/api/subscriptions', async (req, res) => {
-  try {
-    if (dbPool) {
-      const dbRes = await dbPool.query('SELECT * FROM subscriptions ORDER BY created_at DESC');
-      const subs = dbRes.rows.map(r => ({
-        id: r.id,
-        userId: r.user_id,
-        userName: r.user_name || 'Client',
-        userEmail: r.user_email,
-        planName: r.plan_name,
-        price: Number(r.price) || 0,
-        billingCycle: r.billing_cycle || 'monthly',
-        status: r.status || 'active',
-        startDate: r.start_date || new Date().toISOString(),
-        endDate: r.end_date || new Date().toISOString()
-      }));
-      return res.json(subs);
-    }
-    return res.json([]);
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/subscriptions', async (req, res) => {
-  try {
-    const { id, userId, userName, userEmail, planName, price, billingCycle, status, startDate, endDate } = req.body;
-    if (!userEmail || !planName) return res.status(400).json({ error: 'Email and planName are required' });
-
-    const subId = id || `sub-${Date.now()}`;
-
-    if (dbPool) {
-      await dbPool.query(
-        `INSERT INTO subscriptions (id, user_id, user_name, user_email, plan_name, price, billing_cycle, status, start_date, end_date, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
-         ON CONFLICT (id) DO UPDATE SET
-           status = EXCLUDED.status,
-           plan_name = EXCLUDED.plan_name,
-           price = EXCLUDED.price,
-           billing_cycle = EXCLUDED.billing_cycle`,
-        [subId, userId || `user-${Date.now()}`, sanitizeInput(userName || 'Client'), sanitizeInput(userEmail).toLowerCase(), sanitizeInput(planName), Number(price) || 0, billingCycle || 'monthly', status || 'active', startDate || new Date().toISOString(), endDate || new Date().toISOString()]
-      );
-    }
-    return res.json({ id: subId, message: 'Subscription saved to NeonDB database' });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete('/api/subscriptions/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (dbPool) {
-      await dbPool.query('DELETE FROM subscriptions WHERE id = $1', [id]);
-    }
-    return res.json({ message: `Subscription ${id} deleted from NeonDB` });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
+// Subscriptions moved to Backend/src/routes/subscriptionRoutes.ts (mounted above).
 
 // AUDIT LOGS ENDPOINTS
 app.get('/api/audit-logs', async (req, res) => {
@@ -4594,7 +4178,7 @@ app.post('/api/audit-logs', async (req, res) => {
         ]
       );
     }
-    return res.json({ id: logId, message: 'Audit log saved to NeonDB database' });
+    return res.json({ id: logId, message: 'Audit log saved to database' });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
@@ -4605,7 +4189,7 @@ app.delete('/api/audit-logs', async (req, res) => {
     if (dbPool) {
       await dbPool.query('DELETE FROM audit_logs');
     }
-    return res.json({ message: 'All audit logs cleared from NeonDB database' });
+    return res.json({ message: 'All audit logs cleared from database' });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
@@ -4626,7 +4210,7 @@ app.get('*', (req, res, next) => {
 });
 
 app.use((err: any, req: any, res: any, next: any) => {
-  console.error('🔥 Global API Error Trapped:', err.stack || err.message || err);
+  console.error('Global API error:', err.stack || err.message || err);
   res.status(500).json({ error: 'An unexpected internal error occurred. Please try again later.' });
 });
 

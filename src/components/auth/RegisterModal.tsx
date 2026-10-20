@@ -93,15 +93,11 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
     setGoogleLoading(true);
     setError(null);
 
-    // 1. Try Google Account Chooser popup
-    const selectedProfile = await promptGoogleAccountSelect();
-    if (selectedProfile) {
+    // Google account chooser popup → verified server-side with the access token.
+    const accessToken = await promptGoogleAccountSelect();
+    if (accessToken) {
       try {
-        const user = await loginWithGoogle(
-          selectedProfile.email,
-          selectedProfile.name,
-          selectedProfile.picture
-        );
+        const user = await loginWithGoogle(accessToken);
         onClose();
         if (onSuccessNavigate) onSuccessNavigate(user.role);
         return;
@@ -113,34 +109,16 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
       return;
     }
 
-    // 2. Interactive account selection prompt for entering user's own Gmail account if popup is closed or blocked
-    setShowGooglePrompt(true);
+    setError('Google sign-in was cancelled or could not be completed. Please try again.');
     setGoogleLoading(false);
   };
 
+  // Manual Gmail entry was removed: an email cannot be trusted without Google
+  // actually verifying it, so sign-up must go through the Google popup.
   const handleCustomGoogleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customGoogleEmail.trim()) {
-      setError('Please enter your Google Gmail address.');
-      return;
-    }
-
-    try {
-      setGoogleLoading(true);
-      const nameToUse = customGoogleName.trim() || customGoogleEmail.split('@')[0];
-      const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(nameToUse)}`;
-
-      const googleUser = await loginWithGoogle(customGoogleEmail.trim(), nameToUse, avatarUrl);
-      setShowGooglePrompt(false);
-      onClose();
-      if (onSuccessNavigate) {
-        onSuccessNavigate(googleUser.role);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Google Single Sign-On failed.');
-    } finally {
-      setGoogleLoading(false);
-    }
+    setShowGooglePrompt(false);
+    setError('Please use the "Continue with Google" button to sign up.');
   };
 
   return (

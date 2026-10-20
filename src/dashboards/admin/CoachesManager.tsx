@@ -188,7 +188,7 @@ export const CoachesManager: React.FC<CoachesManagerProps> = ({ user, onShowToas
     if (editingTrainer) {
       const res = await VelocityAPI.updateTrainerAsync(editingTrainer.id, payload);
       if (res.success) {
-        onShowToast(`Coach card "${name}" updated live in NeonDB!`);
+        onShowToast(`Coach card "${name}" updated live in database!`);
         setIsModalOpen(false);
         fetchTrainers();
         window.dispatchEvent(new CustomEvent('bxstrength_trainers_updated'));
@@ -198,7 +198,7 @@ export const CoachesManager: React.FC<CoachesManagerProps> = ({ user, onShowToas
     } else {
       const res = await VelocityAPI.addTrainerAsync(payload);
       if (res.success) {
-        onShowToast(`Coach card "${name}" added live to NeonDB database!`);
+        onShowToast(`Coach card "${name}" added live to database!`);
         setIsModalOpen(false);
         fetchTrainers();
         window.dispatchEvent(new CustomEvent('bxstrength_trainers_updated'));
@@ -220,7 +220,7 @@ export const CoachesManager: React.FC<CoachesManagerProps> = ({ user, onShowToas
     setDeletingTrainerTarget(null);
     const res = await VelocityAPI.deleteTrainerAsync(id);
     if (res.success) {
-      onShowToast(`Coach "${coachName}" deleted from NeonDB database.`);
+      onShowToast(`Coach "${coachName}" deleted from database.`);
       fetchTrainers();
       window.dispatchEvent(new CustomEvent('bxstrength_trainers_updated'));
     } else {
@@ -238,7 +238,7 @@ export const CoachesManager: React.FC<CoachesManagerProps> = ({ user, onShowToas
             <UserCheck className="w-5 h-5 text-[#CCFF00]" />
             <h2 className="text-xl font-black text-white uppercase tracking-tight">REAL-TIME COACH CARDS MANAGER</h2>
             <span className="bg-emerald-950/80 border border-emerald-800 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
-              NeonDB Live Sync
+              database Live Sync
             </span>
           </div>
           <p className="text-xs text-zinc-400">
@@ -269,7 +269,7 @@ export const CoachesManager: React.FC<CoachesManagerProps> = ({ user, onShowToas
       {isLoading ? (
         <div className="p-12 text-center text-zinc-400 text-sm font-semibold flex items-center justify-center gap-2">
           <RefreshCw className="w-5 h-5 animate-spin text-[#CCFF00]" />
-          <span>Fetching Live Coaches from NeonDB Database...</span>
+          <span>Fetching Live Coaches from database Database...</span>
         </div>
       ) : trainers.length === 0 ? (
         <div className="p-12 text-center bg-zinc-900/50 border border-zinc-800 rounded-2xl space-y-3">
@@ -394,7 +394,7 @@ export const CoachesManager: React.FC<CoachesManagerProps> = ({ user, onShowToas
                   {editingTrainer ? 'EDIT COACH CARD DETAILS' : 'ADD NEW REAL COACH CARD'}
                 </h3>
                 <p className="text-xs text-zinc-400">
-                  Data will be saved directly into NeonDB and displayed live on website coaches section.
+                  Data will be saved directly into database and displayed live on website coaches section.
                 </p>
               </div>
             </div>
@@ -735,7 +735,7 @@ export const CoachesManager: React.FC<CoachesManagerProps> = ({ user, onShowToas
         <ConfirmModal
           isOpen={true}
           title="PERMANENTLY DELETE COACH CARD"
-          message={`Are you sure you want to permanently delete coach "${deletingTrainerTarget.name}" from live website and NeonDB database? This action will immediately remove the coach card live.`}
+          message={`Are you sure you want to permanently delete coach "${deletingTrainerTarget.name}" from live website and database? This action will immediately remove the coach card live.`}
           type="danger"
           confirmText="DELETE COACH CARD NOW"
           cancelText="CANCEL"

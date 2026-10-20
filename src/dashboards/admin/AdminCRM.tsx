@@ -74,7 +74,7 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
       setNutritionPlans(fetchedNut);
       setAnnouncements(fetchedAnn);
     } catch (e: any) {
-      console.error('Error loading CRM data from NeonDB:', e);
+      console.error('Error loading CRM data from database:', e);
       setUsers(VelocityAPI.getUsers());
       setClasses(VelocityAPI.getClasses());
       setSubscriptions(VelocityAPI.getSubscriptions());
@@ -107,16 +107,13 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
   ));
   const isCoach = user.role === 'coach' || isHeadCoach;
 
-  // Dynamic Coach Tab Access Control configured by Admin
   const coachPerms = VelocityAPI.getCoachPermissions();
   const allowedCoachTabs: string[] = [];
 
   if (isHeadCoach) {
-    // Head Coach gets full operational & management access over coaches & clients
     allowedCoachTabs.push('overview', 'users', 'schedule', 'programs', 'nutrition', 'enquiries', 'cs_dashboard', 'tickets', 'announcements');
     if (coachPerms.allowFinancials) allowedCoachTabs.push('subscriptions');
   } else if (isCoach) {
-    // Specialist / Normal Coach access - strictly restricted to assigned items & clean ENQUIRIES tab
     if (coachPerms.allowLeadPipeline) allowedCoachTabs.push('overview');
     if (coachPerms.allowClientRoster) allowedCoachTabs.push('users');
     if (coachPerms.allowClassSchedules) allowedCoachTabs.push('schedule');
@@ -125,7 +122,6 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
     allowedCoachTabs.push('enquiries');
     if (coachPerms.allowFinancials) allowedCoachTabs.push('subscriptions');
   } else {
-    // Admin has master access to all tabs
     allowedCoachTabs.push('overview', 'users', 'schedule', 'programs', 'nutrition', 'subscriptions', 'enquiries', 'cs_dashboard', 'tickets', 'announcements', 'audit');
   }
 

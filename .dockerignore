@@ -4,3 +4,4 @@ dist
 .github
 .env
 *.log
+**/.env*

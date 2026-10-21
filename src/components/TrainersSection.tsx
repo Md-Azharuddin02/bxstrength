@@ -7,6 +7,9 @@ interface TrainersSectionProps {
   onSelectTrainer: (trainer: Trainer) => void;
   onNavigate: (page: ViewPage) => void;
   onOpenBookingWithTrainer?: (trainerName: string) => void;
+  modalOnly?: boolean;
+  openTrainerId?: string | null;
+  onCloseProfile?: () => void;
 }
 
 const VideoCarousel: React.FC<{ videos: string[]; poster: string }> = ({ videos, poster }) => {
@@ -117,7 +120,10 @@ const VideoCarousel: React.FC<{ videos: string[]; poster: string }> = ({ videos,
 export const TrainersSection: React.FC<TrainersSectionProps> = ({
   onSelectTrainer,
   onNavigate,
-  onOpenBookingWithTrainer
+  onOpenBookingWithTrainer,
+  modalOnly = false,
+  openTrainerId = null,
+  onCloseProfile
 }) => {
   const [selectedTrainerForProfile, setSelectedTrainerForProfile] = useState<BxTrainer | null>(null);
   const [trainers, setTrainers] = useState<BxTrainer[]>(TRAINERS_DATA);
@@ -127,8 +133,25 @@ export const TrainersSection: React.FC<TrainersSectionProps> = ({
     setTrainers(TRAINERS_DATA);
   }, []);
 
+  // Open the profile of a specific coach when the parent passes an id
+  useEffect(() => {
+    if (openTrainerId) {
+      const t = TRAINERS_DATA.find((x) => x.id === openTrainerId);
+      if (t) setSelectedTrainerForProfile(t);
+    }
+  }, [openTrainerId]);
+
+  const closeProfile = () => {
+    setSelectedTrainerForProfile(null);
+    onCloseProfile?.();
+  };
+
   return (
-    <section id="trainers-section" className="py-12 sm:py-20 bg-[#0a0a0a] text-white border-b border-zinc-800 font-sans">
+    <section
+      id={modalOnly ? undefined : 'trainers-section'}
+      className={modalOnly ? '' : 'py-12 sm:py-20 bg-[#0a0a0a] text-white border-b border-zinc-800 font-sans'}
+    >
+      {!modalOnly && (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Title */}
@@ -256,6 +279,7 @@ export const TrainersSection: React.FC<TrainersSectionProps> = ({
         )}
 
       </div>
+      )}
 
       {/* COACH CREDENTIALS & CERTIFICATES FULL PAGE MODAL */}
       {selectedTrainerForProfile && (
@@ -269,7 +293,7 @@ export const TrainersSection: React.FC<TrainersSectionProps> = ({
               </span>
             </div>
             <button
-              onClick={() => setSelectedTrainerForProfile(null)}
+              onClick={closeProfile}
               className="bg-zinc-800/90 hover:bg-zinc-700 text-white font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-full border border-zinc-700/80 flex items-center gap-2 transition-all cursor-pointer shadow-lg hover:border-zinc-500"
             >
               <span>← CLOSE PROFILE</span>

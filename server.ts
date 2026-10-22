@@ -121,12 +121,14 @@ app.use((req, res, next) => {
 // }
 
 // 3. RATE LIMITING
+const isDev = process.env.NODE_ENV === 'development';
 const globalApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: isDev ? 10000 : 200,
   message: { error: 'Too many requests from this IP. Please try again after 15 minutes.' },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skip: () => isDev
 });
 
 

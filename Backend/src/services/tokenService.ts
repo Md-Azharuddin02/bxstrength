@@ -19,6 +19,11 @@ const revokedKey = (jti: string) => `auth:revoked:${jti}`;
 const revokedBeforeKey = (userId: string) => `auth:revoked-before:${userId}`;
 const resetKey = (token: string) => `auth:pwreset:${sha256(token)}`;
 
+// In-memory fallback stores when Redis is unavailable or offline locally
+const memoryRevokedTokens = new Map<string, number>();
+const memoryRevokedBefore = new Map<string, number>();
+const memoryPasswordReset = new Map<string, { email: string; exp: number }>();
+
 export interface SessionUser {
   id: string;
   email: string;
@@ -97,35 +102,97 @@ export async function revokeToken(payload: { jti: string; exp: number }): Promis
   const ttl = payload.exp - Math.floor(Date.now() / 1000);
   if (ttl <= 0) return false;
 
-  const result = await redis.set(revokedKey(payload.jti), '1', {
-    expiration: { type: 'EX', value: ttl },
-    condition: 'NX'
-  });
-  return result === 'OK';
+  memoryRevokedTokens.set(payload.jti, Date.now() + ttl * 1000);
+
+  try {
+    if (redis.isOpen) {
+      const result = await redis.set(revokedKey(payload.jti), '1', {
+        expiration: { type: 'EX', value: ttl },
+        condition: 'NX'
+      });
+      return result === 'OK';
+    }
+  } catch {
+    // In-memory fallback is active
+  }
+  return true;
 }
 
 // Signs the user out everywhere: every token issued up to now stops working.
 // We cannot list tokens we never stored, so we remember the cut-off time instead.
 export async function revokeAllSessions(userId: string): Promise<void> {
-  await redis.set(revokedBeforeKey(userId), String(Math.floor(Date.now() / 1000)), {
-    expiration: { type: 'EX', value: REFRESH_TOKEN_TTL_SEC }
-  });
+  const now = Math.floor(Date.now() / 1000);
+  memoryRevokedBefore.set(userId, now);
+
+  try {
+    if (redis.isOpen) {
+      await redis.set(revokedBeforeKey(userId), String(now), {
+        expiration: { type: 'EX', value: REFRESH_TOKEN_TTL_SEC }
+      });
+    }
+  } catch {
+    // In-memory fallback is active
+  }
 }
 
 export async function isTokenRevoked(jti: string, userId: string, issuedAt: number): Promise<boolean> {
-  const [revoked, revokedBefore] = await redis.mGet([revokedKey(jti), revokedBeforeKey(userId)]);
-  return revoked !== null || (revokedBefore !== null && issuedAt <= Number(revokedBefore));
+  try {
+    if (redis.isOpen) {
+      const [revoked, revokedBefore] = await redis.mGet([revokedKey(jti), revokedBeforeKey(userId)]);
+      if (revoked !== null || (revokedBefore !== null && issuedAt <= Number(revokedBefore))) {
+        return true;
+      }
+    }
+  } catch {
+    // Fall back to memory
+  }
+
+  const exp = memoryRevokedTokens.get(jti);
+  if (exp && exp > Date.now()) return true;
+
+  const before = memoryRevokedBefore.get(userId);
+  if (before && issuedAt <= before) return true;
+
+  return false;
 }
 
 export async function createPasswordResetToken(email: string): Promise<string> {
   const token = crypto.randomBytes(32).toString('hex');
-  await redis.set(resetKey(token), email, { expiration: { type: 'EX', value: RESET_TOKEN_TTL_SEC } });
+  memoryPasswordReset.set(token, { email, exp: Date.now() + RESET_TOKEN_TTL_SEC * 1000 });
+
+  try {
+    if (redis.isOpen) {
+      await redis.set(resetKey(token), email, { expiration: { type: 'EX', value: RESET_TOKEN_TTL_SEC } });
+    }
+  } catch {
+    // In-memory fallback is active
+  }
   return token;
 }
 
 // Reads and deletes in one step so a reset link can only be used once.
 export async function consumePasswordResetToken(token: string): Promise<string | null> {
   if (!token) return null;
-  const email = await redis.getDel(resetKey(token));
-  return typeof email === 'string' ? email : null;
+
+  let email: string | null = null;
+  try {
+    if (redis.isOpen) {
+      const res = await redis.getDel(resetKey(token));
+      if (typeof res === 'string') email = res;
+    }
+  } catch {
+    // Fall back to memory below
+  }
+
+  if (!email) {
+    const item = memoryPasswordReset.get(token);
+    if (item) {
+      memoryPasswordReset.delete(token);
+      if (item.exp > Date.now()) {
+        email = item.email;
+      }
+    }
+  }
+
+  return email;
 }

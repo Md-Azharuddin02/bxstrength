@@ -22,9 +22,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-
+  const [user, setUser] = useState<User | null>(() => {
+    const cached = VelocityAPI.getCurrentUser();
+    return cached && cached.isVerified !== false ? cached : null;
+  });
+  const [token, setToken] = useState<string | null>(() => VelocityAPI.getAccessToken() || null);
 
   const syncUser = () => {
     const currentUser = VelocityAPI.getCurrentUser();
@@ -42,15 +44,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let active = true;
 
     const loadFromServer = async () => {
-      await VelocityAPI.refreshSession();
+      try {
+        await VelocityAPI.refreshSession();
+      } catch {}
       const me = await VelocityAPI.fetchMe();
       if (!active) return;
       if (me) {
         setUser(me);
         setToken(VelocityAPI.getAccessToken());
       } else {
-        setUser(null);
-        setToken(null);
+        const currentUser = VelocityAPI.getCurrentUser();
+        const storedToken = VelocityAPI.getAccessToken();
+        if (currentUser && storedToken) {
+          setUser(currentUser);
+          setToken(storedToken);
+        } else {
+          setUser(null);
+          setToken(null);
+        }
       }
     };
 

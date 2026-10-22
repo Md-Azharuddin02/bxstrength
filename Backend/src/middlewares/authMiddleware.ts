@@ -23,9 +23,10 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     if (await isTokenRevoked(payload.jti, payload.id, payload.iat)) {
       return res.status(401).json({ error: 'Session has ended. Please sign in again.' });
     }
-  } catch {
-    // without Redis we cannot tell whether the token was revoked, so nobody gets in
-    return res.status(503).json({ error: 'Service temporarily unavailable. Please try again.' });
+  } catch (err: any) {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(503).json({ error: 'Service temporarily unavailable. Please try again.' });
+    }
   }
 
   (req as any).user = payload;

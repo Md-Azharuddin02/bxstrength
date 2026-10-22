@@ -41,12 +41,33 @@ import { ServiceCustomizationModal } from './components/ServiceCustomizationModa
 import { Preloader } from './components/ui/Preloader';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { CheckCircle2, X, WifiOff, AlertTriangle } from 'lucide-react';
-import { TrainerCompact } from './components/TrainerCompact';
 
 function AppContent() {
   const { user, isAuthenticated, logout } = useAuth();
   const network = useNetworkStatus();
-  const [currentPage, setCurrentPage] = useState<ViewPage>('home');
+
+  const getInitialPage = (): ViewPage => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('bx_current_page') as ViewPage;
+      if (saved) return saved;
+    }
+    return 'home';
+  };
+
+  const [currentPage, setCurrentPage] = useState<ViewPage>(getInitialPage);
+
+  const navigateToPage = (page: ViewPage) => {
+    setCurrentPage(page);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('bx_current_page', page);
+    }
+  };
+
+  const handleLogout = (toastMsg = 'Signed out of session') => {
+    logout();
+    navigateToPage('home');
+    showToast(toastMsg);
+  };
   const [isLoadingSplash, setIsLoadingSplash] = useState<boolean>(true);
   const [bookingModalOpen, setBookingModalOpen] = useState<boolean>(false);
   const [assessmentModalOpen, setAssessmentModalOpen] = useState<boolean>(false);
@@ -107,7 +128,7 @@ function AppContent() {
   }, [isAuthenticated, user]);
 
   const navigateAndScroll = (page: ViewPage, elementId?: string) => {
-    setCurrentPage(page);
+    navigateToPage(page);
     setSearchModalOpen(false);
     setSelectedBlogPostId(null);
     if (elementId) {
@@ -132,13 +153,13 @@ function AppContent() {
   const handleAuthSuccessNavigate = (role: UserRole) => {
     const roleClean = (role || '').toLowerCase();
     if (roleClean === 'customer_support' || roleClean === 'support') {
-      setCurrentPage('support_dashboard');
+      navigateToPage('support_dashboard');
       showToast('Welcome to BxStrength Customer Support Workspace');
     } else if (roleClean === 'admin' || roleClean === 'headcoach' || roleClean === 'coach') {
-      setCurrentPage('admin');
+      navigateToPage('admin');
       showToast(`Welcome to BxStrength Admin CRM (${role.toUpperCase()} Session)`);
     } else {
-      setCurrentPage('dashboard');
+      navigateToPage('dashboard');
       showToast('Welcome to your BxStrength Client Performance Dashboard!');
     }
   };
@@ -176,12 +197,8 @@ function AppContent() {
         <CustomerSupportDashboard
           user={user}
           onShowToast={showToast}
-          onNavigateHome={() => setCurrentPage('home')}
-          onLogout={() => {
-            logout();
-            setCurrentPage('home');
-            showToast('Signed out of Customer Support Workspace');
-          }}
+          onNavigateHome={() => navigateToPage('home')}
+          onLogout={() => handleLogout('Signed out of Customer Support Workspace')}
         />
       );
     }
@@ -189,12 +206,8 @@ function AppContent() {
         return (
           <AdminDashboard
             user={user}
-            onLogout={() => {
-              logout();
-              setCurrentPage('home');
-              showToast('Signed out of Admin session');
-            }}
-            onNavigateHome={() => setCurrentPage('home')}
+            onLogout={() => handleLogout('Signed out of Admin session')}
+            onNavigateHome={() => navigateToPage('home')}
           />
         );
       }
@@ -202,12 +215,8 @@ function AppContent() {
         return (
           <HeadCoachDashboard
             user={user}
-            onLogout={() => {
-              logout();
-              setCurrentPage('home');
-              showToast('Signed out of Head Coach session');
-            }}
-            onNavigateHome={() => setCurrentPage('home')}
+            onLogout={() => handleLogout('Signed out of Head Coach session')}
+            onNavigateHome={() => navigateToPage('home')}
           />
         );
       }
@@ -215,24 +224,16 @@ function AppContent() {
         return (
           <CoachDashboard
             user={user}
-            onLogout={() => {
-              logout();
-              setCurrentPage('home');
-              showToast('Signed out of Coach session');
-            }}
-            onNavigateHome={() => setCurrentPage('home')}
+            onLogout={() => handleLogout('Signed out of Coach session')}
+            onNavigateHome={() => navigateToPage('home')}
           />
         );
       }
       return (
         <ClientDashboard
           user={user}
-          onLogout={() => {
-            logout();
-            setCurrentPage('home');
-            showToast('Signed out of session');
-          }}
-          onNavigateHome={() => setCurrentPage('home')}
+          onLogout={() => handleLogout('Signed out of session')}
+          onNavigateHome={() => navigateToPage('home')}
           onOpenBooking={() => setBookingModalOpen(true)}
         />
       );
@@ -244,12 +245,8 @@ function AppContent() {
         return (
           <HeadCoachDashboard
             user={user}
-            onLogout={() => {
-              logout();
-              setCurrentPage('home');
-              showToast('Signed out of Head Coach session');
-            }}
-            onNavigateHome={() => setCurrentPage('home')}
+            onLogout={() => handleLogout('Signed out of Head Coach session')}
+            onNavigateHome={() => navigateToPage('home')}
           />
         );
       }
@@ -257,24 +254,16 @@ function AppContent() {
         return (
           <CoachDashboard
             user={user}
-            onLogout={() => {
-              logout();
-              setCurrentPage('home');
-              showToast('Signed out of Coach session');
-            }}
-            onNavigateHome={() => setCurrentPage('home')}
+            onLogout={() => handleLogout('Signed out of Coach session')}
+            onNavigateHome={() => navigateToPage('home')}
           />
         );
       }
       return (
         <AdminDashboard
           user={user}
-          onLogout={() => {
-            logout();
-            setCurrentPage('home');
-            showToast('Signed out of Admin session');
-          }}
-          onNavigateHome={() => setCurrentPage('home')}
+          onLogout={() => handleLogout('Signed out of Admin session')}
+          onNavigateHome={() => navigateToPage('home')}
         />
       );
     }
@@ -316,7 +305,7 @@ function AppContent() {
         currentPage={currentPage}
         onNavigate={(page) => {
           setSelectedBlogPostId(null);
-          setCurrentPage(page);
+          navigateToPage(page);
         }}
         onOpenBooking={() => {
           setSelectedClassForBooking(undefined);
@@ -342,23 +331,11 @@ function AppContent() {
               onOpenAssessment={() => setAssessmentModalOpen(true)}
             />
 
-            <TrustBar ready={!isLoadingSplash} />
-
-
             <AssessmentSection
               onOpenAssessment={() => setAssessmentModalOpen(true)}
             />
 
-
-            <ServicesSection
-              onOpenBooking={() => {
-                setSelectedClassForBooking(undefined);
-                setSelectedTrainerForBooking(undefined);
-                setBookingModalOpen(true);
-              }}
-              onSelectService={handleSelectService}
-            />
-
+            <TrustBar ready={!isLoadingSplash} />
 
             <BeforeAfterShowcase
               onOpenAssessment={() => setAssessmentModalOpen(true)}
@@ -370,8 +347,17 @@ function AppContent() {
               onOpenConsultation={() => setBookingModalOpen(true)}
             />
 
+            <ServicesSection
+              onOpenBooking={() => {
+                setSelectedClassForBooking(undefined);
+                setSelectedTrainerForBooking(undefined);
+                setBookingModalOpen(true);
+              }}
+              onSelectService={handleSelectService}
+            />
 
-            <TrainerCompact
+            <TrainersSection
+              onSelectTrainer={handleSelectTrainer}
               onNavigate={(page) => setCurrentPage(page)}
               onOpenBookingWithTrainer={handleOpenBookingWithTrainer}
             />

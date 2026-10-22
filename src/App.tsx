@@ -1,15 +1,12 @@
+import { HomePage } from './pages/HomePage';
+import { ServicesPage } from './pages/ServicesPage';
+import { CoachesPage } from './pages/CoachesPage';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { PAGE_PATHS, pathToPage } from './routes';
 import React, { useState, useEffect } from 'react';
 import { ViewPage, Trainer, UserRole, SelfAssessmentData } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Header } from './components/Header';
-import { Hero } from './components/Hero';
-import { AssessmentSection } from './components/AssessmentSection';
-import { TrustBar } from './components/TrustBar';
-import { TransformationJourney } from './components/TransformationJourney';
-import { BeforeAfterShowcase } from './components/BeforeAfterShowcase';
-import { ServicesSection } from './components/ServicesSection';
-import { TrainersSection } from './components/TrainersSection';
-import { FaqSection } from './components/FaqSection';
 import { SelfAssessmentModal } from './components/SelfAssessmentModal';
 import { BookingModal } from './components/BookingModal';
 import { MembershipModal } from './components/MembershipModal';
@@ -46,7 +43,14 @@ import { TrainerCompact } from './components/TrainerCompact';
 function AppContent() {
   const { user, isAuthenticated, logout } = useAuth();
   const network = useNetworkStatus();
-  const [currentPage, setCurrentPage] = useState<ViewPage>('home');
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+// URL hi ab "kaunsa page" decide karta hai
+  const currentPage: ViewPage = pathToPage(pathname);
+
+// Purane code ka setCurrentPage ab bas URL badalta hai
+  const setCurrentPage = (page: ViewPage) => navigate(PAGE_PATHS[page]);
   const [isLoadingSplash, setIsLoadingSplash] = useState<boolean>(true);
   const [bookingModalOpen, setBookingModalOpen] = useState<boolean>(false);
   const [assessmentModalOpen, setAssessmentModalOpen] = useState<boolean>(false);
@@ -143,11 +147,19 @@ function AppContent() {
     }
   };
 
+  const openBookingFresh = () => {
+    setSelectedClassForBooking(undefined);
+    setSelectedTrainerForBooking(undefined);
+    setBookingModalOpen(true);
+  };
+
   const handleOpenBookingWithTrainer = (trainerName: string) => {
     setSelectedTrainerForBooking(trainerName);
     setSelectedClassForBooking(undefined);
     setBookingModalOpen(true);
   };
+
+  
 
   const handleOpenBookingWithDetails = (className: string, trainerName: string) => {
     setSelectedClassForBooking(className);
@@ -332,57 +344,15 @@ function AppContent() {
       {/* Page Routing Views */}
       <main className="flex-grow">
         {currentPage === 'home' && (
-          <>
-            <Hero
-              onOpenBooking={() => {
-                setSelectedClassForBooking(undefined);
-                setSelectedTrainerForBooking(undefined);
-                setBookingModalOpen(true);
-              }}
-              onOpenAssessment={() => setAssessmentModalOpen(true)}
-            />
-
-            <TrustBar ready={!isLoadingSplash} />
-
-
-            <AssessmentSection
-              onOpenAssessment={() => setAssessmentModalOpen(true)}
-            />
-
-
-            <ServicesSection
-              onOpenBooking={() => {
-                setSelectedClassForBooking(undefined);
-                setSelectedTrainerForBooking(undefined);
-                setBookingModalOpen(true);
-              }}
-              onSelectService={handleSelectService}
-            />
-
-
-            <BeforeAfterShowcase
-              onOpenAssessment={() => setAssessmentModalOpen(true)}
-              onOpenConsultation={() => setBookingModalOpen(true)}
-            />
-
-            <TransformationJourney
-              onOpenAssessment={() => setAssessmentModalOpen(true)}
-              onOpenConsultation={() => setBookingModalOpen(true)}
-            />
-
-
-            <TrainerCompact
-              onNavigate={(page) => setCurrentPage(page)}
-              onOpenBookingWithTrainer={handleOpenBookingWithTrainer}
-            />
-
-            <TestimonialsSection />
-
-            <FaqSection
-              onOpenConsultation={() => setBookingModalOpen(true)}
-              onOpenAssessment={() => setAssessmentModalOpen(true)}
-            />
-          </>
+          <HomePage
+            ready={!isLoadingSplash}
+            onOpenBooking={openBookingFresh}
+            onOpenConsultation={() => setBookingModalOpen(true)}
+            onOpenAssessment={() => setAssessmentModalOpen(true)}
+            onSelectService={handleSelectService}
+            onNavigate={(page) => setCurrentPage(page)}
+            onOpenBookingWithTrainer={handleOpenBookingWithTrainer}
+          />
         )}
 
         {currentPage === 'about' && (
@@ -392,21 +362,19 @@ function AppContent() {
           />
         )}
 
-        {currentPage === 'schedule' && (
-          <ServicesSection
+        {(currentPage === 'schedule' || currentPage === 'services') && (
+          <ServicesPage
             onOpenBooking={() => setBookingModalOpen(true)}
-            onSelectService={(service) => setSelectedServiceForCustomization(service)}
+            onSelectService={handleSelectService}
           />
         )}
 
         {currentPage === 'trainers' && (
-          <div className="bg-[#0a0a0a] min-h-screen py-12">
-            <TrainersSection
-              onSelectTrainer={handleSelectTrainer}
-              onNavigate={(page) => setCurrentPage(page)}
-              onOpenBookingWithTrainer={handleOpenBookingWithTrainer}
-            />
-          </div>
+          <CoachesPage
+            onSelectTrainer={handleSelectTrainer}
+            onNavigate={(page) => setCurrentPage(page)}
+            onOpenBookingWithTrainer={handleOpenBookingWithTrainer}
+          />
         )}
 
         {currentPage === 'blog' && (

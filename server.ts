@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import { leakyBucket } from './Backend/src/middlewares/rateLimiter.ts';
 import { Pool } from 'pg';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -33,8 +33,8 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-// moved to Backend/src/config/env.ts
-// const JWT_SECRET = process.env.JWT_SECRET || 'bxstrength_super_secret_jwt_key_2026';
+
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 1);
 
 const getRazorpayInstance = () => {
   const key_id = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || '';
@@ -121,12 +121,18 @@ app.use((req, res, next) => {
 // }
 
 // 3. RATE LIMITING
-const globalApiLimiter = rateLimit({
+const globalApiLimiter = leakyBucket({
+  keyPrefix: 'global',
+  capacity: 200,
   windowMs: 15 * 60 * 1000,
-  max: 200,
   message: { error: 'Too many requests from this IP. Please try again after 15 minutes.' },
-  standardHeaders: true,
-  legacyHeaders: false
+  skip: (req) => {
+    // Payment providers retry webhooks in bursts from one IP; throttling them loses confirmations.
+    if (req.originalUrl.includes('/webhooks/') || req.originalUrl.includes('cashfree-webhook')) return true;
+    // Public landing-page reads (no auth): visitors must be able to reload them freely.
+    const path = req.originalUrl.split('?')[0];
+    return req.method === 'GET' && ['/api/reviews', '/api/trainers', '/api/classes'].includes(path);
+  }
 });
 
 
@@ -1155,13 +1161,14 @@ app.post(['/api/webhooks/cashfree', '/api/payments/cashfree-webhook'], async (re
 //   legacyHeaders: false
 // });
 
-const enquiryLimiter = rateLimit({
+const enquiryLimiter = leakyBucket({
+  keyPrefix: 'enquiry',
+  capacity: 10,
   windowMs: 15 * 60 * 1000,
-  max: 10,
   message: { error: 'Spam protection: Submission limit reached. Please wait.' }
 });
 
-app.use('/api/', globalApiLimiter);
+// globalApiLimiter is already mounted once above (near app creation); do not mount it again here.
 
 app.use(express.static(path.join(__dirname, 'public')));
 

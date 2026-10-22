@@ -44,9 +44,24 @@ import { CheckCircle2, X, WifiOff, AlertTriangle } from 'lucide-react';
 import { TrainerCompact } from './components/TrainerCompact';
 
 function AppContent() {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
   const network = useNetworkStatus();
-  const [currentPage, setCurrentPage] = useState<ViewPage>('home');
+
+  const [currentPage, setCurrentPage] = useState<ViewPage>(() => {
+    try {
+      return (sessionStorage.getItem('bx_current_page') as ViewPage) || 'home';
+    } catch {
+      return 'home';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('bx_current_page', currentPage);
+    } catch {
+      /* storage unavailable */
+    }
+  }, [currentPage]);
   const [isLoadingSplash, setIsLoadingSplash] = useState<boolean>(true);
   const [bookingModalOpen, setBookingModalOpen] = useState<boolean>(false);
   const [assessmentModalOpen, setAssessmentModalOpen] = useState<boolean>(false);
@@ -82,6 +97,7 @@ function AppContent() {
     const isSupportRoute = path.includes('support') || hash.includes('support') || search.includes('support');
 
     if (isSupportRoute) {
+      if (isAuthLoading) return;
       if (!isAuthenticated || !user) {
         // Unauthenticated guest -> Protect route! Redirect to home & open login modal
         setCurrentPage('home');
@@ -104,7 +120,7 @@ function AppContent() {
       return;
     }
 
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, isAuthLoading]);
 
   const navigateAndScroll = (page: ViewPage, elementId?: string) => {
     setCurrentPage(page);

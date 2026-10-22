@@ -44,11 +44,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     };
 
     fetchJourney();
-    window.addEventListener('storage', fetchJourney);
-    const interval = setInterval(fetchJourney, 3000);
+    
+    const interval = setInterval(() => { if (!document.hidden) fetchJourney(); }, 30000);
 
     return () => {
-      window.removeEventListener('storage', fetchJourney);
       clearInterval(interval);
     };
   }, [user?.email]);

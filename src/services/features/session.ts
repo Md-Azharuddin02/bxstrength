@@ -56,6 +56,8 @@ import {
 import { getToken, setToken } from "../core/token";
 import { DEFAULT_COACH_PERMISSIONS } from "../core/constants";
 
+let refreshInFlight: Promise<void> | null = null;
+
 export const sessionApi = {
   getCurrentUser(): User | null {
     initStore();
@@ -144,7 +146,9 @@ export const sessionApi = {
     this.clearSession();
   },
 
-  async refreshSession(): Promise<void> {
+  refreshSession(): Promise<void> {
+    if (refreshInFlight) return refreshInFlight;
+
     const refresh = async () => {
       const csrfToken = readCookie(CSRF_COOKIE);
       if (!csrfToken) {
@@ -162,16 +166,19 @@ export const sessionApi = {
           const result = await res.json();
           setToken(result.token);
         } else if (res.status === 401 || res.status === 403) {
-          this.clearSession();
+          if (readCookie(CSRF_COOKIE) === csrfToken && !getToken()) this.clearSession();
         }
       } catch {
       }
     };
 
-    if (navigator.locks) {
-      await navigator.locks.request("bx-auth-refresh", refresh);
-    } else {
-      await refresh();
-    }
+    refreshInFlight = (navigator.locks
+      ? navigator.locks.request("bx-auth-refresh", refresh)
+      : refresh()
+    ).finally(() => {
+      refreshInFlight = null;
+    }) as Promise<void>;
+
+    return refreshInFlight;
   },
 };

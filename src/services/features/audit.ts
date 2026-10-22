@@ -112,11 +112,14 @@ export const auditApi = {
     logs.unshift(newLog);
     setItem(STORAGE_KEYS.AUDIT_LOGS, logs.slice(0, 200));
 
-    apiFetch(getApiUrl("/api/audit-logs"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newLog),
-    }).catch(() => {});
+    const STAFF_ROLES = ["admin", "headcoach", "coach", "customer_support", "support"];
+    if (STAFF_ROLES.includes(String(userRole).toLowerCase())) {
+      apiFetch(getApiUrl("/api/audit-logs"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newLog),
+      }).catch(() => {});
+    }
   },
 
   clearAuditLogs(): void {

@@ -78,7 +78,7 @@ export const notificationsApi = {
       const url = userEmail
         ? getApiUrl(`/api/notifications?email=${encodeURIComponent(userEmail)}`)
         : getApiUrl("/api/notifications");
-      const res = await fetch(url);
+      const res = await apiFetch(url);
       if (res.ok) {
         const raw = await res.json();
         if (Array.isArray(raw)) {

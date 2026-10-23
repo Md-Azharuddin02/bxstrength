@@ -1,6 +1,7 @@
 import React from 'react';
 import { User, BodyStat, Booking, WorkoutProgram, NutritionPlan, Announcement, Enquiry } from '../../types';
 import { Scale, Activity, Calendar, Dumbbell, Award, ShieldAlert, CheckCircle2, ChevronRight, Zap, Mail } from 'lucide-react';
+import { getApiUrl } from '../../services/core/http';
 
 interface DashboardOverviewProps {
   user: User;
@@ -27,10 +28,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
   React.useEffect(() => {
     if (!user?.email) return;
-    const getApiUrl = (path: string) => {
-      const baseUrl = (import.meta as any).env?.VITE_API_URL || '';
-      return `${baseUrl}${path}`;
-    };
 
     const fetchJourney = () => {
       fetch(getApiUrl(`/api/journey/latest-by-email/${encodeURIComponent(user.email)}`))
@@ -44,11 +41,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     };
 
     fetchJourney();
-    window.addEventListener('storage', fetchJourney);
-    const interval = setInterval(fetchJourney, 3000);
+    
+    const interval = setInterval(() => { if (!document.hidden) fetchJourney(); }, 30000);
 
     return () => {
-      window.removeEventListener('storage', fetchJourney);
       clearInterval(interval);
     };
   }, [user?.email]);

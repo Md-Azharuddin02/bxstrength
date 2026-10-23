@@ -43,9 +43,10 @@ import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { CheckCircle2, X, WifiOff, AlertTriangle } from 'lucide-react';
 
 function AppContent() {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
   const network = useNetworkStatus();
 
+  // Remember the page across reloads and browser restarts so a refresh doesn't look like a logout.
   const getInitialPage = (): ViewPage => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('bx_current_page') as ViewPage;
@@ -103,6 +104,7 @@ function AppContent() {
     const isSupportRoute = path.includes('support') || hash.includes('support') || search.includes('support');
 
     if (isSupportRoute) {
+      if (isAuthLoading) return;
       if (!isAuthenticated || !user) {
         // Unauthenticated guest -> Protect route! Redirect to home & open login modal
         setCurrentPage('home');
@@ -125,7 +127,7 @@ function AppContent() {
       return;
     }
 
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, isAuthLoading]);
 
   const navigateAndScroll = (page: ViewPage, elementId?: string) => {
     navigateToPage(page);

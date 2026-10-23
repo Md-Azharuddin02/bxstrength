@@ -7,6 +7,7 @@ interface AuthContextType {
   role: UserRole | null;
   token: string | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (email: string, password_or_hash: string) => Promise<User>;
   loginWithGoogle: (accessToken: string) => Promise<User>;
   register: (name: string, email: string, phone?: string, role?: UserRole, password?: string) => Promise<{ user: User; requireOtp?: boolean }>;
@@ -22,11 +23,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    const cached = VelocityAPI.getCurrentUser();
-    return cached && cached.isVerified !== false ? cached : null;
-  });
-  const [token, setToken] = useState<string | null>(() => VelocityAPI.getAccessToken() || null);
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
 
   const syncUser = () => {
     const currentUser = VelocityAPI.getCurrentUser();
@@ -63,6 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setToken(null);
         }
       }
+      setIsLoading(false);
     };
 
     loadFromServer();
@@ -161,6 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: user ? user.role : null,
         token,
         isAuthenticated: !!user && user.isVerified !== false,
+        isLoading,
         login,
         loginWithGoogle,
         register,

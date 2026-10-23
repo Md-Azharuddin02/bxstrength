@@ -81,15 +81,19 @@ export const sessionApi = {
   },
 
   async fetchMe(): Promise<User | null> {
-    if (!getToken()) return null;
+    const token = getToken();
+    if (!token) return this.getCurrentUser();
     try {
       const res = await apiFetch(getApiUrl("/api/auth/me"));
       if (!res.ok) {
-        if (res.status === 401) this.clearSession();
-        return null;
+        if (res.status === 401) {
+          this.clearSession();
+          return null;
+        }
+        return this.getCurrentUser();
       }
       const { user: raw } = await res.json();
-      if (!raw || !raw.id) return null;
+      if (!raw || !raw.id) return this.getCurrentUser();
       const cached = this.getCurrentUser();
       const merged: User = {
         ...(cached ?? ({} as User)),
@@ -105,7 +109,7 @@ export const sessionApi = {
       setItem(STORAGE_KEYS.CURRENT_USER, merged);
       return merged;
     } catch {
-      return null;
+      return this.getCurrentUser();
     }
   },
 
@@ -115,6 +119,7 @@ export const sessionApi = {
 
   clearSession(): void {
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    localStorage.removeItem('bx_current_page');
     setToken("");
   },
 
@@ -148,7 +153,6 @@ export const sessionApi = {
     const refresh = async () => {
       const csrfToken = readCookie(CSRF_COOKIE);
       if (!csrfToken) {
-        if (!getToken()) this.clearSession();
         return;
       }
 

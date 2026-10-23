@@ -1,6 +1,4 @@
-import { HomePage } from './pages/HomePage';
-import { ServicesPage } from './pages/ServicesPage';
-import { CoachesPage } from './pages/CoachesPage';
+import AppRoutes from './routes/AppRoutes';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PAGE_PATHS, pathToPage } from './routes';
 import React, { useState, useEffect } from 'react';
@@ -10,14 +8,7 @@ import { Header } from './components/Header';
 import { SelfAssessmentModal } from './components/SelfAssessmentModal';
 import { BookingModal } from './components/BookingModal';
 import { MembershipModal } from './components/MembershipModal';
-import { TestimonialsSection } from './components/TestimonialsSection';
 import { Footer } from './components/Footer';
-import { AboutView } from './components/AboutView';
-import { BlogView } from './components/BlogView';
-import { ContactView } from './components/ContactView';
-import { TermsView } from './components/TermsView';
-import { PrivacyView } from './components/PrivacyView';
-import { OnboardingTermsView } from './components/OnboardingTermsView';
 import { SearchModal } from './components/SearchModal';
 import {
   AdminDashboard,
@@ -38,7 +29,6 @@ import { ServiceCustomizationModal } from './components/ServiceCustomizationModa
 import { Preloader } from './components/ui/Preloader';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { CheckCircle2, X, WifiOff, AlertTriangle } from 'lucide-react';
-import { TrainerCompact } from './components/TrainerCompact';
 
 function AppContent() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -46,10 +36,9 @@ function AppContent() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-// URL hi ab "kaunsa page" decide karta hai
-  const currentPage: ViewPage = pathToPage(pathname);
+// URL decides page
+  const currentPage = pathToPage(pathname);
 
-// Purane code ka setCurrentPage ab bas URL badalta hai
   const setCurrentPage = (page: ViewPage) => navigate(PAGE_PATHS[page]);
   const [isLoadingSplash, setIsLoadingSplash] = useState<boolean>(true);
   const [bookingModalOpen, setBookingModalOpen] = useState<boolean>(false);
@@ -291,6 +280,55 @@ function AppContent() {
       );
     }
 
+  const supportElement =
+    isAuthenticated && user && ['customer_support', 'support', 'admin', 'headcoach', 'coach'].includes((user.role || '').toLowerCase()) ? (
+       <CustomerSupportDashboard
+        user={user}
+        onShowToast={showToast}
+        onNavigateHome={() => setCurrentPage('home')}
+        onLogout={() => {
+        logout();
+        setCurrentPage('home');
+        showToast('Signed out of Customer Support Workspace');
+      }}
+      />
+    ) : (
+      <div className="bg-[#0a0a0c] min-h-screen flex items-center justify-center p-6 text-center text-white">
+        <div className="bg-[#18181b] border border-zinc-800 p-8 rounded-2xl max-w-md space-y-4 shadow-2xl">
+          <Lock className="w-12 h-12 text-[#CCFF00] mx-auto" />
+          <h2 className="text-lg font-black uppercase">AUTHENTICATION REQUIRED</h2>
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            You must be logged in as an authorized Customer Support Staff member or System Admin to view this workspace.
+          </p>
+          <button
+             onClick={() => {
+             setCurrentPage('home');
+             setLoginModalOpen(true);
+             }}
+             className="bg-[#CCFF00] text-black text-xs font-black uppercase px-6 py-3 rounded-xl cursor-pointer shadow-lg"
+            >
+            SIGN IN TO SUPPORT ACCOUNT
+          </button>
+        </div>
+      </div>
+    );
+
+  const authRequiredElement = (
+    <div className="bg-[#0a0a0c] min-h-[60vh] flex items-center justify-center p-6 text-center text-white">
+      <div className="bg-[#18181b] border border-zinc-800 p-8 rounded-2xl max-w-md space-y-4 shadow-2xl">
+        <Lock className="w-12 h-12 text-[#CCFF00] mx-auto" />
+        <h2 className="text-lg font-black uppercase">SIGN IN REQUIRED</h2>
+        <p className="text-xs text-zinc-400 leading-relaxed">Please sign in to access your dashboard.</p>
+        <button
+          onClick={() => setLoginModalOpen(true)}
+          className="bg-[#CCFF00] text-black text-xs font-black uppercase px-6 py-3 rounded-xl cursor-pointer shadow-lg"
+          >
+          SIGN IN
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans flex flex-col selection:bg-white selection:text-black">
       {/* Dynamic SEO Meta Head Manager */}
@@ -343,90 +381,20 @@ function AppContent() {
 
       {/* Page Routing Views */}
       <main className="flex-grow">
-        {currentPage === 'home' && (
-          <HomePage
-            ready={!isLoadingSplash}
-            onOpenBooking={openBookingFresh}
-            onOpenConsultation={() => setBookingModalOpen(true)}
-            onOpenAssessment={() => setAssessmentModalOpen(true)}
-            onSelectService={handleSelectService}
-            onNavigate={(page) => setCurrentPage(page)}
-            onOpenBookingWithTrainer={handleOpenBookingWithTrainer}
-          />
-        )}
-
-        {currentPage === 'about' && (
-          <AboutView
-            onNavigate={(page) => setCurrentPage(page)}
-            onOpenBooking={() => setBookingModalOpen(true)}
-          />
-        )}
-
-        {(currentPage === 'schedule' || currentPage === 'services') && (
-          <ServicesPage
-            onOpenBooking={() => setBookingModalOpen(true)}
-            onSelectService={handleSelectService}
-          />
-        )}
-
-        {currentPage === 'trainers' && (
-          <CoachesPage
-            onSelectTrainer={handleSelectTrainer}
-            onNavigate={(page) => setCurrentPage(page)}
-            onOpenBookingWithTrainer={handleOpenBookingWithTrainer}
-          />
-        )}
-
-        {currentPage === 'blog' && (
-          <BlogView 
-            initialSelectedPostId={selectedBlogPostId}
-            onClearInitialPost={() => setSelectedBlogPostId(null)}
-          />
-        )}
-
-        {currentPage === 'contact' && <ContactView />}
-
-        {currentPage === 'terms' && <TermsView />}
-
-        {currentPage === 'privacy' && <PrivacyView />}
-
-        {currentPage === 'onboarding_terms' && <OnboardingTermsView />}
-
-        {currentPage === 'support_dashboard' && (
-          isAuthenticated && user && ['customer_support', 'support', 'admin', 'headcoach', 'coach'].includes((user.role || '').toLowerCase()) ? (
-            <CustomerSupportDashboard
-              user={user}
-              onShowToast={showToast}
-              onNavigateHome={() => setCurrentPage('home')}
-              onLogout={() => {
-                logout();
-                setCurrentPage('home');
-                showToast('Signed out of Customer Support Workspace');
-              }}
-            />
-          ) : (
-            <div className="bg-[#0a0a0c] min-h-screen flex items-center justify-center p-6 text-center text-white">
-              <div className="bg-[#18181b] border border-zinc-800 p-8 rounded-2xl max-w-md space-y-4 shadow-2xl">
-                <Lock className="w-12 h-12 text-[#CCFF00] mx-auto" />
-                <h2 className="text-lg font-black uppercase">AUTHENTICATION REQUIRED</h2>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  You must be logged in as an authorized Customer Support Staff member or System Admin to view this workspace.
-                </p>
-                <div className="flex justify-center gap-3 pt-2">
-                  <button
-                    onClick={() => {
-                      setCurrentPage('home');
-                      setLoginModalOpen(true);
-                    }}
-                    className="bg-[#CCFF00] text-black text-xs font-black uppercase px-6 py-3 rounded-xl cursor-pointer shadow-lg"
-                  >
-                    SIGN IN TO SUPPORT ACCOUNT
-                  </button>
-                </div>
-              </div>
-            </div>
-          )
-        )}
+        <AppRoutes
+          ready={!isLoadingSplash}
+          onNavigate={(page) => setCurrentPage(page)}
+          onOpenBooking={() => setBookingModalOpen(true)}
+          onOpenBookingFresh={openBookingFresh}
+          onOpenAssessment={() => setAssessmentModalOpen(true)}
+          onSelectService={handleSelectService}
+          onOpenBookingWithTrainer={handleOpenBookingWithTrainer}
+          onSelectTrainer={handleSelectTrainer}
+          selectedBlogPostId={selectedBlogPostId}
+          onClearBlogPost={() => setSelectedBlogPostId(null)}
+          supportElement={supportElement}
+          authRequiredElement={authRequiredElement}
+        />
       </main>
 
       {/* Global Footer */}

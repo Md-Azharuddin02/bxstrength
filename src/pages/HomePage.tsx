@@ -12,8 +12,8 @@ import { FaqSection } from '../components/FaqSection';
 
 interface HomePageProps {
   ready: boolean;
-  onOpenBooking: () => void;        // naya booking (selections reset)
-  onOpenConsultation: () => void;   // booking modal seedha kholo
+  onOpenBooking: () => void;        // New booking (selections reset)
+  onOpenConsultation: () => void;   // Open booking model 
   onOpenAssessment: () => void;
   onSelectService: (service: any) => void;
   onNavigate: (page: ViewPage) => void;

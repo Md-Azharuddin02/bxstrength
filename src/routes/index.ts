@@ -1,12 +1,11 @@
 import { ViewPage } from '../types';
 
-// Har ViewPage ka apna URL. Naya ViewPage add karoge to TypeScript yahan error dega.
 export const PAGE_PATHS: Record<ViewPage, string> = {
   home: '/',
   about: '/about',
   services: '/services',
   pricing: '/pricing',
-  schedule: '/schedule',
+  schedule: '/services',
   trainers: '/coaches',
   blog: '/blog',
   contact: '/contact',
@@ -18,11 +17,21 @@ export const PAGE_PATHS: Record<ViewPage, string> = {
   support_dashboard: '/support',
 };
 
-// URL se wapas ViewPage nikalta hai. Pehchana na gaya to 'home'.
-export const pathToPage = (pathname: string): ViewPage => {
-  const clean = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
-  const match = (Object.keys(PAGE_PATHS) as ViewPage[]).find(
-    (key) => PAGE_PATHS[key] === clean
-  );
-  return match ?? 'home';
+// Sections that own sub-paths: /blog/:postId, /dashboard/..., etc.
+const PREFIX_PAGES: ViewPage[] = ['blog', 'dashboard', 'admin', 'support_dashboard'];
+
+const normalize = (p: string) => {
+  const lower = p.toLowerCase();
+  return lower.length > 1 ? lower.replace(/\/+$/, '') : lower;
+};
+
+// null = no known page (404), so callers don't mistake it for home
+export const pathToPage = (pathname: string): ViewPage | null => {
+  const clean = normalize(pathname);
+  const keys = Object.keys(PAGE_PATHS) as ViewPage[];
+
+  const exact = keys.find((k) => PAGE_PATHS[k] === clean);
+  if (exact) return exact;
+
+  return PREFIX_PAGES.find((k) => clean.startsWith(PAGE_PATHS[k] + '/')) ?? null;
 };

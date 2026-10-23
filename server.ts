@@ -35,7 +35,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 // moved to Backend/src/config/env.ts
 // const JWT_SECRET = process.env.JWT_SECRET || 'bxstrength_super_secret_jwt_key_2026';
-
+console.log("tests");
 const getRazorpayInstance = () => {
   const key_id = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || '';
   const key_secret = process.env.RAZORPAY_KEY_SECRET || '';

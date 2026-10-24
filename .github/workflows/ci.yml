@@ -50,6 +50,8 @@ jobs:
         run: npm test
         env:
           REDIS_URL: redis://127.0.0.1:6379/15
+          JWT_SECRET: ci-test-secret
+          JWT_REFRESH_SECRET: ci-test-refresh-secret
 
   security:
     name: Dependency & secret scan (informational)

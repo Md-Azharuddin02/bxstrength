@@ -10,7 +10,10 @@ dotenv.config({
   quiet: true
 });
 
-export const IS_PROD = process.env.NODE_ENV === 'production';
+export const IS_PROD = mode === 'production';
+export const IS_STAGING = mode === 'staging';
+export const IS_DEV = mode === 'development';
+export const IS_DEPLOYED = IS_PROD || IS_STAGING;
 
 function required(key: string): string {
   const value = process.env[key];
@@ -27,7 +30,7 @@ if (JWT_SECRET === JWT_REFRESH_SECRET) {
   throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be different');
 }
 
-export const REDIS_URL = IS_PROD ? required('REDIS_URL') : process.env.REDIS_URL || 'redis://127.0.0.1:6379';
+export const REDIS_URL = IS_DEPLOYED ? required('REDIS_URL') : process.env.REDIS_URL || 'redis://127.0.0.1:6379';
 
 export const APP_URL = (process.env.APP_URL || '').replace(/\/$/, '');
 
@@ -37,3 +40,8 @@ export const GOOGLE_CLIENT_ID =
 
 
 export const CORS_ORIGINS = (process.env.CORS_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean);
+
+// Shared parent domain for auth cookies, e.g. ".bxstrength.com" when the frontend is app.bxstrength.com
+// and the API is api.bxstrength.com. Makes cookies same-site/first-party across subdomains. Leave
+// empty for local dev or a single-domain setup.
+export const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || '';

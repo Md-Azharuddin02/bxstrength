@@ -79,7 +79,7 @@ app.use(
 // app.use(cors());
 // cookies are only accepted when the origin is named and credentials are allowed
 app.use(cors({ origin: CORS_ORIGINS.length ? CORS_ORIGINS : true, credentials: true }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '10mb', verify: (req, _res, buf) => { (req as any).rawBody = buf; } }));
 
 // Global Request Body & Query XSS Protection Sanitizer
 app.use((req, res, next) => {
@@ -147,7 +147,7 @@ app.use('/api', apiGuard);
 // 4. CASHFREE PAYMENT GATEWAY SECONDARY ENGINE
 const getCashfreeConfig = () => {
   const appId = process.env.CASHFREE_APP_ID || process.env.VITE_CASHFREE_APP_ID || process.env.CASHFREE_CLIENT_ID || '';
-  const secretKey = process.env.CASHFREE_SECRET_KEY || process.env.VITE_CASHFREE_SECRET_KEY || process.env.CASHFREE_CLIENT_SECRET || '';
+  const secretKey = process.env.CASHFREE_SECRET_KEY || process.env.CASHFREE_CLIENT_SECRET || '';
   const isProd = process.env.CASHFREE_ENV === 'production' || (appId && !appId.includes('TEST') && !appId.includes('sandbox'));
   return { appId, secretKey, isProd };
 };
@@ -736,7 +736,7 @@ app.post('/api/journey/create-checkout-intent', async (req, res) => {
     }
 
     // Secondary Stripe Gateway
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY || process.env.VITE_STRIPE_SECRET_KEY;
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
     if (stripeSecretKey && !stripeSecretKey.includes('placeholder')) {
       const stripeModule = await (Function('return import("stripe")')() as Promise<any>);
       const Stripe = stripeModule.default;
@@ -1078,15 +1078,17 @@ app.post('/api/webhooks/razorpay', async (req, res) => {
       return res.status(200).json({ status: 'ignored', message: 'Webhook event already processed' });
     }
 
-    if (webhookSecret && razorpaySignature) {
-      const expectedSignature = crypto
-        .createHmac('sha256', webhookSecret)
-        .update(JSON.stringify(req.body))
-        .digest('hex');
+    // Fail closed: a missing secret or signature must be rejected, never skipped.
+    if (!webhookSecret || !razorpaySignature) {
+      return res.status(400).json({ error: 'Missing webhook signature' });
+    }
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update((req as any).rawBody ?? Buffer.from(JSON.stringify(req.body)))
+      .digest('hex');
 
-      if (expectedSignature !== razorpaySignature) {
-        return res.status(400).json({ error: 'Invalid webhook signature' });
-      }
+    if (expectedSignature !== razorpaySignature) {
+      return res.status(400).json({ error: 'Invalid webhook signature' });
     }
 
     processedWebhooksStore.add(eventId);
@@ -1121,6 +1123,19 @@ app.post('/api/webhooks/razorpay', async (req, res) => {
 
 app.post(['/api/webhooks/cashfree', '/api/payments/cashfree-webhook'], async (req, res) => {
   try {
+    // Verify Cashfree signature: base64( HMAC-SHA256( timestamp + rawBody, secret ) ). Fail closed.
+    const cfSecret = process.env.CASHFREE_SECRET_KEY || process.env.CASHFREE_CLIENT_SECRET || '';
+    const cfSignature = req.headers['x-webhook-signature'] as string;
+    const cfTimestamp = req.headers['x-webhook-timestamp'] as string;
+    if (!cfSecret || !cfSignature || !cfTimestamp) {
+      return res.status(400).json({ error: 'Missing webhook signature' });
+    }
+    const cfRaw = (req as any).rawBody ? (req as any).rawBody.toString('utf8') : JSON.stringify(req.body);
+    const expectedCf = crypto.createHmac('sha256', cfSecret).update(cfTimestamp + cfRaw).digest('base64');
+    if (expectedCf !== cfSignature) {
+      return res.status(400).json({ error: 'Invalid webhook signature' });
+    }
+
     const eventId = (req.headers['x-cashfree-event-id'] as string) || `evt_cf_${Date.now()}`;
     if (processedWebhooksStore.has(eventId)) {
       return res.status(200).json({ status: 'ignored', message: 'Webhook event already processed' });
@@ -2806,8 +2821,8 @@ app.post('/api/consultations', enquiryLimiter, async (req, res) => {
 
 app.get('/api/email/status', async (req, res) => {
   try {
-    const brevoApiKey = process.env.VITE_BREVO_API_KEY || process.env.BREVO_API_KEY;
-    const resendApiKey = process.env.VITE_RESEND_API_KEY || process.env.RESEND_API_KEY;
+    const brevoApiKey = process.env.BREVO_API_KEY;
+    const resendApiKey = process.env.RESEND_API_KEY;
     const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER;
     const senderEmail = process.env.VITE_SENDER_EMAIL || process.env.BREVO_SENDER_EMAIL || process.env.GMAIL_USER || 'support@bxstrength.com';
 

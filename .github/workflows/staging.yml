@@ -1,0 +1,58 @@
+name: Staging validation
+
+# Runs after a PR is merged into staging. Render auto-deploys the same commit in parallel;
+# this job waits for that deploy to be live, smoke-tests it, and only then opens the
+# staging -> main release PR. It never deploys and never merges.
+on:
+  push:
+    # Both cases because the repo has 'Staging' AND 'staging' (consolidate to one).
+    branches: [Staging, staging]
+
+permissions:
+  contents: read
+  pull-requests: write   # to open/update the release PR
+
+# Serialize staging validations; do NOT cancel one midway.
+concurrency:
+  group: staging-validation
+  cancel-in-progress: false
+
+jobs:
+  validate-and-promote:
+    name: Validate deployed staging, open release PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Wait for deploy + smoke test (staging)
+        env:
+          BASE_URL: ${{ vars.STAGING_API_URL || 'https://bxstrength-stg.onrender.com' }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: node scripts/smoke.mjs
+
+      - name: Open/update release PR (staging -> main)
+        if: success()
+        env:
+          # A PAT (RELEASE_PR_TOKEN) lets CI run on the release PR; GITHUB_TOKEN-created PRs
+          # do NOT trigger pull_request workflows. See docs/ci-cd.md.
+          GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN || github.token }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+        run: bash scripts/open-release-pr.sh
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Staging validation — \`${{ github.sha }}\`"
+            echo "- Deploy + smoke: **${{ job.status }}**"
+            echo "- Target: ${{ vars.STAGING_API_URL || 'https://bxstrength-stg.onrender.com' }}"
+            [ "${{ job.status }}" = "success" ] && echo "- Release PR (staging → main): created/updated" || echo "- Release PR: **not** created (validation failed)"
+          } >> "$GITHUB_STEP_SUMMARY"

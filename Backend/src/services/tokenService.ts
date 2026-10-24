@@ -11,10 +11,7 @@ const RESET_TOKEN_TTL_SEC = 10 * 60;
 export const REFRESH_COOKIE = 'bx_refresh';
 export const CSRF_COOKIE = 'bx_csrf';
 
-// With a shared parent domain (COOKIE_DOMAIN, e.g. api.bxstrength.com + app.bxstrength.com) the
-// cookies are same-site and first-party: the frontend can read bx_csrf and browsers don't block
-// them as third-party, so SameSite=Lax works. Without it, deployed falls back to cross-site
-// SameSite=None (which Safari/Chrome may block) and local dev uses Lax over http.
+
 const baseCookie = {
   secure: IS_DEPLOYED,
   sameSite: (COOKIE_DOMAIN ? 'lax' : IS_DEPLOYED ? 'none' : 'lax') as 'lax' | 'none',
@@ -176,6 +173,11 @@ export async function createPasswordResetToken(email: string): Promise<string> {
 export async function consumePasswordResetToken(token: string): Promise<string | null> {
   if (!token) return null;
 
+  // Always clear the in-memory copy: it is written alongside Redis, so deleting only one side
+  // would leave the token reusable. Single-use must hold even when Redis is up.
+  const item = memoryPasswordReset.get(token);
+  memoryPasswordReset.delete(token);
+
   let email: string | null = null;
   try {
     if (redis.isOpen) {
@@ -186,14 +188,8 @@ export async function consumePasswordResetToken(token: string): Promise<string |
     // Fall back to memory below
   }
 
-  if (!email) {
-    const item = memoryPasswordReset.get(token);
-    if (item) {
-      memoryPasswordReset.delete(token);
-      if (item.exp > Date.now()) {
-        email = item.email;
-      }
-    }
+  if (!email && item && item.exp > Date.now()) {
+    email = item.email;
   }
 
   return email;

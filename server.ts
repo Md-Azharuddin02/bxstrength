@@ -1797,6 +1797,8 @@ app.get('/api/health', (req, res) => {
       xssSanitization: 'Active'
     },
     database: dbPool ? 'connected' : 'not connected',
+    // Deployed commit (Render sets RENDER_GIT_COMMIT) so CI can confirm the right build is live.
+    sha: process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || null,
     timestamp: new Date().toISOString()
   });
 });

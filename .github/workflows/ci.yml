@@ -1,0 +1,80 @@
+name: CI
+
+# Pull-request validation. Make these checks "Required" in branch protection for
+# staging and main (see docs/ci-cd.md) so a failure blocks merging.
+on:
+  pull_request:
+    # Both cases listed because the repo currently has 'Staging' AND 'staging' (consolidate to one).
+    branches: [Staging, staging, main]
+
+# Least privilege: PR validation only needs to read the code.
+permissions:
+  contents: read
+
+# One run per PR; cancel superseded runs.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Lint, build, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s
+          --health-timeout 3s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'          # matches Dockerfile (node:20-alpine)
+          cache: npm
+
+      - name: Install (clean, from lockfile)
+        run: npm ci
+
+      - name: Type check / lint
+        run: npm run lint
+
+      - name: Production build
+        run: npm run build
+
+      # The auth suite runs against the in-memory fallback (DATABASE_URL empty) + a real Redis.
+      - name: Tests
+        run: npm test
+        env:
+          REDIS_URL: redis://127.0.0.1:6379/15
+          JWT_SECRET: ci-test-secret
+          JWT_REFRESH_SECRET: ci-test-refresh-secret
+
+  security:
+    name: Dependency & secret scan (informational)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Informational until the existing advisories are triaged; promote to Required
+    # (remove continue-on-error) once `npm audit` is clean. See docs/ci-cd.md.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # gitleaks scans full history
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Dependency vulnerabilities
+        run: npm audit --audit-level=high
+
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'false'

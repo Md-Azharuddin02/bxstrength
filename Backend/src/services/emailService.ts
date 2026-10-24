@@ -73,7 +73,7 @@ function buildFullHtmlEmail(subject: string, rawContent: string): string {
 }
 
 export async function sendServerEmail(options: SendEmailOptions): Promise<{ success: boolean; provider?: string; error?: string; messageId?: string }> {
-  const brevoApiKey = process.env.VITE_BREVO_API_KEY || process.env.BREVO_API_KEY;
+  const brevoApiKey = process.env.BREVO_API_KEY;
   const senderEmail = process.env.VITE_SENDER_EMAIL || process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || 'support@bxstrength.com';
   const senderName = options.senderName || 'BxStrength Security';
 

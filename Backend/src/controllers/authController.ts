@@ -186,13 +186,18 @@ export const verifyOtp = async (req: Request, res: Response) => {
     }
 
     if (otpRecord.code !== otpInput) {
-      const updatedAttempts = otpRecord.attempts + 1;
-      const remaining = Math.max(0, 5 - updatedAttempts);
+      let updatedAttempts = otpRecord.attempts + 1;
 
       if (dbPool) {
-        await dbPool.query('UPDATE otps SET attempts = $1 WHERE email = $2', [updatedAttempts, email]).catch(() => {});
+        // Atomic increment: parallel wrong attempts can't both read the same count and slip past the cap.
+        const upd = await dbPool
+          .query('UPDATE otps SET attempts = attempts + 1 WHERE email = $1 AND attempts < 5 RETURNING attempts', [email])
+          .catch(() => null);
+        if (upd) updatedAttempts = upd.rows.length > 0 ? Number(upd.rows[0].attempts) : 5;
       }
       serverOtpStore.set(email, { ...otpRecord, attempts: updatedAttempts });
+
+      const remaining = Math.max(0, 5 - updatedAttempts);
 
       if (remaining <= 0) {
         return res.status(429).json({

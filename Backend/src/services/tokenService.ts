@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import type { Response } from 'express';
-import { JWT_SECRET, JWT_REFRESH_SECRET, IS_PROD } from '../config/env.ts';
+import { JWT_SECRET, JWT_REFRESH_SECRET, IS_DEPLOYED, COOKIE_DOMAIN } from '../config/env.ts';
 import { redis } from '../config/redis.ts';
 
 const ACCESS_TOKEN_TTL_SEC = 15 * 60;
@@ -11,7 +11,16 @@ const RESET_TOKEN_TTL_SEC = 10 * 60;
 export const REFRESH_COOKIE = 'bx_refresh';
 export const CSRF_COOKIE = 'bx_csrf';
 
-const baseCookie = { secure: IS_PROD, sameSite: 'strict' as const, maxAge: REFRESH_TOKEN_TTL_SEC * 1000 };
+// With a shared parent domain (COOKIE_DOMAIN, e.g. api.bxstrength.com + app.bxstrength.com) the
+// cookies are same-site and first-party: the frontend can read bx_csrf and browsers don't block
+// them as third-party, so SameSite=Lax works. Without it, deployed falls back to cross-site
+// SameSite=None (which Safari/Chrome may block) and local dev uses Lax over http.
+const baseCookie = {
+  secure: IS_DEPLOYED,
+  sameSite: (COOKIE_DOMAIN ? 'lax' : IS_DEPLOYED ? 'none' : 'lax') as 'lax' | 'none',
+  maxAge: REFRESH_TOKEN_TTL_SEC * 1000,
+  ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
+};
 const refreshCookie = { ...baseCookie, httpOnly: true, path: '/api/auth' };
 const csrfCookie = { ...baseCookie, httpOnly: false, path: '/' };
 
@@ -96,8 +105,6 @@ export function verifyRefreshToken(token: string): RefreshPayload | null {
   }
 }
 
-// Puts a token on the revoked list until the moment it would have expired anyway.
-// Returns false when it was already there, which is how a refresh token is limited to one use.
 export async function revokeToken(payload: { jti: string; exp: number }): Promise<boolean> {
   const ttl = payload.exp - Math.floor(Date.now() / 1000);
   if (ttl <= 0) return false;
@@ -113,13 +120,10 @@ export async function revokeToken(payload: { jti: string; exp: number }): Promis
       return result === 'OK';
     }
   } catch {
-    // In-memory fallback is active
   }
   return true;
 }
 
-// Signs the user out everywhere: every token issued up to now stops working.
-// We cannot list tokens we never stored, so we remember the cut-off time instead.
 export async function revokeAllSessions(userId: string): Promise<void> {
   const now = Math.floor(Date.now() / 1000);
   memoryRevokedBefore.set(userId, now);
@@ -131,7 +135,6 @@ export async function revokeAllSessions(userId: string): Promise<void> {
       });
     }
   } catch {
-    // In-memory fallback is active
   }
 }
 
@@ -144,7 +147,6 @@ export async function isTokenRevoked(jti: string, userId: string, issuedAt: numb
       }
     }
   } catch {
-    // Fall back to memory
   }
 
   const exp = memoryRevokedTokens.get(jti);

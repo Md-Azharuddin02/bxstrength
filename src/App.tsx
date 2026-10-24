@@ -1,6 +1,7 @@
 import AppRoutes from './routes/AppRoutes';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PAGE_PATHS, pathToPage } from './routes';
+import { normalizeRole } from './utils/auth';
 import React, { useState, useEffect } from 'react';
 import { ViewPage, Trainer, UserRole, SelfAssessmentData } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -22,22 +23,26 @@ import { RegisterModal } from './components/auth/RegisterModal';
 import { ForgotPasswordModal } from './components/auth/ForgotPasswordModal';
 import { OtpVerificationModal } from './components/auth/OtpVerificationModal';
 import { SeoHead } from './components/SeoHead';
+import { ScrollToTop } from './components/ScrollToTop';
 import { FloatingActionWidget } from './components/ui/FloatingActionWidget';
-import { Lock } from 'lucide-react';
 import { ChatbotWidget } from './components/ui/ChatbotWidget';
 import { ServiceCustomizationModal } from './components/ServiceCustomizationModal';
 import { Preloader } from './components/ui/Preloader';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { CheckCircle2, X, WifiOff, AlertTriangle } from 'lucide-react';
 
+const PORTAL_PAGES: ViewPage[] = ['dashboard'];
+
 function AppContent() {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, logout } = useAuth();
   const network = useNetworkStatus();
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const location = useLocation();
+  const { pathname } = location;
 
-// URL decides page
+  // URL decides page (null = unknown URL / 404)
   const currentPage = pathToPage(pathname);
+  const isPortal = currentPage !== null && PORTAL_PAGES.includes(currentPage);
 
   const setCurrentPage = (page: ViewPage) => navigate(PAGE_PATHS[page]);
   const [isLoadingSplash, setIsLoadingSplash] = useState<boolean>(true);
@@ -53,56 +58,50 @@ function AppContent() {
   const [selectedTrainerForBooking, setSelectedTrainerForBooking] = useState<string | undefined>(undefined);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [searchModalOpen, setSearchModalOpen] = useState<boolean>(false);
-  const [selectedBlogPostId, setSelectedBlogPostId] = useState<string | null>(null);
   const [isChatbotOpen, setIsChatbotOpen] = useState<boolean>(false);
   const [serviceCustomizationModalOpen, setServiceCustomizationModalOpen] = useState<boolean>(false);
   const [selectedServiceForCustomization, setSelectedServiceForCustomization] = useState<any>(null);
+  
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 4000);
+  };
 
   const handleSelectService = (srv: any) => {
     setSelectedServiceForCustomization(srv);
     setServiceCustomizationModalOpen(true);
   };
 
+  // Open the reset-password modal when the URL asks for it
   useEffect(() => {
-    const hash = window.location.hash;
-    const search = window.location.search;
-    const path = window.location.pathname;
-
-    if (hash.includes('reset-password') || search.includes('reset-password')) {
+    if (
+      pathname.includes('reset-password') ||
+      location.search.includes('reset-password') ||
+      location.hash.includes('reset-password')
+    ) {
       setForgotPassModalOpen(true);
     }
+  }, [pathname, location.search, location.hash]);
 
-    const isSupportRoute = path.includes('support') || hash.includes('support') || search.includes('support');
-
-    if (isSupportRoute) {
-      if (!isAuthenticated || !user) {
-        // Unauthenticated guest -> Protect route! Redirect to home & open login modal
-        setCurrentPage('home');
-        setLoginModalOpen(true);
-        showToast('Authentication Required: Please sign in to access the Customer Support Workspace.');
-        return;
-      }
-
-      const roleClean = (user.role || '').toLowerCase();
-      const isSupportStaff = ['customer_support', 'support', 'admin', 'headcoach', 'coach'].includes(roleClean);
-
-      if (!isSupportStaff) {
-        // Regular client/user -> Redirect to client dashboard
-        setCurrentPage('dashboard');
-        showToast('Access Restricted: Customer Support Workspace is for authorized staff only.');
-        return;
-      }
-
-      setCurrentPage('support_dashboard');
-      return;
+  // Messages sent by route guards (ProtectedRoute) through navigation state
+  useEffect(() => {
+    const s = location.state as { openLogin?: boolean; denied?: string } | null;
+    if (!s) return;
+    if (s.openLogin) {
+      setLoginModalOpen(true);
+      showToast('Please sign in to continue.');
     }
-
-  }, [isAuthenticated, user]);
+    if (s.denied) {
+      showToast('Access restricted: you do not have permission for that page.');
+    }
+    navigate(location.pathname + location.search, { replace: true, state: null });
+  }, [location.state]);
 
   const navigateAndScroll = (page: ViewPage, elementId?: string) => {
     setCurrentPage(page);
     setSearchModalOpen(false);
-    setSelectedBlogPostId(null);
     if (elementId) {
       setTimeout(() => {
         const element = document.getElementById(elementId);
@@ -115,23 +114,15 @@ function AppContent() {
     }
   };
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 4000);
-  };
-
   const handleAuthSuccessNavigate = (role: UserRole) => {
-    const roleClean = (role || '').toLowerCase();
-    if (roleClean === 'customer_support' || roleClean === 'support') {
-      setCurrentPage('support_dashboard');
+    const r = normalizeRole(role);
+    // /dashboard shows the right dashboard for every role
+    navigate('/dashboard');
+    if (r === 'customersupport' || r === 'support') {
       showToast('Welcome to BxStrength Customer Support Workspace');
-    } else if (roleClean === 'admin' || roleClean === 'headcoach' || roleClean === 'coach') {
-      setCurrentPage('admin');
-      showToast(`Welcome to BxStrength Admin CRM (${role.toUpperCase()} Session)`);
+    } else if (['admin', 'headcoach', 'coach'].includes(r)) {
+      showToast(`Welcome to BxStrength Admin CRM (${String(role).toUpperCase()} Session)`);
     } else {
-      setCurrentPage('dashboard');
       showToast('Welcome to your BxStrength Client Performance Dashboard!');
     }
   };
@@ -148,14 +139,6 @@ function AppContent() {
     setBookingModalOpen(true);
   };
 
-  
-
-  const handleOpenBookingWithDetails = (className: string, trainerName: string) => {
-    setSelectedClassForBooking(className);
-    setSelectedTrainerForBooking(trainerName);
-    setBookingModalOpen(true);
-  };
-
   const handleSelectTrainer = (trainer: Trainer) => {
     handleOpenBookingWithTrainer(trainer.name);
   };
@@ -169,171 +152,68 @@ function AppContent() {
     setBookingModalOpen(true);
   };
 
-  // If viewing Dashboard or Admin CRM full-screen portal views
-  if (currentPage === 'dashboard' && user) {
-    const userRoleClean = (user.role || '').toLowerCase();
-    if (['customer_support', 'support'].includes(userRoleClean)) {
-      return (
-        <CustomerSupportDashboard
-          user={user}
-          onShowToast={showToast}
-          onNavigateHome={() => setCurrentPage('home')}
-          onLogout={() => {
-            logout();
-            setCurrentPage('home');
-            showToast('Signed out of Customer Support Workspace');
-          }}
-        />
-      );
-    }
-      if (userRoleClean === 'admin') {
-        return (
-          <AdminDashboard
-            user={user}
-            onLogout={() => {
-              logout();
-              setCurrentPage('home');
-              showToast('Signed out of Admin session');
-            }}
-            onNavigateHome={() => setCurrentPage('home')}
-          />
-        );
-      }
-      if (['headcoach', 'head_coach'].includes(userRoleClean)) {
-        return (
-          <HeadCoachDashboard
-            user={user}
-            onLogout={() => {
-              logout();
-              setCurrentPage('home');
-              showToast('Signed out of Head Coach session');
-            }}
-            onNavigateHome={() => setCurrentPage('home')}
-          />
-        );
-      }
-      if (userRoleClean === 'coach') {
-        return (
-          <CoachDashboard
-            user={user}
-            onLogout={() => {
-              logout();
-              setCurrentPage('home');
-              showToast('Signed out of Coach session');
-            }}
-            onNavigateHome={() => setCurrentPage('home')}
-          />
-        );
-      }
-      return (
-        <ClientDashboard
-          user={user}
-          onLogout={() => {
-            logout();
-            setCurrentPage('home');
-            showToast('Signed out of session');
-          }}
-          onNavigateHome={() => setCurrentPage('home')}
-          onOpenBooking={() => setBookingModalOpen(true)}
-        />
-      );
-    }
+  // The portal (dashboard) for the logged-in user, chosen by role.
+  // Route guards in AppRoutes decide who may reach it.
+  const signOut = (label: string) => () => {
+    navigate("/", { replace: true });
+    logout();
+    showToast(`Signed Out of ${label}`);
+  };
 
-    if (currentPage === 'admin' && user) {
-      const userRoleClean = (user.role || '').toLowerCase();
-      if (userRoleClean === 'headcoach' || userRoleClean === 'head_coach') {
-        return (
-          <HeadCoachDashboard
-            user={user}
-            onLogout={() => {
-              logout();
-              setCurrentPage('home');
-              showToast('Signed out of Head Coach session');
-            }}
-            onNavigateHome={() => setCurrentPage('home')}
-          />
-        );
-      }
-      if (userRoleClean === 'coach') {
-        return (
-          <CoachDashboard
-            user={user}
-            onLogout={() => {
-              logout();
-              setCurrentPage('home');
-              showToast('Signed out of Coach session');
-            }}
-            onNavigateHome={() => setCurrentPage('home')}
-          />
-        );
-      }
-      return (
-        <AdminDashboard
-          user={user}
-          onLogout={() => {
-            logout();
-            setCurrentPage('home');
-            showToast('Signed out of Admin session');
-          }}
-          onNavigateHome={() => setCurrentPage('home')}
-        />
-      );
-    }
+  const common = {
+    user: user!,
+    onNavigateHome: () => navigate("/"),
+  };
+  
+  //Client Portal
+  const clientPortal = user ? (
+    <ClientDashboard
+      {...common}
+      onLogout={signOut("session")}
+      onOpenBooking={() => setBookingModalOpen(true)}
+    />
+  ) : null;
 
-  const supportElement =
-    isAuthenticated && user && ['customer_support', 'support', 'admin', 'headcoach', 'coach'].includes((user.role || '').toLowerCase()) ? (
-       <CustomerSupportDashboard
-        user={user}
-        onShowToast={showToast}
-        onNavigateHome={() => setCurrentPage('home')}
-        onLogout={() => {
-        logout();
-        setCurrentPage('home');
-        showToast('Signed out of Customer Support Workspace');
-      }}
-      />
-    ) : (
-      <div className="bg-[#0a0a0c] min-h-screen flex items-center justify-center p-6 text-center text-white">
-        <div className="bg-[#18181b] border border-zinc-800 p-8 rounded-2xl max-w-md space-y-4 shadow-2xl">
-          <Lock className="w-12 h-12 text-[#CCFF00] mx-auto" />
-          <h2 className="text-lg font-black uppercase">AUTHENTICATION REQUIRED</h2>
-          <p className="text-xs text-zinc-400 leading-relaxed">
-            You must be logged in as an authorized Customer Support Staff member or System Admin to view this workspace.
-          </p>
-          <button
-             onClick={() => {
-             setCurrentPage('home');
-             setLoginModalOpen(true);
-             }}
-             className="bg-[#CCFF00] text-black text-xs font-black uppercase px-6 py-3 rounded-xl cursor-pointer shadow-lg"
-            >
-            SIGN IN TO SUPPORT ACCOUNT
-          </button>
-        </div>
-      </div>
-    );
+  //Coach Portal
+  const coachPortal = user ? (
+    <CoachDashboard
+      {...common}
+      onLogout={signOut("Coach session")}
+    />
+  ) : null;
 
-  const authRequiredElement = (
-    <div className="bg-[#0a0a0c] min-h-[60vh] flex items-center justify-center p-6 text-center text-white">
-      <div className="bg-[#18181b] border border-zinc-800 p-8 rounded-2xl max-w-md space-y-4 shadow-2xl">
-        <Lock className="w-12 h-12 text-[#CCFF00] mx-auto" />
-        <h2 className="text-lg font-black uppercase">SIGN IN REQUIRED</h2>
-        <p className="text-xs text-zinc-400 leading-relaxed">Please sign in to access your dashboard.</p>
-        <button
-          onClick={() => setLoginModalOpen(true)}
-          className="bg-[#CCFF00] text-black text-xs font-black uppercase px-6 py-3 rounded-xl cursor-pointer shadow-lg"
-          >
-          SIGN IN
-        </button>
-      </div>
-    </div>
-  );
+  //Head Coach Portal
+  const headCoachPortal = user ? (
+    <HeadCoachDashboard
+      {...common}
+      onLogout={signOut("Head Coach session")}
+    />
+  ) : null;
+
+  //Admin Portal
+  const adminPortal = user ? (
+    <AdminDashboard
+      {...common}
+      onLogout={signOut("Admin session")}
+    />
+  ) : null;
+
+  //Support Portal
+  const supportPortal = user ? (
+    <CustomerSupportDashboard
+      {...common}
+      onShowToast={showToast}
+      onLogout={signOut("Customer Support Workspace")}
+    />
+  ) : null;
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans flex flex-col selection:bg-white selection:text-black">
+      <ScrollToTop />
       {/* Dynamic SEO Meta Head Manager */}
       <SeoHead currentPage={currentPage} />
 
+    
       {/* 3-5 Sec Animated Preloader Splash Screen */}
       {isLoadingSplash && <Preloader onComplete={() => setIsLoadingSplash(false)} />}
 
@@ -361,23 +241,22 @@ function AppContent() {
         </div>
       )}
 
-      {/* Global Header Navigation */}
-      <Header
-        currentPage={currentPage}
-        onNavigate={(page) => {
-          setSelectedBlogPostId(null);
-          setCurrentPage(page);
-        }}
-        onOpenBooking={() => {
-          setSelectedClassForBooking(undefined);
-          setSelectedTrainerForBooking(undefined);
-          setBookingModalOpen(true);
-        }}
-        onOpenAssessment={() => setAssessmentModalOpen(true)}
-        onOpenSearch={() => setSearchModalOpen(true)}
-        onOpenLogin={() => setLoginModalOpen(true)}
-        onOpenRegister={() => setRegisterModalOpen(true)}
-      />
+      {/* Global Header Navigation (hidden on full-screen dashboards) */}
+      {!isPortal && (
+        <Header
+          currentPage={currentPage}
+          onNavigate={(page) => setCurrentPage(page)}
+          onOpenBooking={() => {
+            setSelectedClassForBooking(undefined);
+            setSelectedTrainerForBooking(undefined);
+            setBookingModalOpen(true);
+          }}
+          onOpenAssessment={() => setAssessmentModalOpen(true)}
+          onOpenSearch={() => setSearchModalOpen(true)}
+          onOpenLogin={() => setLoginModalOpen(true)}
+          onOpenRegister={() => setRegisterModalOpen(true)}
+        />
+      )}
 
       {/* Page Routing Views */}
       <main className="flex-grow">
@@ -390,15 +269,16 @@ function AppContent() {
           onSelectService={handleSelectService}
           onOpenBookingWithTrainer={handleOpenBookingWithTrainer}
           onSelectTrainer={handleSelectTrainer}
-          selectedBlogPostId={selectedBlogPostId}
-          onClearBlogPost={() => setSelectedBlogPostId(null)}
-          supportElement={supportElement}
-          authRequiredElement={authRequiredElement}
+          clientPortal={clientPortal}
+          coachPortal={coachPortal}
+          headCoachPortal={headCoachPortal}
+          adminPortal={adminPortal}
+          supportPortal={supportPortal}
         />
       </main>
 
       {/* Global Footer */}
-      <Footer onNavigate={(page) => setCurrentPage(page)} />
+      {!isPortal && <Footer onNavigate={(page) => setCurrentPage(page)} />}
 
       {/* Interactive 5-Step Lead Diagnostic Self Assessment Modal */}
       <SelfAssessmentModal
@@ -441,9 +321,8 @@ function AppContent() {
           setSearchModalOpen(false);
         }}
         onSelectBlogPost={(postId) => {
-          setSelectedBlogPostId(postId);
           setSearchModalOpen(false);
-          setCurrentPage('blog');
+          navigate(`/blog/${postId}`);
         }}
       />
 
@@ -510,16 +389,20 @@ function AppContent() {
       />
 
       {/* Floating Action Suite: AI Chatbot, WhatsApp, Email, Go-To-Top */}
-      <FloatingActionWidget
-        isChatbotOpen={isChatbotOpen}
-        onToggleChatbot={() => setIsChatbotOpen(!isChatbotOpen)}
-      />
-      <ChatbotWidget
-        isOpen={isChatbotOpen}
-        onClose={() => setIsChatbotOpen(false)}
-        hideFloatingButton={true}
-        onOpenConsultation={() => setBookingModalOpen(true)}
-      />
+      {!isPortal && (
+        <>
+          <FloatingActionWidget
+            isChatbotOpen={isChatbotOpen}
+            onToggleChatbot={() => setIsChatbotOpen(!isChatbotOpen)}
+          />
+          <ChatbotWidget
+            isOpen={isChatbotOpen}
+            onClose={() => setIsChatbotOpen(false)}
+            hideFloatingButton={true}
+            onOpenConsultation={() => setBookingModalOpen(true)}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -531,4 +414,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-

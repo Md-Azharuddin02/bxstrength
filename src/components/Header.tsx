@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ViewPage } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { Dumbbell, Menu, X, Calendar, Phone, Search, LogIn, UserPlus, LayoutDashboard } from 'lucide-react';
-import { normalizeRole } from '../routes/RequireRole';
+import { normalizeRole } from "../utils/auth";
 interface HeaderProps {
   currentPage: ViewPage | null;
   onNavigate: (page: ViewPage) => void;
@@ -29,7 +29,6 @@ export const Header: React.FC<HeaderProps> = ({
   const [scrolled, setScrolled] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [servicesActive, setServicesActive] = useState(false);
-
   useEffect(() => {
     if (currentPage !== 'home') setServicesActive(false);
   }, [currentPage]);
@@ -70,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({
   const navItems: { label: string; page: ViewPage }[] = [
     { label: 'HOME', page: 'home' },
     { label: 'ABOUT', page: 'about' },
-    { label: 'SERVICES', page: 'home' },
+    { label: 'SERVICES', page: 'services' },
     { label: 'COACHES', page: 'trainers' },
     { label: 'BLOG', page: 'blog' },
     { label: 'CONTACT', page: 'contact' },
@@ -80,11 +79,14 @@ export const Header: React.FC<HeaderProps> = ({
     setServicesActive(targetElementId === SERVICES_SECTION_ID);
     onNavigate(page);
     setMobileMenuOpen(false);
-    if (targetElementId) {
+    if (page ==="home" && targetElementId) {
       setTimeout(() => {
-        const elem = document.getElementById(targetElementId);
-        if (elem) elem.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
+        document.getElementById(targetElementId)
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 150);
     } else {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }

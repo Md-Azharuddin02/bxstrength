@@ -667,19 +667,34 @@ export const VelocityAPI = {
 
   getCurrentUser(): User | null {
     initStore();
+
+    console.log("CURRENT USER KEY:", STORAGE_KEYS.CURRENT_USER);
+
     const data = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+
+    console.log("CURRENT USER DATA:, data");
     if (!data) return null;
+
     try {
-      const parsed = JSON.parse(data) as User;
+      const parsed = JSON.parse(data);
+      console.log("PARSED:", parsed);
       // Sync with latest users store by ID or email to ensure manually updated roles take effect immediately
       const users = this.getUsers();
-      const latest = users.find(u => u.id === parsed.id || u.email.toLowerCase() === parsed.email.toLowerCase());
+      const latest = users.find(
+        u => 
+          u.id === parsed.id || 
+          u.email.toLowerCase() === parsed.email.toLowerCase()
+      );
+
+      console.log("LATEST:, latest")
+
       if (latest) {
         localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(latest));
         return latest;
       }
       return parsed;
-    } catch {
+    } catch (e) {
+      console.log(e);
       return null;
     }
   },

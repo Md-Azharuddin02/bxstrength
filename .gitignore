@@ -7,10 +7,8 @@ coverage/
 *.log
 # Secrets: ignore every .env* (incl. Backend/.env.* which hold credentials)...
 .env*
-# ...but keep committed TEMPLATES (.example) and the PUBLIC frontend build config
-# (root .env.<mode> hold only VITE_ values: URLs + publishable keys, never secrets).
+
 !.env.example
-!.env.*.example
 .env.development
 .env.staging
 .env.production

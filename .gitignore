@@ -9,10 +9,6 @@ coverage/
 .env*
 
 !.env.example
-<<<<<<< HEAD
-=======
-!.env.*.example
->>>>>>> 89aa3a0 (fixed env issue)
 .env.development
 .env.staging
 .env.production

@@ -37,7 +37,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             <div className="space-y-3.5 text-xs pt-1">
               <p className="flex items-start gap-2.5 text-zinc-300">
                 <MapPin className="w-4 h-4 text-[#CCFF00] shrink-0 mt-0.5" />
-                <span className="leading-snug text-white font-semibold">185/A, Streetno. 3, Zakir nagar, Okhla, New Delhi - 110025</span>
+                <span className="leading-snug text-white font-semibold">185/A, Street no. 3, Zakir nagar, Okhla, New Delhi - 110025</span>
               </p>
               
               <p className="flex items-center gap-2.5 text-zinc-300">

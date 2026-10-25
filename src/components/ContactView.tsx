@@ -104,7 +104,7 @@ export const ContactView: React.FC = () => {
                 <div>
                   <p className="font-black text-white uppercase">HEADQUARTERS ADDRESS</p>
                   <p className="mt-1 text-zinc-300 font-semibold leading-relaxed">
-                    185/A, Streetno. 3, Zakir nagar, Okhla, New Delhi - 110025
+                    185/A, Street no. 3, Zakir nagar, Okhla, New Delhi - 110025
                   </p>
                 </div>
               </div>

@@ -13,3 +13,8 @@ coverage/
 .env.staging
 .env.production
 db_schema.sql.bak
+
+# Local-only AI/agent instructions and internal docs (never pushed)
+CLAUDE.md
+AGENTS.md
+docs/

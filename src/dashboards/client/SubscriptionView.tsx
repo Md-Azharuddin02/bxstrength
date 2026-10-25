@@ -124,7 +124,7 @@ export const SubscriptionView: React.FC<SubscriptionViewProps> = ({ user, onShow
       <div class="info-box">
         <div class="lbl">ISSUING FACILITY</div>
         <div class="val">BxStrength HQ</div>
-        <div style="font-size: 11px; color: #a1a1aa; margin-top: 2px;">185/A, Streetno. 3, Zakir nagar, Okhla, New Delhi - 110025</div>
+        <div style="font-size: 11px; color: #a1a1aa; margin-top: 2px;">185/A, Street no. 3, Zakir nagar, Okhla, New Delhi - 110025</div>
       </div>
     </div>
 
@@ -154,7 +154,7 @@ export const SubscriptionView: React.FC<SubscriptionViewProps> = ({ user, onShow
 
     <div class="footer">
       Official billing document generated for account ${user.email}.<br/>
-      BxStrength HQ: 185/A, Streetno. 3, Zakir nagar, Okhla, New Delhi - 110025 | support@bxstrength.com
+      BxStrength HQ: 185/A, Street no. 3, Zakir nagar, Okhla, New Delhi - 110025 | support@bxstrength.com
     </div>
   </div>
 </body>

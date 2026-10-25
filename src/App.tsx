@@ -34,7 +34,7 @@ import { CheckCircle2, X, WifiOff, AlertTriangle } from 'lucide-react';
 const PORTAL_PAGES: ViewPage[] = ['dashboard'];
 
 function AppContent() {
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const network = useNetworkStatus();
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,6 +47,7 @@ function AppContent() {
   const setCurrentPage = (page: ViewPage) => navigate(PAGE_PATHS[page]);
   const [isLoadingSplash, setIsLoadingSplash] = useState<boolean>(true);
   const [bookingModalOpen, setBookingModalOpen] = useState<boolean>(false);
+  const [pendingBooking, setPendingBooking] = useState<null | (() => void)>(null);
   const [assessmentModalOpen, setAssessmentModalOpen] = useState<boolean>(false);
   const [membershipModalOpen, setMembershipModalOpen] = useState<boolean>(false);
   const [loginModalOpen, setLoginModalOpen] = useState<boolean>(false);
@@ -115,6 +116,12 @@ function AppContent() {
   };
 
   const handleAuthSuccessNavigate = (role: UserRole) => {
+    if (pendingBooking) {
+      const run = pendingBooking;
+      setPendingBooking(null);
+      run();
+      return;
+    }
     const r = normalizeRole(role);
     // /dashboard shows the right dashboard for every role
     navigate('/dashboard');
@@ -127,17 +134,37 @@ function AppContent() {
     }
   };
 
-  const openBookingFresh = () => {
+  // Consultation booking requires an account: prompt login/register first, then run the booking.
+  const openBookingGuarded = (opener: () => void) => {
+    if (isAuthenticated) {
+      opener();
+    } else {
+      setPendingBooking(() => opener);
+      setLoginModalOpen(true);
+    }
+  };
+
+  const openBookingFresh = () => openBookingGuarded(() => {
     setSelectedClassForBooking(undefined);
     setSelectedTrainerForBooking(undefined);
     setBookingModalOpen(true);
-  };
+  });
 
-  const handleOpenBookingWithTrainer = (trainerName: string) => {
+  const handleOpenBookingWithTrainer = (trainerName: string) => openBookingGuarded(() => {
     setSelectedTrainerForBooking(trainerName);
     setSelectedClassForBooking(undefined);
     setBookingModalOpen(true);
-  };
+  });
+
+  // Catch-all gate: whatever opens the consultation while logged out is rerouted to
+  // login (any preselected class/trainer is kept), then the booking reopens after sign in.
+  useEffect(() => {
+    if (bookingModalOpen && !isAuthenticated) {
+      setBookingModalOpen(false);
+      setPendingBooking(() => () => setBookingModalOpen(true));
+      setLoginModalOpen(true);
+    }
+  }, [bookingModalOpen, isAuthenticated]);
 
   const handleSelectTrainer = (trainer: Trainer) => {
     handleOpenBookingWithTrainer(trainer.name);
@@ -148,8 +175,10 @@ function AppContent() {
   };
 
   const handleAssessmentCompleteAndBook = (assessment: SelfAssessmentData) => {
-    showToast(`Assessment submitted for ${assessment.name}! Opening consultation booking...`);
-    setBookingModalOpen(true);
+    showToast(`Assessment submitted for ${assessment.name}! Opening your free 15-min demo...`);
+    // Same gate as the other Book buttons: sign in first, then the booking opens
+    // prefilled from the authenticated account.
+    openBookingFresh();
   };
 
   // The portal (dashboard) for the logged-in user, chosen by role.
@@ -246,11 +275,7 @@ function AppContent() {
         <Header
           currentPage={currentPage}
           onNavigate={(page) => setCurrentPage(page)}
-          onOpenBooking={() => {
-            setSelectedClassForBooking(undefined);
-            setSelectedTrainerForBooking(undefined);
-            setBookingModalOpen(true);
-          }}
+          onOpenBooking={openBookingFresh}
           onOpenAssessment={() => setAssessmentModalOpen(true)}
           onOpenSearch={() => setSearchModalOpen(true)}
           onOpenLogin={() => setLoginModalOpen(true)}
@@ -263,7 +288,7 @@ function AppContent() {
         <AppRoutes
           ready={!isLoadingSplash}
           onNavigate={(page) => setCurrentPage(page)}
-          onOpenBooking={() => setBookingModalOpen(true)}
+          onOpenBooking={openBookingFresh}
           onOpenBookingFresh={openBookingFresh}
           onOpenAssessment={() => setAssessmentModalOpen(true)}
           onSelectService={handleSelectService}
@@ -289,8 +314,9 @@ function AppContent() {
 
       {/* Discovery Consultation Booking Modal */}
       <BookingModal
-        isOpen={bookingModalOpen}
+        isOpen={bookingModalOpen && isAuthenticated}
         onClose={() => setBookingModalOpen(false)}
+        onNavigateToDashboard={() => { setBookingModalOpen(false); navigate('/dashboard'); }}
         preSelectedClass={selectedClassForBooking}
         preSelectedTrainer={selectedTrainerForBooking}
       />
@@ -308,9 +334,11 @@ function AppContent() {
         onClose={() => setSearchModalOpen(false)}
         onNavigate={navigateAndScroll}
         onOpenBookingWithClass={(className) => {
-          setSelectedClassForBooking(className);
-          setBookingModalOpen(true);
           setSearchModalOpen(false);
+          openBookingGuarded(() => {
+            setSelectedClassForBooking(className);
+            setBookingModalOpen(true);
+          });
         }}
         onOpenBookingWithTrainer={(trainerName) => {
           handleOpenBookingWithTrainer(trainerName);
@@ -399,7 +427,7 @@ function AppContent() {
             isOpen={isChatbotOpen}
             onClose={() => setIsChatbotOpen(false)}
             hideFloatingButton={true}
-            onOpenConsultation={() => setBookingModalOpen(true)}
+            onOpenConsultation={openBookingFresh}
           />
         </>
       )}

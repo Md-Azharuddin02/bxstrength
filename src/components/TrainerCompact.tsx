@@ -23,7 +23,7 @@ export const TrainerCompact: React.FC<TrainersCompactProps> = ({
     t.coachPosition || (t.role.toLowerCase().includes('head') ? 'HEADCOACH' : 'COACH');
 
   return (
-    <section className="w-full bg-[#0a0a0a] text-white py-10 sm:py-14 border-b border-zinc-800 font-sans">
+    <section id="coaches-section" className="scroll-mt-24 w-full bg-[#0a0a0a] text-white py-10 sm:py-14 border-b border-zinc-800 font-sans">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header row */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-6 sm:mb-8">

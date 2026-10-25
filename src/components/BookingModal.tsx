@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useId } from 'react';
 import { ConsultationBooking } from '../types';
-import { VelocityAPI, getApiUrl } from '../services/api';
+import { VelocityAPI, getApiUrl, apiFetch } from '../services/api';
 import { sendConsultationConfirmationEmail } from '../services/emailService';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Clock, User, CheckCircle2, X, Dumbbell, ShieldCheck, Bell, Info, ArrowLeft, Phone, Mail, Award, Check, Flame } from 'lucide-react';
+import { Calendar, Clock, User, CheckCircle2, X, Dumbbell, ShieldCheck, Bell, Info, ArrowLeft, Phone, Mail, Award, Check, Flame, AlertTriangle, LayoutDashboard } from 'lucide-react';
 
 interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onNavigateToDashboard: () => void;
   preSelectedClass?: string;
   preSelectedTrainer?: string;
 }
@@ -109,6 +110,7 @@ export const generateAvailableTimeSlots = (
 export const BookingModal: React.FC<BookingModalProps> = ({
   isOpen,
   onClose,
+  onNavigateToDashboard,
   preSelectedClass,
   preSelectedTrainer
 }) => {
@@ -121,16 +123,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [goal, setGoal] = useState<string>(preSelectedClass || 'Fitness Boxing');
   const [selectedDuration, setSelectedDuration] = useState<number>(20);
   const [selectedTrainer, setSelectedTrainer] = useState(preSelectedTrainer || 'Assigned Lead Coach');
-  const [bookingDate, setBookingDate] = useState<string>(todayStr);
-  const [selectedTime, setSelectedTime] = useState<string>('');
   
   const [confirmedBooking, setConfirmedBooking] = useState<ConsultationBooking & { duration?: string } | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const nameInputId = useId();
   const emailInputId = useId();
   const phoneInputId = useId();
   const goalInputId = useId();
-  const dateInputId = useId();
 
   // Auto-fill logged in user details
   useEffect(() => {
@@ -155,31 +155,25 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     }
   }, [goal]);
 
-  // Calculate available slots based on selected date & duration
-  const { slots: availableSlots, bufferTimeString, isToday } = generateAvailableTimeSlots(bookingDate, selectedDuration);
-
-  // Ensure a valid default slot is selected
+  // Auto-dismiss the error toast after a few seconds
   useEffect(() => {
-    const validSlots = availableSlots.filter(s => s.isAvailable);
-    if (validSlots.length > 0) {
-      const exists = validSlots.some(s => s.timeStr === selectedTime);
-      if (!exists) {
-        setSelectedTime(validSlots[0].timeStr);
-      }
-    } else {
-      setSelectedTime('');
-    }
-  }, [bookingDate, selectedDuration, goal]);
+    if (!submitError) return;
+    const t = setTimeout(() => setSubmitError(null), 6000);
+    return () => clearTimeout(t);
+  }, [submitError]);
 
   if (!isOpen) return null;
 
-  const handleBookingSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedTime) {
-      alert('Please select an available time slot for your booking.');
-      return;
-    }
+  const resetForm = () => {
+    setUserName('');
+    setUserEmail('');
+    setUserPhone('');
+    setGoal('Fitness Boxing');
+  };
 
+  const handleBookingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitError(null);
     const durationText = `${selectedDuration} Min`;
     const newBooking: ConsultationBooking & { duration?: string } = {
       id: 'BX-CONS-' + Math.floor(100000 + Math.random() * 900000),
@@ -189,8 +183,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       goal,
       duration: durationText,
       coachPreference: selectedTrainer,
-      date: bookingDate || todayStr,
-      timeSlot: selectedTime,
+      date: 'To be scheduled',
+      timeSlot: 'To be scheduled',
       status: 'Confirmed',
       remindersSent: { h24: true, h2: true, m30: true },
       createdAt: new Date().toISOString()
@@ -203,29 +197,47 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         email: userEmail,
         phone: userPhone,
         subject: `Free Consultation (${durationText}): ${goal}`,
-        message: `[FREE CONSULTATION BOOKED]\nRef: ${newBooking.id}\nGoal/Exercise: ${goal}\nDuration: ${durationText}\nDate: ${bookingDate}\nTime Slot: ${selectedTime}\nAssigned Coach: ${selectedTrainer}`
+        message: `[FREE CONSULTATION BOOKED]\nRef: ${newBooking.id}\nGoal/Exercise: ${goal}\nDuration: ${durationText}\nPreferred schedule: To be arranged by the coaching team\nAssigned Coach: ${selectedTrainer}`
       });
     } catch (err) {
       console.error('Consultation enquiry save error:', err);
     }
 
-    // POST to backend API server
-    fetch(getApiUrl('/api/consultations'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: userName,
-        email: userEmail,
-        phone: userPhone,
-        goal,
-        duration: durationText,
-        coachPreference: selectedTrainer,
-        preferredDate: bookingDate || todayStr,
-        preferredTime: selectedTime
-      })
-    }).catch(() => {});
+    // Sync to the backend (best-effort). The lead is already captured locally above,
+    // and the app is offline-first, so a network error / server outage (5xx / 503)
+    // must NOT block the user — it syncs later. Only a genuine server rejection of the
+    // submitted data (4xx) counts as a real failure.
+    let status = 0;
+    try {
+      const res = await apiFetch(getApiUrl('/api/consultations'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: userName,
+          email: userEmail,
+          phone: userPhone,
+          goal,
+          duration: durationText,
+          coachPreference: selectedTrainer,
+          preferredDate: 'To be scheduled',
+          preferredTime: 'To be scheduled'
+        })
+      });
+      status = res.status;
+    } catch (e: any) {
+      status = 0; // network / offline — handled as a soft success below
+      console.error('[Consultation submit] network error:', e?.message);
+    }
 
-    // Send Real Confirmation Email to Client & Admin Notification
+    if (status >= 400 && status < 500) {
+      console.error('[Consultation submit rejected] HTTP', status);
+      setSubmitError(status === 429
+        ? 'Too many attempts. Please wait a moment and try again.'
+        : 'We couldn’t submit your request. Please double-check your details and try again.');
+      return;
+    }
+
+    // Send confirmation email + admin notification (best-effort).
     sendConsultationConfirmationEmail({
       bookingId: newBooking.id,
       clientName: userName,
@@ -234,10 +246,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       goal,
       duration: durationText,
       coachPreference: selectedTrainer,
-      date: bookingDate || todayStr,
-      timeSlot: selectedTime
+      date: 'To be scheduled',
+      timeSlot: 'To be scheduled'
     }).catch(() => {});
 
+    setSubmitError(null);
+    resetForm();
     setConfirmedBooking(newBooking);
   };
 
@@ -246,11 +260,35 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     onClose();
   };
 
+  const goToDashboard = () => {
+    setConfirmedBooking(null);
+    onNavigateToDashboard();
+  };
+
   const selectedGoalObj = ALL_GOALS_SERVICES.find(g => g.title.toLowerCase() === goal.toLowerCase());
 
   return (
     <div className="fixed inset-0 z-50 bg-[#09090b] text-white flex flex-col overflow-y-auto animate-in slide-in-from-bottom-6 duration-300">
-      
+
+      {/* Floating error toast (auto-dismisses, closable) */}
+      {submitError && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[70] w-[calc(100%-2rem)] max-w-md animate-in fade-in slide-in-from-top-3 duration-200">
+          <div className="flex items-start gap-3 bg-[#1a1012]/95 backdrop-blur-xl border border-red-700/70 px-4 py-3.5 rounded-2xl shadow-2xl shadow-red-950/40">
+            <div className="w-9 h-9 rounded-xl bg-red-500/15 border border-red-700/60 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5 text-red-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black text-red-100 uppercase tracking-wide">Submission failed</p>
+              <p className="text-xs text-red-300/90 mt-0.5 leading-relaxed">{submitError}</p>
+            </div>
+            <button type="button" onClick={() => setSubmitError(null)} className="text-red-400/70 hover:text-red-100 transition-colors shrink-0 cursor-pointer" aria-label="Dismiss">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="h-0.5 mt-1.5 mx-1 rounded-full bg-red-500/70 origin-left animate-[bx-toast-timer_6s_linear_forwards]" />
+        </div>
+      )}
+
       {/* Top Header Navigation Bar */}
       <header className="sticky top-0 z-30 bg-[#121214]/90 backdrop-blur-xl border-b border-zinc-800/80 px-4 sm:px-8 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -298,13 +336,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
             <div>
               <span className="text-[11px] font-black tracking-widest text-emerald-400 uppercase bg-emerald-950/60 px-4 py-1.5 rounded-full border border-emerald-800">
-                APPOINTMENT CONFIRMED
+                REQUEST RECEIVED
               </span>
               <h2 className="text-2xl sm:text-3xl font-black text-white uppercase mt-4">
-                SLOT BOOKED SUCCESSFULLY!
+                CONSULTATION REQUESTED!
               </h2>
               <p className="text-xs sm:text-sm text-zinc-400 mt-2 max-w-md mx-auto leading-relaxed">
-                Confirmation email sent to <strong className="text-white">{confirmedBooking.clientEmail}</strong> and our Head Coaching desk.
+                We've received your request. Our team will contact you at <strong className="text-white">{confirmedBooking.clientEmail}</strong> to schedule your free 15-min session.
               </p>
             </div>
 
@@ -318,7 +356,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   </span>
                 </div>
                 <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-3 py-1 rounded-full uppercase">
-                  CONFIRMED
+                  RECEIVED
                 </span>
               </div>
 
@@ -335,22 +373,19 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   <p className="text-zinc-500 text-[10px] uppercase font-bold">SESSION DURATION</p>
                   <p className="font-bold text-white uppercase mt-0.5">{confirmedBooking.duration || '20 Min'}</p>
                 </div>
-                <div>
-                  <p className="text-zinc-500 text-[10px] uppercase font-bold">SCHEDULED DATE</p>
-                  <p className="font-bold text-white mt-0.5">{confirmedBooking.date}</p>
-                </div>
                 <div className="col-span-full bg-zinc-900/90 p-4 rounded-xl border border-zinc-800/90">
-                  <p className="text-zinc-500 text-[10px] uppercase font-bold">CONFIRMED TIME SLOT</p>
-                  <p className="font-black text-[#CCFF00] text-base tracking-wide mt-0.5">{confirmedBooking.timeSlot}</p>
+                  <p className="text-zinc-500 text-[10px] uppercase font-bold">SCHEDULING</p>
+                  <p className="font-bold text-[#CCFF00] text-sm mt-0.5">Our team will contact you to arrange your session time.</p>
                 </div>
               </div>
             </div>
 
             <button
-              onClick={resetAndClose}
-              className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs tracking-widest py-4 uppercase rounded-xl transition-all shadow-xl shadow-[#CCFF00]/10 cursor-pointer"
+              onClick={goToDashboard}
+              className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs tracking-widest py-4 uppercase rounded-xl transition-all shadow-xl shadow-[#CCFF00]/10 cursor-pointer flex items-center justify-center gap-2"
             >
-              DONE &amp; RETURN TO HOMEPAGE
+              <LayoutDashboard className="w-4 h-4" />
+              GO TO DASHBOARD
             </button>
           </div>
         ) : (
@@ -492,83 +527,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               )}
             </section>
 
-            {/* Section 3: Schedule Date & Timing Slot */}
-            <section className="bg-[#121214] p-6 sm:p-8 rounded-3xl border border-zinc-800/80 space-y-6 shadow-xl">
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg bg-zinc-800 text-[#CCFF00] flex items-center justify-center font-bold text-xs">
-                    3
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black uppercase tracking-wider text-white">Schedule Date &amp; Timing Slot</h3>
-                    <p className="text-xs text-zinc-400">Select date &amp; available timing slot for your session</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Date Input */}
-              <div>
-                <label htmlFor={dateInputId} className="block text-[11px] font-bold uppercase tracking-wider text-zinc-300 mb-1.5 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-[#CCFF00]" />
-                  <span>SELECT SCHEDULE DATE *</span>
-                </label>
-                <input
-                  id={dateInputId}
-                  type="date"
-                  required
-                  min={todayStr}
-                  value={bookingDate}
-                  onChange={(e) => setBookingDate(e.target.value)}
-                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-4 py-3 text-xs font-semibold text-white focus:outline-none focus:border-[#CCFF00] transition-colors cursor-pointer"
-                />
-              </div>
-
-              {/* Time Slots Grid */}
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-[#CCFF00]" />
-                      <span>SELECT AVAILABLE TIMING SLOT *</span>
-                    </label>
-                    <span className="text-[10px] bg-zinc-800 text-zinc-300 px-2.5 py-0.5 rounded-full font-mono">
-                      5:00 AM – 8:00 PM (UK / Local Time)
-                    </span>
-                  </div>
-                  {selectedTime && (
-                    <span className="text-xs font-mono font-bold text-[#CCFF00]">
-                      Selected: {selectedTime}
-                    </span>
-                  )}
-                </div>
-
-                <div className="max-h-64 overflow-y-auto pr-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 p-3 border border-zinc-800/80 rounded-2xl bg-[#18181b]/50">
-                  {availableSlots.filter(s => s.isAvailable).length === 0 ? (
-                    <div className="col-span-full py-8 text-center text-xs text-zinc-500 font-medium">
-                      No available slots remaining for today after the 1-hour buffer limit. Please choose a future date above.
-                    </div>
-                  ) : (
-                    availableSlots
-                      .filter(s => s.isAvailable)
-                      .map((slot) => (
-                        <button
-                          key={slot.timeStr}
-                          type="button"
-                          onClick={() => setSelectedTime(slot.timeStr)}
-                          className={`py-3 px-3 text-xs font-bold rounded-xl transition-all border text-center cursor-pointer truncate ${
-                            selectedTime === slot.timeStr
-                              ? 'bg-[#CCFF00] text-black border-[#CCFF00] shadow-lg shadow-[#CCFF00]/10 font-black'
-                              : 'bg-[#18181b] text-zinc-300 border-zinc-800 hover:border-zinc-700 hover:text-white'
-                          }`}
-                          title={slot.label}
-                        >
-                          {slot.label}
-                        </button>
-                      ))
-                  )}
-                </div>
-              </div>
-            </section>
 
             {/* Submission CTA Bar */}
             <div className="pt-4 space-y-4">
@@ -578,12 +536,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 id="btn-confirm-booking-submit"
               >
                 <CheckCircle2 className="w-5 h-5" />
-                <span>CONFIRM &amp; BOOK FREE CONSULTATION</span>
+                <span>REQUEST MY FREE CONSULTATION</span>
               </button>
 
               <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-zinc-500">
                 <span className="flex items-center gap-1.5">
-                  <Check className="w-4 h-4 text-[#CCFF00]" /> Instant Email Confirmation
+                  <Check className="w-4 h-4 text-[#CCFF00]" /> Email Confirmation
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Check className="w-4 h-4 text-[#CCFF00]" /> Admin Notification Alert

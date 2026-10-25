@@ -18,6 +18,7 @@ interface AuthContextType {
   verifyEmail: () => void;
   forgotPassword: (email: string) => Promise<boolean>;
   resetPassword: (email: string, newPassword: string) => Promise<boolean>;
+  isInitialized: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,7 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const syncUser = () => {
     const currentUser = VelocityAPI.getCurrentUser();
@@ -42,6 +43,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let active = true;
+    // Render auth-gated routes from the cached session immediately; loadFromServer refines it.
+    syncUser();
+    setIsInitialized(true);
+    VelocityAPI.fetchUsers().catch(() => {});
 
     const loadFromServer = async () => {
       try {
@@ -163,6 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         isAuthenticated: !!user && user.isVerified !== false,
         isLoading,
+        isInitialized,
         login,
         loginWithGoogle,
         register,

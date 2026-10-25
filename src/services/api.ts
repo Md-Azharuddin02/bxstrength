@@ -3502,7 +3502,7 @@ export const VelocityAPI = {
     const filtered = currentLocal.filter(t => t.id !== id);
     localStorage.setItem('bxstrength_trainers_local_store', JSON.stringify(filtered));
     return { success: true };
-  }
+  },
   ...sessionApi,
   ...authApi,
   ...usersApi,

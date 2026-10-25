@@ -7,6 +7,11 @@ import {
 } from 'lucide-react';
 import { getActiveMarketCountry, getMarketConfig, getServicePrice } from '../utils/marketService';
 import { MarketCountry } from '../types';
+import { FlowType } from '../data/bookingFlows';
+import { BookingFlowsSection } from './booking/BookingFlowsSection';
+
+const SHOW_LEGACY_SERVICES = false; // set to true to bring back the old 17-card grid
+
 
 export interface ServiceItem {
   title: string;
@@ -63,6 +68,26 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking,
   }, []);
 
   const marketConfig = getMarketConfig(activeMarketCountry);
+  const handleFlowSelect = (s: { title: string; category: string; flow: FlowType; price: number }) => {
+    if (!onSelectService) {
+      onOpenBooking();
+      return;
+    }
+    onSelectService({
+      servicePlan: s.title,
+      duration: '',
+      sessionType: 'Plan',
+      goalPrimaryOutcome: '',
+      whatYouGet: [],
+      keyDifference: '',
+      totalSessions: '',
+      discount: '',
+      validity: '',
+      complimentary: '',
+      ...s,
+      priceGbp: s.price,
+    } as ServiceItem);
+  };
 
   const services: ServiceItem[] = [
     // --- CORE SESSION PACKAGES (BEST VALUE) ---
@@ -456,8 +481,10 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking,
             Personal Coaching. Real Results. Clear, transparent upfront pricing in <span className="text-[#CCFF00] font-bold">{marketConfig.currency} ({marketConfig.symbol})</span> for <span className="text-white font-bold">{marketConfig.countryName}</span> with zero hidden fees. Select any service or package below.
           </p>
         </div>
+        <BookingFlowsSection onSelectService={handleFlowSelect as any} />
 
         {/* 2 Main Service Category Cards (Individual Services vs Custom Services) */}
+        {/*
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-8 text-xs font-bold">
           <div
             onClick={() => setFilterCategory(filterCategory === 'individual' ? 'all' : 'individual')}
@@ -497,7 +524,8 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking,
             )}
           </div>
         </div>
-
+          */}
+          <div className={SHOW_LEGACY_SERVICES ? '' : 'hidden'}>
         {/* --- COMPACT RESPONSIVE SERVICE FILTER & SORT BAR --- */}
         <div className="bg-[#121215]/95 border border-zinc-800/90 rounded-2xl p-4 sm:p-5 mb-10 shadow-2xl backdrop-blur-xl flex flex-col sm:flex-row items-center justify-between gap-4">
 
@@ -719,7 +747,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onOpenBooking,
             </button>
           </div>
         )}
-
+</div>
 
       </div>
     </section>

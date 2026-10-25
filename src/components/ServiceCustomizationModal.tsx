@@ -10,6 +10,9 @@ import { sendBrevoPaymentReceiptEmail, sendBrevoCoachAssignmentAlertToAdmin, sen
 import { Subscription } from '../types';
 import { isValidUkMobile, UK_PHONE_ERROR_MSG } from '../utils/phoneValidation';
 import { openRazorpayCheckout } from '../services/razorpayService';
+import { BookingOrder, FlowType, MONTHLY_PLAN, WEEKLY_PLAN } from '../data/bookingFlows';
+import { PlanBuilder } from './booking/PlanBuilder';
+import { CompleteBooking } from './booking/CompleteBooking';
 
 const CUSTOM_TRAINING_SERVICES = [
   { id: 'barbell', name: 'Periodized Compound Barbell Lifts (Squat/Bench/Deadlift)', desc: 'Progressive overload for maximum strength & muscle architecture' },
@@ -36,6 +39,7 @@ interface ServiceCustomizationModalProps {
     priceUnit?: string;
     duration?: string;
     description?: string;
+    flow?: FlowType;
   } | null;
   onNavigateToDashboard: () => void;
   initialCustomerEmail?: string;
@@ -58,6 +62,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
   // 5 = Booking Confirmed (Coach & Session Assigned)
   const [journeyStep, setJourneyStep] = useState<number>(1);
   const [serviceType, setServiceType] = useState<'individual' | 'custom'>('individual');
+  const [plan, setPlan] = useState<BookingOrder | null>(null);
   
   // Custom Exercise Selections
   const [selectedExercises, setSelectedExercises] = useState<string[]>([
@@ -117,14 +122,17 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
       setConsentInfoAccurate(false);
       setConsentTermsAccepted(false);
       setConsentEarlyStart(false);
+      setPlan(null);
       const isIndividual = service.category === 'Individual Service' || service.category === 'Individual';
-      setServiceType(isIndividual ? 'individual' : 'custom');
+      setServiceType(
+        service.flow ? (service.flow === 'custom' ? 'custom' : 'individual') : isIndividual ? 'individual' : 'custom'
+      );
     }
   }, [isOpen, service]);
 
   // Auto-restore customer journey state on mount / login
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || service?.flow) return; // a new plan purchase always starts at step 1
     const restoreUserJourneyState = async () => {
       try {
         const currentUser = VelocityAPI.getCurrentUser();
@@ -153,7 +161,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
     };
 
     restoreUserJourneyState();
-  }, [isOpen, user?.email, authEmail, initialCustomerEmail]);
+  }, [isOpen, user?.email, authEmail, initialCustomerEmail, service?.flow]);
 
   if (!isOpen || !service) return null;
 
@@ -166,7 +174,14 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
   const extraFeePerExercise = 0; // £0 GBP per additional custom exercise (Included in custom package)
   const additionalTrainingsCount = 0;
   const extraTrainingsCost = 0;
-  const totalPriceGbp = basePrice;
+  const totalPriceGbp = plan ? plan.totalPrice : basePrice;
+
+  // What the customer chose, as plain text for the backend, subscription and admin email
+  const orderExercises: string[] = plan
+    ? plan.flow === 'custom'
+      ? plan.items
+      : plan.items.map((item, i) => `Session ${i + 1}: ${item}`)
+    : selectedExercises;
 
   const toggleExercise = (name: string) => {
     if (selectedExercises.includes(name)) {
@@ -198,7 +213,8 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
           serviceTitle: service.title,
           serviceCategory: service.category,
           serviceType,
-          customExercises: selectedExercises,
+          customExercises: orderExercises,
+          plan: plan || undefined,
           userEmail: targetEmail,
           userName: targetName,
           userPhone: targetPhone,
@@ -217,17 +233,19 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
       if (res.ok && data.success) {
         setSessionId(data.sessionId);
         setBookingId(data.bookingId);
-        setVerifiedAmountGbp(data.amountGbp || totalPriceGbp);
+        setVerifiedAmountGbp(plan ? plan.totalPrice : (data.amountGbp || totalPriceGbp));
         setJourneyStep(2); // Advance to Screen 2: Checkout & Terms Consent
       } else {
         setSessionId(`sess_${Date.now()}`);
         setBookingId(`BXSC${Math.floor(10000 + Math.random() * 90000)}`);
+        setVerifiedAmountGbp(totalPriceGbp);
         setJourneyStep(2);
       }
     } catch (e: any) {
       setIsProcessing(false);
       setSessionId(`sess_${Date.now()}`);
       setBookingId(`BXSC${Math.floor(10000 + Math.random() * 90000)}`);
+      setVerifiedAmountGbp(totalPriceGbp);
       setJourneyStep(2);
     }
   };
@@ -341,7 +359,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
         setTransactionId(txId);
         setBookingId(data.bookingId || bookingId || `BXSC${Math.floor(10000 + Math.random() * 90000)}`);
         setPaymentDateStr(data.paymentDate || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }));
-        setVerifiedAmountGbp(data.amountGbp || totalPriceGbp);
+        setVerifiedAmountGbp(plan ? plan.totalPrice : (data.amountGbp || totalPriceGbp));
 
         // Record Subscription in store
         const activeUser = user || { id: 'usr-client-' + Date.now(), name: authName || 'Client', email: authEmail || 'client@bxstrength.co.uk', phone: authPhone || '' };
@@ -359,7 +377,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
           status: 'active',
           autoRenew: true,
           serviceType: serviceType,
-          customExercises: serviceType === 'custom' ? selectedExercises : ['Preset Protocol Architecture']
+          customExercises: plan || serviceType === 'custom' ? orderExercises : ['Preset Protocol Architecture']
         });
 
         sendBrevoPaymentReceiptEmail({
@@ -381,7 +399,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
           serviceTitle: service.title,
           serviceType: serviceType,
           amountPaid: verifiedAmountGbp,
-          customExercises: serviceType === 'custom' ? selectedExercises : []
+          customExercises: plan || serviceType === 'custom' ? orderExercises : []
         }).catch(() => {});
 
         setJourneyStep(3); // Screen 3: Payment Successful
@@ -457,7 +475,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
       <div className="relative w-full h-full sm:h-auto sm:max-h-[95vh] sm:max-w-2xl bg-[#0a0a0c] text-white border-0 sm:border border-zinc-800 shadow-2xl rounded-none sm:rounded-2xl overflow-hidden flex flex-col font-sans selection:bg-[#CCFF00] selection:text-black">
         
         {/* Modal Top Branding & Close Header */}
-        <div className="px-4 sm:px-6 py-3 bg.121214 bg-[#121214] border-b border-zinc-800 flex items-center justify-between shrink-0">
+        <div className="px-4 sm:px-6 py-3 bg-[#121214] border-b border-zinc-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <span className="text-base font-black tracking-tighter text-white uppercase flex items-center gap-1">
               BX<span className="text-[#CCFF00]">STRENGTH</span>
@@ -526,7 +544,26 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
           {/* ==================================================================== */}
           {/* SCREEN 1 — SERVICE SELECTION & HEALTH ONBOARDING                     */}
           {/* ==================================================================== */}
-          {journeyStep === 1 && (
+          {/* New booking flows (Custom / Weekly / Monthly): build the plan first */}
+          {/* Stays mounted but hidden once finished, so "Edit plan" keeps the customer's choices */}
+          {journeyStep === 1 && service.flow && (
+            <PlanBuilder
+              key={service.flow}
+              flow={service.flow}
+              hidden={!!plan}
+              onComplete={(order) => setPlan(order)}
+            />
+          )}
+
+          {journeyStep === 1 && service.flow && plan && (
+            <CompleteBooking
+              plan={plan}
+              isProcessing={isProcessing}
+              onProceed={handleInitiateJourney}
+            />
+          )}
+
+          {journeyStep === 1 && !service.flow && (
             <div className="space-y-5 animate-in fade-in duration-150">
               <div className="text-center space-y-1">
                 <h2 className="text-xl sm:text-2xl font-black uppercase text-white tracking-tight">
@@ -537,7 +574,8 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                 </p>
               </div>
 
-              {/* PACKAGE TYPE SELECTION TABS */}
+              {/* PACKAGE TYPE SELECTION TABS (hidden for the new booking flows) */}
+              {!service.flow && (
               <div className="bg-[#121214] p-1.5 border border-zinc-800 rounded-xl grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -565,6 +603,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                   <span>Custom Package</span>
                 </button>
               </div>
+              )}
 
               {/* Selected Service Detail Card */}
               <div className="bg-[#121214] border border-zinc-800 p-4 rounded-xl space-y-3 relative overflow-hidden">
@@ -595,8 +634,39 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                 )}
               </div>
 
-              {/* CUSTOM PACKAGE MULTI-SERVICE SELECTION GRID */}
-              {serviceType === 'custom' && (
+              {/* Summary of the plan built in PlanBuilder */}
+              {plan && (
+                <div className="bg-[#121214] border border-zinc-800 p-4 rounded-xl space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black uppercase text-white tracking-wider">Your Plan</h4>
+                    <button
+                      type="button"
+                      onClick={() => setPlan(null)}
+                      className="text-[11px] font-bold text-[#CCFF00] underline hover:text-white cursor-pointer"
+                    >
+                      Edit plan
+                    </button>
+                  </div>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                    {plan.items.map((item, i) => (
+                      <div key={i} className="flex items-center justify-between gap-3 text-xs">
+                        <span className="font-semibold text-white">{plan.flow === 'custom' ? item : `Session ${i + 1}`}</span>
+                        {plan.flow !== 'custom' && <span className="text-zinc-400">{item}</span>}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-zinc-500 border-t border-zinc-800 pt-2">
+                    {plan.flow === 'custom'
+                      ? `${plan.minutes}-minute session`
+                      : plan.flow === 'weekly'
+                      ? `${WEEKLY_PLAN.validityDays}-day validity${plan.startDate ? ` · starts ${plan.startDate}` : ''}`
+                      : `${MONTHLY_PLAN.validityDays}-day plan + ${MONTHLY_PLAN.graceDays}-day recovery grace${plan.startDate ? ` · starts ${plan.startDate}` : ''}`}
+                  </p>
+                </div>
+              )}
+
+              {/* CUSTOM PACKAGE MULTI-SERVICE SELECTION GRID (old flow only) */}
+              {serviceType === 'custom' && !service.flow && (
                 <div className="bg-[#121214] border border-zinc-800 p-4 rounded-xl space-y-3">
                   <div className="flex items-center justify-between">
                     <div>

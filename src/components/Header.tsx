@@ -128,7 +128,7 @@ export const Header: React.FC<HeaderProps> = ({
             </span> */}
           </div>
 
-          <div className="flex items-center gap-4 text-xs">
+          {/*<div className="flex items-center gap-4 text-xs">
             {isAuthenticated ? (
               <div className="flex items-center gap-3">
                 <span className="text-zinc-400 font-medium flex items-center gap-1.5">
@@ -164,7 +164,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
               </div>
             )}
-          </div>
+          </div>*/}
         </div>
       </div>
 

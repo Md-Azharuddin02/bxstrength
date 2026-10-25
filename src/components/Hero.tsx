@@ -5,6 +5,10 @@ interface HeroProps {
   onOpenAssessment?: () => void;
 }
 
+// Paste your Cloudinary video link here
+const HERO_VIDEO_URL ='https://res.cloudinary.com/nz0ptuar/video/upload/q_auto,f_auto/v1792846778/hero.mp4';
+
+
 export const Hero: React.FC<HeroProps> = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);

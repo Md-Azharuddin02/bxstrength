@@ -112,7 +112,7 @@ export default function AppRoutes(p: AppRoutesProps) {
           />
         }
       />
-      <Route path="/blod/:postId" element={<BlogPostRoute />} />
+      <Route path="/blog/:postId" element={<BlogPostRoute />} />
       <Route path="/contact" element={<ContactView />} />
       <Route path="/terms" element={<TermsView />} />
       <Route path="/privacy" element={<PrivacyView />} />

@@ -53,6 +53,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     let active = true;
+    // Render auth-gated routes from the cached session immediately; loadFromServer refines it.
+    syncUser();
+    setIsInitialized(true);
+    VelocityAPI.fetchUsers().catch(() => {});
 
     const loadFromServer = async () => {
       try {
@@ -236,6 +240,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         isAuthenticated: !!user && user.isVerified !== false,
         isInitialized,
         isLoading,
+        isInitialized,
         login,
         loginWithGoogle,
         register,

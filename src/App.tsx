@@ -34,7 +34,7 @@ import { CheckCircle2, X, WifiOff, AlertTriangle } from 'lucide-react';
 const PORTAL_PAGES: ViewPage[] = ['dashboard'];
 
 function AppContent() {
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const network = useNetworkStatus();
   const navigate = useNavigate();
   const location = useLocation();
@@ -45,36 +45,9 @@ function AppContent() {
   const isPortal = currentPage !== null && PORTAL_PAGES.includes(currentPage);
 
   const setCurrentPage = (page: ViewPage) => navigate(PAGE_PATHS[page]);
-
-function AppContent() {
-  const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
-  const network = useNetworkStatus();
-
-  // Remember the page across reloads and browser restarts so a refresh doesn't look like a logout.
-  const getInitialPage = (): ViewPage => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('bx_current_page') as ViewPage;
-      if (saved) return saved;
-    }
-    return 'home';
-  };
-
-  const [currentPage, setCurrentPage] = useState<ViewPage>(getInitialPage);
-
-  const navigateToPage = (page: ViewPage) => {
-    setCurrentPage(page);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('bx_current_page', page);
-    }
-  };
-
-  const handleLogout = (toastMsg = 'Signed out of session') => {
-    logout();
-    navigateToPage('home');
-    showToast(toastMsg);
-  };
   const [isLoadingSplash, setIsLoadingSplash] = useState<boolean>(true);
   const [bookingModalOpen, setBookingModalOpen] = useState<boolean>(false);
+  const [pendingBooking, setPendingBooking] = useState<null | (() => void)>(null);
   const [assessmentModalOpen, setAssessmentModalOpen] = useState<boolean>(false);
   const [membershipModalOpen, setMembershipModalOpen] = useState<boolean>(false);
   const [loginModalOpen, setLoginModalOpen] = useState<boolean>(false);
@@ -126,36 +99,9 @@ function AppContent() {
     }
     navigate(location.pathname + location.search, { replace: true, state: null });
   }, [location.state]);
-    const isSupportRoute = path.includes('support') || hash.includes('support') || search.includes('support');
-
-    if (isSupportRoute) {
-      if (isAuthLoading) return;
-      if (!isAuthenticated || !user) {
-        // Unauthenticated guest -> Protect route! Redirect to home & open login modal
-        setCurrentPage('home');
-        setLoginModalOpen(true);
-        showToast('Authentication Required: Please sign in to access the Customer Support Workspace.');
-        return;
-      }
-
-      const roleClean = (user.role || '').toLowerCase();
-      const isSupportStaff = ['customer_support', 'support', 'admin', 'headcoach', 'coach'].includes(roleClean);
-
-      if (!isSupportStaff) {
-        // Regular client/user -> Redirect to client dashboard
-        setCurrentPage('dashboard');
-        showToast('Access Restricted: Customer Support Workspace is for authorized staff only.');
-        return;
-      }
-
-      setCurrentPage('support_dashboard');
-      return;
-    }
-
-  }, [isAuthenticated, user, isAuthLoading]);
 
   const navigateAndScroll = (page: ViewPage, elementId?: string) => {
-    navigateToPage(page);
+    setCurrentPage(page);
     setSearchModalOpen(false);
     if (elementId) {
       setTimeout(() => {
@@ -170,6 +116,12 @@ function AppContent() {
   };
 
   const handleAuthSuccessNavigate = (role: UserRole) => {
+    if (pendingBooking) {
+      const run = pendingBooking;
+      setPendingBooking(null);
+      run();
+      return;
+    }
     const r = normalizeRole(role);
     // /dashboard shows the right dashboard for every role
     navigate('/dashboard');
@@ -178,30 +130,41 @@ function AppContent() {
     } else if (['admin', 'headcoach', 'coach'].includes(r)) {
       showToast(`Welcome to BxStrength Admin CRM (${String(role).toUpperCase()} Session)`);
     } else {
-    const roleClean = (role || '').toLowerCase();
-    if (roleClean === 'customer_support' || roleClean === 'support') {
-      navigateToPage('support_dashboard');
-      showToast('Welcome to BxStrength Customer Support Workspace');
-    } else if (roleClean === 'admin' || roleClean === 'headcoach' || roleClean === 'coach') {
-      navigateToPage('admin');
-      showToast(`Welcome to BxStrength Admin CRM (${role.toUpperCase()} Session)`);
-    } else {
-      navigateToPage('dashboard');
       showToast('Welcome to your BxStrength Client Performance Dashboard!');
     }
   };
 
-  const openBookingFresh = () => {
+  // Consultation booking requires an account: prompt login/register first, then run the booking.
+  const openBookingGuarded = (opener: () => void) => {
+    if (isAuthenticated) {
+      opener();
+    } else {
+      setPendingBooking(() => opener);
+      setLoginModalOpen(true);
+    }
+  };
+
+  const openBookingFresh = () => openBookingGuarded(() => {
     setSelectedClassForBooking(undefined);
     setSelectedTrainerForBooking(undefined);
     setBookingModalOpen(true);
-  };
+  });
 
-  const handleOpenBookingWithTrainer = (trainerName: string) => {
+  const handleOpenBookingWithTrainer = (trainerName: string) => openBookingGuarded(() => {
     setSelectedTrainerForBooking(trainerName);
     setSelectedClassForBooking(undefined);
     setBookingModalOpen(true);
-  };
+  });
+
+  // Catch-all gate: whatever opens the consultation while logged out is rerouted to
+  // login (any preselected class/trainer is kept), then the booking reopens after sign in.
+  useEffect(() => {
+    if (bookingModalOpen && !isAuthenticated) {
+      setBookingModalOpen(false);
+      setPendingBooking(() => () => setBookingModalOpen(true));
+      setLoginModalOpen(true);
+    }
+  }, [bookingModalOpen, isAuthenticated]);
 
   const handleSelectTrainer = (trainer: Trainer) => {
     handleOpenBookingWithTrainer(trainer.name);
@@ -212,8 +175,10 @@ function AppContent() {
   };
 
   const handleAssessmentCompleteAndBook = (assessment: SelfAssessmentData) => {
-    showToast(`Assessment submitted for ${assessment.name}! Opening consultation booking...`);
-    setBookingModalOpen(true);
+    showToast(`Assessment submitted for ${assessment.name}! Opening your free 15-min demo...`);
+    // Same gate as the other Book buttons: sign in first, then the booking opens
+    // prefilled from the authenticated account.
+    openBookingFresh();
   };
 
   // The portal (dashboard) for the logged-in user, chosen by role.
@@ -270,84 +235,6 @@ function AppContent() {
       onLogout={signOut("Customer Support Workspace")}
     />
   ) : null;
-  // If viewing Dashboard or Admin CRM full-screen portal views
-  if (currentPage === 'dashboard' && user) {
-    const userRoleClean = (user.role || '').toLowerCase();
-    if (['customer_support', 'support'].includes(userRoleClean)) {
-      return (
-        <CustomerSupportDashboard
-          user={user}
-          onShowToast={showToast}
-          onNavigateHome={() => navigateToPage('home')}
-          onLogout={() => handleLogout('Signed out of Customer Support Workspace')}
-        />
-      );
-    }
-      if (userRoleClean === 'admin') {
-        return (
-          <AdminDashboard
-            user={user}
-            onLogout={() => handleLogout('Signed out of Admin session')}
-            onNavigateHome={() => navigateToPage('home')}
-          />
-        );
-      }
-      if (['headcoach', 'head_coach'].includes(userRoleClean)) {
-        return (
-          <HeadCoachDashboard
-            user={user}
-            onLogout={() => handleLogout('Signed out of Head Coach session')}
-            onNavigateHome={() => navigateToPage('home')}
-          />
-        );
-      }
-      if (userRoleClean === 'coach') {
-        return (
-          <CoachDashboard
-            user={user}
-            onLogout={() => handleLogout('Signed out of Coach session')}
-            onNavigateHome={() => navigateToPage('home')}
-          />
-        );
-      }
-      return (
-        <ClientDashboard
-          user={user}
-          onLogout={() => handleLogout('Signed out of session')}
-          onNavigateHome={() => navigateToPage('home')}
-          onOpenBooking={() => setBookingModalOpen(true)}
-        />
-      );
-    }
-
-    if (currentPage === 'admin' && user) {
-      const userRoleClean = (user.role || '').toLowerCase();
-      if (userRoleClean === 'headcoach' || userRoleClean === 'head_coach') {
-        return (
-          <HeadCoachDashboard
-            user={user}
-            onLogout={() => handleLogout('Signed out of Head Coach session')}
-            onNavigateHome={() => navigateToPage('home')}
-          />
-        );
-      }
-      if (userRoleClean === 'coach') {
-        return (
-          <CoachDashboard
-            user={user}
-            onLogout={() => handleLogout('Signed out of Coach session')}
-            onNavigateHome={() => navigateToPage('home')}
-          />
-        );
-      }
-      return (
-        <AdminDashboard
-          user={user}
-          onLogout={() => handleLogout('Signed out of Admin session')}
-          onNavigateHome={() => navigateToPage('home')}
-        />
-      );
-    }
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans flex flex-col selection:bg-white selection:text-black">
@@ -388,11 +275,7 @@ function AppContent() {
         <Header
           currentPage={currentPage}
           onNavigate={(page) => setCurrentPage(page)}
-          onOpenBooking={() => {
-            setSelectedClassForBooking(undefined);
-            setSelectedTrainerForBooking(undefined);
-            setBookingModalOpen(true);
-          }}
+          onOpenBooking={openBookingFresh}
           onOpenAssessment={() => setAssessmentModalOpen(true)}
           onOpenSearch={() => setSearchModalOpen(true)}
           onOpenLogin={() => setLoginModalOpen(true)}
@@ -405,7 +288,7 @@ function AppContent() {
         <AppRoutes
           ready={!isLoadingSplash}
           onNavigate={(page) => setCurrentPage(page)}
-          onOpenBooking={() => setBookingModalOpen(true)}
+          onOpenBooking={openBookingFresh}
           onOpenBookingFresh={openBookingFresh}
           onOpenAssessment={() => setAssessmentModalOpen(true)}
           onSelectService={handleSelectService}
@@ -417,151 +300,6 @@ function AppContent() {
           adminPortal={adminPortal}
           supportPortal={supportPortal}
         />
-      {/* Global Header Navigation */}
-      <Header
-        currentPage={currentPage}
-        onNavigate={(page) => {
-          setSelectedBlogPostId(null);
-          navigateToPage(page);
-        }}
-        onOpenBooking={() => {
-          setSelectedClassForBooking(undefined);
-          setSelectedTrainerForBooking(undefined);
-          setBookingModalOpen(true);
-        }}
-        onOpenAssessment={() => setAssessmentModalOpen(true)}
-        onOpenSearch={() => setSearchModalOpen(true)}
-        onOpenLogin={() => setLoginModalOpen(true)}
-        onOpenRegister={() => setRegisterModalOpen(true)}
-      />
-
-      {/* Page Routing Views */}
-      <main className="flex-grow">
-        {currentPage === 'home' && (
-          <>
-            <Hero
-              onOpenBooking={() => {
-                setSelectedClassForBooking(undefined);
-                setSelectedTrainerForBooking(undefined);
-                setBookingModalOpen(true);
-              }}
-              onOpenAssessment={() => setAssessmentModalOpen(true)}
-            />
-
-            <AssessmentSection
-              onOpenAssessment={() => setAssessmentModalOpen(true)}
-            />
-
-            <TrustBar ready={!isLoadingSplash} />
-
-            <BeforeAfterShowcase
-              onOpenAssessment={() => setAssessmentModalOpen(true)}
-              onOpenConsultation={() => setBookingModalOpen(true)}
-            />
-
-            <TransformationJourney
-              onOpenAssessment={() => setAssessmentModalOpen(true)}
-              onOpenConsultation={() => setBookingModalOpen(true)}
-            />
-
-            <ServicesSection
-              onOpenBooking={() => {
-                setSelectedClassForBooking(undefined);
-                setSelectedTrainerForBooking(undefined);
-                setBookingModalOpen(true);
-              }}
-              onSelectService={handleSelectService}
-            />
-
-            <TrainersSection
-              onSelectTrainer={handleSelectTrainer}
-              onNavigate={(page) => setCurrentPage(page)}
-              onOpenBookingWithTrainer={handleOpenBookingWithTrainer}
-            />
-
-            <TestimonialsSection />
-
-            <FaqSection
-              onOpenConsultation={() => setBookingModalOpen(true)}
-              onOpenAssessment={() => setAssessmentModalOpen(true)}
-            />
-          </>
-        )}
-
-        {currentPage === 'about' && (
-          <AboutView
-            onNavigate={(page) => setCurrentPage(page)}
-            onOpenBooking={() => setBookingModalOpen(true)}
-          />
-        )}
-
-        {currentPage === 'schedule' && (
-          <ServicesSection
-            onOpenBooking={() => setBookingModalOpen(true)}
-            onSelectService={(service) => setSelectedServiceForCustomization(service)}
-          />
-        )}
-
-        {currentPage === 'trainers' && (
-          <div className="bg-[#0a0a0a] min-h-screen py-12">
-            <TrainersSection
-              onSelectTrainer={handleSelectTrainer}
-              onNavigate={(page) => setCurrentPage(page)}
-              onOpenBookingWithTrainer={handleOpenBookingWithTrainer}
-            />
-          </div>
-        )}
-
-        {currentPage === 'blog' && (
-          <BlogView 
-            initialSelectedPostId={selectedBlogPostId}
-            onClearInitialPost={() => setSelectedBlogPostId(null)}
-          />
-        )}
-
-        {currentPage === 'contact' && <ContactView />}
-
-        {currentPage === 'terms' && <TermsView />}
-
-        {currentPage === 'privacy' && <PrivacyView />}
-
-        {currentPage === 'onboarding_terms' && <OnboardingTermsView />}
-
-        {currentPage === 'support_dashboard' && (
-          isAuthenticated && user && ['customer_support', 'support', 'admin', 'headcoach', 'coach'].includes((user.role || '').toLowerCase()) ? (
-            <CustomerSupportDashboard
-              user={user}
-              onShowToast={showToast}
-              onNavigateHome={() => setCurrentPage('home')}
-              onLogout={() => {
-                logout();
-                setCurrentPage('home');
-                showToast('Signed out of Customer Support Workspace');
-              }}
-            />
-          ) : (
-            <div className="bg-[#0a0a0c] min-h-screen flex items-center justify-center p-6 text-center text-white">
-              <div className="bg-[#18181b] border border-zinc-800 p-8 rounded-2xl max-w-md space-y-4 shadow-2xl">
-                <Lock className="w-12 h-12 text-[#CCFF00] mx-auto" />
-                <h2 className="text-lg font-black uppercase">AUTHENTICATION REQUIRED</h2>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  You must be logged in as an authorized Customer Support Staff member or System Admin to view this workspace.
-                </p>
-                <div className="flex justify-center gap-3 pt-2">
-                  <button
-                    onClick={() => {
-                      setCurrentPage('home');
-                      setLoginModalOpen(true);
-                    }}
-                    className="bg-[#CCFF00] text-black text-xs font-black uppercase px-6 py-3 rounded-xl cursor-pointer shadow-lg"
-                  >
-                    SIGN IN TO SUPPORT ACCOUNT
-                  </button>
-                </div>
-              </div>
-            </div>
-          )
-        )}
       </main>
 
       {/* Global Footer */}
@@ -576,8 +314,9 @@ function AppContent() {
 
       {/* Discovery Consultation Booking Modal */}
       <BookingModal
-        isOpen={bookingModalOpen}
+        isOpen={bookingModalOpen && isAuthenticated}
         onClose={() => setBookingModalOpen(false)}
+        onNavigateToDashboard={() => { setBookingModalOpen(false); navigate('/dashboard'); }}
         preSelectedClass={selectedClassForBooking}
         preSelectedTrainer={selectedTrainerForBooking}
       />
@@ -595,9 +334,11 @@ function AppContent() {
         onClose={() => setSearchModalOpen(false)}
         onNavigate={navigateAndScroll}
         onOpenBookingWithClass={(className) => {
-          setSelectedClassForBooking(className);
-          setBookingModalOpen(true);
           setSearchModalOpen(false);
+          openBookingGuarded(() => {
+            setSelectedClassForBooking(className);
+            setBookingModalOpen(true);
+          });
         }}
         onOpenBookingWithTrainer={(trainerName) => {
           handleOpenBookingWithTrainer(trainerName);
@@ -686,7 +427,7 @@ function AppContent() {
             isOpen={isChatbotOpen}
             onClose={() => setIsChatbotOpen(false)}
             hideFloatingButton={true}
-            onOpenConsultation={() => setBookingModalOpen(true)}
+            onOpenConsultation={openBookingFresh}
           />
         </>
       )}

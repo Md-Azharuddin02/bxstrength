@@ -69,3 +69,9 @@
 }
 
 
+
+/* Toast auto-dismiss countdown bar */
+@keyframes bx-toast-timer {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}

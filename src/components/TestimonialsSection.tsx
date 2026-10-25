@@ -136,13 +136,11 @@ export const TestimonialsSection: React.FC = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Reset comment expansion whenever active review slide changes
   useEffect(() => {
     setIsExpanded(false);
   }, [currentIndex]);
 
-  // Auto-slide: reading time adapts to review length (5s to 9s).
-  // Pauses on hover, while "Read Full Review" is open, or when the review modal is open.
+
   useEffect(() => {
     if (reviews.length <= 1 || showModal || isPaused || isExpanded) return;
 

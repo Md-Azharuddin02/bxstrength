@@ -52,7 +52,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
 
   if (!isOpen) return null;
 
-  const totalSteps = 8;
+  const totalSteps = 7;
 
   const handleSelectGoal = (goal: string) => {
     setFormData((prev) => ({ ...prev, goal }));
@@ -79,14 +79,9 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
     setStep(6);
   };
 
-  const handleSelectTrainingInterest = (trainingInterest: string) => {
-    setFormData((prev) => ({ ...prev, trainingInterest }));
-    setStep(7);
-  };
-
   const handleSelectHasInjury = (hasInjury: string) => {
     setFormData((prev) => ({ ...prev, hasInjury }));
-    setStep(8);
+    setStep(7);
   };
 
   const handleGoBack = () => {
@@ -113,7 +108,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
         email: formData.email,
         phone: formData.phone,
         subject: `Diagnostic Assessment: ${formData.goal}`,
-        message: `[SELF ASSESSMENT DIAGNOSTIC]\n1. Main Goal: ${formData.goal}\n2. Fitness Level: ${formData.fitnessLevel || 'N/A'}\n3. Training Days/Wk: ${formData.trainingDays || 'N/A'}\n4. Training Location: ${formData.trainingLocation || 'N/A'}\n5. Equipment: ${formData.equipment || 'N/A'}\n6. Training Interest: ${formData.trainingInterest || 'N/A'}\n7. Injury/Medical Restriction: ${formData.hasInjury || 'N/A'}`
+        message: `[SELF ASSESSMENT DIAGNOSTIC]\n1. Main Goal: ${formData.goal}\n2. Fitness Level: ${formData.fitnessLevel || 'N/A'}\n3. Training Days/Wk: ${formData.trainingDays || 'N/A'}\n4. Training Location: ${formData.trainingLocation || 'N/A'}\n5. Equipment: ${formData.equipment || 'N/A'}\n6. Injury/Medical Restriction: ${formData.hasInjury || 'N/A'}`
       });
     } catch (err) {
       console.error('Diagnostic enquiry save error:', err);
@@ -191,7 +186,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                     </button>
                   )}
                   <span className="text-xs font-black uppercase tracking-widest text-zinc-300">
-                    STEP {step} OF {totalSteps} {step === 8 && '(FINAL DETAILS)'}
+                    STEP {step} OF {totalSteps} {step === 7 && '(FINAL DETAILS)'}
                   </span>
                 </div>
 
@@ -211,7 +206,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                 <div className="space-y-5 animate-in fade-in duration-150">
                   <div>
                     <span className="text-[10px] font-black text-[#CCFF00] uppercase tracking-widest block mb-1">
-                      QUESTION 1 OF 7
+                      QUESTION 1 OF 6
                     </span>
                     <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white mb-1.5">
                       What is your main goal?
@@ -255,7 +250,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                 <div className="space-y-5 animate-in fade-in duration-150">
                   <div>
                     <span className="text-[10px] font-black text-[#CCFF00] uppercase tracking-widest block mb-1">
-                      QUESTION 2 OF 7
+                      QUESTION 2 OF 6
                     </span>
                     <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white mb-1.5">
                       What is your current fitness level?
@@ -294,7 +289,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                 <div className="space-y-5 animate-in fade-in duration-150">
                   <div>
                     <span className="text-[10px] font-black text-[#CCFF00] uppercase tracking-widest block mb-1">
-                      QUESTION 3 OF 7
+                      QUESTION 3 OF 6
                     </span>
                     <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white mb-1.5">
                       How many days per week can you train?
@@ -334,7 +329,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                 <div className="space-y-5 animate-in fade-in duration-150">
                   <div>
                     <span className="text-[10px] font-black text-[#CCFF00] uppercase tracking-widest block mb-1">
-                      QUESTION 4 OF 7
+                      QUESTION 4 OF 6
                     </span>
                     <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white mb-1.5">
                       Where will you train?
@@ -373,7 +368,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                 <div className="space-y-5 animate-in fade-in duration-150">
                   <div>
                     <span className="text-[10px] font-black text-[#CCFF00] uppercase tracking-widest block mb-1">
-                      QUESTION 5 OF 7
+                      QUESTION 5 OF 6
                     </span>
                     <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white mb-1.5">
                       What equipment do you have?
@@ -409,54 +404,12 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                 </div>
               )}
 
-              {/* QUESTION 6: TRAINING INTEREST */}
+              {/* QUESTION 6: INJURY / MEDICAL RESTRICTIONS */}
               {step === 6 && (
                 <div className="space-y-5 animate-in fade-in duration-150">
                   <div>
                     <span className="text-[10px] font-black text-[#CCFF00] uppercase tracking-widest block mb-1">
-                      QUESTION 6 OF 7
-                    </span>
-                    <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white mb-1.5">
-                      What type of training interests you?
-                    </h2>
-                    <p className="text-xs text-zinc-400">Select the style of training you prefer to focus on.</p>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {[
-                      { title: 'Boxing', desc: 'Punches, footwork & bag work' },
-                      { title: 'Strength', desc: 'Heavy lifting & muscle building' },
-                      { title: 'Functional', desc: 'Athletic movement & core stability' },
-                      { title: 'Mobility', desc: 'Flexibility, joint health & stretching' },
-                      { title: 'Combination', desc: 'Mix of boxing, strength & mobility' },
-                      { title: 'Not sure', desc: 'Let coach recommend best approach' },
-                    ].map((item) => (
-                      <button
-                        key={item.title}
-                        type="button"
-                        onClick={() => handleSelectTrainingInterest(item.title)}
-                        className={`p-4 rounded-xl text-left border transition-all group cursor-pointer ${
-                          formData.trainingInterest === item.title
-                            ? 'border-[#CCFF00] bg-zinc-800/90 shadow-md'
-                            : 'border-zinc-800 bg-[#18181b] hover:border-zinc-600 hover:bg-zinc-800/50'
-                        }`}
-                      >
-                        <p className="text-sm font-bold uppercase text-white group-hover:text-[#CCFF00] flex items-center justify-between">
-                          {item.title}
-                          <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-[#CCFF00] group-hover:translate-x-0.5 transition-all" />
-                        </p>
-                        <p className="text-[11px] text-zinc-400 mt-1">{item.desc}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* QUESTION 7: INJURY / MEDICAL RESTRICTIONS */}
-              {step === 7 && (
-                <div className="space-y-5 animate-in fade-in duration-150">
-                  <div>
-                    <span className="text-[10px] font-black text-[#CCFF00] uppercase tracking-widest block mb-1">
-                      QUESTION 7 OF 7
+                      QUESTION 6 OF 6
                     </span>
                     <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white mb-1.5">
                       Do you currently have an injury, significant pain, medical restriction, or recent surgery?
@@ -488,12 +441,12 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                 </div>
               )}
 
-              {/* STEP 8: CONTACT DETAILS & REPORT GENERATION */}
-              {step === 8 && (
+              {/* STEP 7: CONTACT DETAILS & REPORT GENERATION */}
+              {step === 7 && (
                 <form onSubmit={handleSubmit} className="space-y-5 animate-in fade-in duration-150">
                   <div>
                     <span className="text-[10px] font-black text-[#CCFF00] uppercase tracking-widest block mb-1">
-                      FINAL STEP 8 OF 8
+                      FINAL STEP 7 OF 7
                     </span>
                     <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white mb-1.5">
                       Generate Your Diagnostic Report
@@ -591,10 +544,6 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                 <div>
                   <span className="text-[10px] text-zinc-500 font-bold uppercase block">Equipment</span>
                   <span className="font-bold text-white truncate block">{formData.equipment || 'None'}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase block">Interest</span>
-                  <span className="font-bold text-white truncate block">{formData.trainingInterest || 'Boxing'}</span>
                 </div>
                 <div className="col-span-2">
                   <span className="text-[10px] text-zinc-500 font-bold uppercase block">Injury / Medical</span>

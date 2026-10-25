@@ -263,10 +263,9 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
 
               <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-4 text-left space-y-2 text-xs text-zinc-400">
                 <div className="flex items-center gap-2 text-amber-400 font-bold text-[11px] uppercase tracking-wider">
-                  <span>⏱️ 5-Minute Time Limit</span>
                 </div>
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
-                  For your security, the reset link will expire in <strong>5 minutes</strong>. If you don't see the email within a minute, please check your spam or junk folder.
+                  For your security, the reset link will expire in <strong>10 minutes</strong>. If you don't see the email within a minute, please check your spam or junk folder.
                 </p>
               </div>
 

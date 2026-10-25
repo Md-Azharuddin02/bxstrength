@@ -24,7 +24,10 @@ const mapRow = (r: any) => ({
 export const listAnnouncements = async (_req: Request, res: Response) => {
   try {
     if (!dbPool) return res.json({ success: true, announcements: [] });
-    const result = await dbPool.query('SELECT * FROM announcements ORDER BY created_at DESC');
+    // Public endpoint: only surface announcements meant for visitors/clients, never staff-targeted ones.
+    const result = await dbPool.query(
+      "SELECT * FROM announcements WHERE target_role IN ('all', 'client') ORDER BY created_at DESC"
+    );
     return res.json({ success: true, announcements: result.rows.map(mapRow) });
   } catch (err: any) {
     return res.status(500).json({ success: false, announcements: [], error: err.message });

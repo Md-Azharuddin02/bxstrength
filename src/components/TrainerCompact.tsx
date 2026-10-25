@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ArrowRight, Clock, Trophy } from 'lucide-react';
 import { ViewPage } from '../types';
 import { BxTrainer, TRAINERS_DATA } from '../data/gymData';
@@ -13,6 +13,20 @@ export const TrainerCompact: React.FC<TrainersCompactProps> = ({
   onNavigate,
 }) => {
   const [openProfileId, setOpenProfileId] = useState<string | null>(null);
+  const [cardsInView, setCardsInView] = useState(false);
+  const gridRef = useRef<HTMLDivElement | null>(null);
+
+  // Animate the cards up when the section scrolls into view
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setCardsInView(true); io.disconnect(); } },
+      { rootMargin: '-60px' }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   const openCoachesPage = () => {
     onNavigate('trainers');
@@ -45,12 +59,13 @@ export const TrainerCompact: React.FC<TrainersCompactProps> = ({
         </div>
 
         {/* Mobile: swipe strip. Desktop: 3 columns */}
-        <div className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto md:overflow-visible snap-x snap-mandatory -mx-4 px-4 md:mx-0 md:px-0 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {TRAINERS_DATA.map((trainer: BxTrainer) => (
+        <div ref={gridRef} className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto md:overflow-visible snap-x snap-mandatory -mx-4 px-4 md:mx-0 md:px-0 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {TRAINERS_DATA.map((trainer: BxTrainer, idx: number) => (
             <div
               key={trainer.id}
               onClick={() => setOpenProfileId(trainer.id)}
-              className="group relative min-w-[78%] sm:min-w-[46%] md:min-w-0 snap-center h-[360px] sm:h-[400px] rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 hover:border-[#CCFF00]/60 transition-all duration-300 cursor-pointer shadow-xl"
+              style={{ transitionDelay: `${idx * 120}ms` }}
+              className={`group relative min-w-[78%] sm:min-w-[46%] md:min-w-0 snap-center h-[360px] sm:h-[400px] rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 hover:border-[#CCFF00]/60 transition-all duration-500 ease-out cursor-pointer shadow-xl will-change-transform ${cardsInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
             >
               <img
                 src={trainer.image}

@@ -170,7 +170,7 @@ export const VelocityAPI = {
           }
           setItem(STORAGE_KEYS.USERS, users);
           setItem(STORAGE_KEYS.CURRENT_USER, serverUser);
-          setItem(STORAGE_KEYS.TOKEN, result.token);
+          setToken(result.token);
           this.addAuditLog(serverUser.id, serverUser.name, serverUser.role, 'USER_LOGIN_NEONDB', `Logged into NeonDB session`);
           return { user: serverUser, token: result.token };
         }
@@ -210,7 +210,7 @@ export const VelocityAPI = {
     setItem(STORAGE_KEYS.CURRENT_USER, user);
 
     const token = `jwt_mock_${user.id}_${Date.now()}`;
-    setItem(STORAGE_KEYS.TOKEN, token);
+    setToken(token);
     this.addAuditLog(user.id, user.name, user.role, 'USER_LOGIN', `Logged into ${user.role.toUpperCase()} platform session`);
 
     return { user, token };
@@ -285,7 +285,7 @@ export const VelocityAPI = {
         }
         setItem(STORAGE_KEYS.USERS, users);
         setItem(STORAGE_KEYS.CURRENT_USER, serverUser);
-        setItem(STORAGE_KEYS.TOKEN, result.token);
+        setToken(result.token);
 
         this.addAuditLog(serverUser.id, serverUser.name, serverUser.role, 'USER_REGISTER_NEONDB', `Registered & saved into NeonDB PostgreSQL (${serverUser.email})`);
         return { user: serverUser, token: result.token, requireOtp: false };
@@ -376,7 +376,7 @@ export const VelocityAPI = {
       }
       setItem(STORAGE_KEYS.USERS, users);
       setItem(STORAGE_KEYS.CURRENT_USER, verifiedUser);
-      setItem(STORAGE_KEYS.TOKEN, result.token);
+      setToken(result.token);
 
       this.addAuditLog(verifiedUser.id, verifiedUser.name, verifiedUser.role, 'USER_VERIFY_OTP_SUCCESS', `Successfully verified 2-step OTP for account (${email})`);
 
@@ -438,7 +438,7 @@ export const VelocityAPI = {
     setItem(STORAGE_KEYS.USERS, users);
     setItem(STORAGE_KEYS.CURRENT_USER, targetUser);
     const token = `jwt_mock_${targetUser.id}_${Date.now()}`;
-    setItem(STORAGE_KEYS.TOKEN, token);
+    setToken(token);
 
     return { user: targetUser, token };
   },
@@ -536,7 +536,7 @@ export const VelocityAPI = {
         }
         setItem(STORAGE_KEYS.USERS, users);
         setItem(STORAGE_KEYS.CURRENT_USER, serverUser);
-        setItem(STORAGE_KEYS.TOKEN, result.token);
+        setToken(result.token);
 
         this.addAuditLog(serverUser.id, serverUser.name, serverUser.role, 'USER_GOOGLE_REGISTER_NEONDB', `Google user registered & saved into NeonDB (${serverUser.email})`);
         return { user: serverUser, token: result.token };
@@ -566,7 +566,7 @@ export const VelocityAPI = {
             lastLoginAt: new Date().toISOString()
           };
           setItem(STORAGE_KEYS.CURRENT_USER, serverUser);
-          setItem(STORAGE_KEYS.TOKEN, loginResult.token);
+          setToken(loginResult.token);
           this.addAuditLog(serverUser.id, serverUser.name, serverUser.role, 'USER_GOOGLE_LOGIN_NEONDB', `Google user logged in from NeonDB (${serverUser.email})`);
           return { user: serverUser, token: loginResult.token };
         }
@@ -602,7 +602,7 @@ export const VelocityAPI = {
 
     setItem(STORAGE_KEYS.CURRENT_USER, found);
     const token = `jwt_google_${found.id}_${Date.now()}`;
-    setItem(STORAGE_KEYS.TOKEN, token);
+    setToken(token);
     this.addAuditLog(found.id, found.name, found.role, 'USER_LOGIN_GOOGLE', `Authenticated via Google Single Sign-On (${email})`);
     return { user: found, token };
   },
@@ -647,7 +647,7 @@ export const VelocityAPI = {
       this.addAuditLog(user.id, user.name, user.role, 'USER_LOGOUT', 'Logged out of session');
     }
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-    localStorage.removeItem(STORAGE_KEYS.TOKEN);
+    setToken('');
   },
 
   //USERS MANAGEMENT (CRM)
@@ -724,7 +724,7 @@ export const VelocityAPI = {
     setItem(STORAGE_KEYS.USERS, users);
 
     try {
-      const token = getItem<string>(STORAGE_KEYS.TOKEN, '');
+      const token = getToken();
       await fetch(getApiUrl('/api/users'), {
         method: 'POST',
         headers: {
@@ -786,7 +786,7 @@ export const VelocityAPI = {
 
     // Real-Time NeonDB Database Sync via REST API
     try {
-      const token = getItem<string>(STORAGE_KEYS.TOKEN, '');
+      const token = getToken();
       await fetch(getApiUrl(`/api/users/${id}`), {
         method: 'PATCH',
         headers: {
@@ -829,7 +829,7 @@ export const VelocityAPI = {
     setItem(STORAGE_KEYS.USERS, users);
 
     try {
-      const token = getItem<string>(STORAGE_KEYS.TOKEN, '');
+      const token = getToken();
       await fetch(getApiUrl(`/api/users/${id}`), {
         method: 'DELETE',
         headers: {
@@ -2672,7 +2672,7 @@ export const VelocityAPI = {
   async setUserStatus(id: string, status: 'active' | 'inactive' | 'deactivated'): Promise<User> {
     const user = await this.updateUser(id, { status });
     try {
-      const token = getItem<string>(STORAGE_KEYS.TOKEN, '');
+      const token = getToken();
       await fetch(getApiUrl(`/api/admin/users/${id}/status`), {
         method: 'PUT',
         headers: {
@@ -2702,7 +2702,7 @@ export const VelocityAPI = {
       setItem(STORAGE_KEYS.USERS, users);
     }
     try {
-      const token = getItem<string>(STORAGE_KEYS.TOKEN, '');
+      const token = getToken();
       await fetch(getApiUrl(`/api/admin/users/${id}/password`), {
         method: 'PUT',
         headers: {
@@ -3426,7 +3426,7 @@ export const VelocityAPI = {
     };
 
     try {
-      const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+      const token = getToken();
       const res = await fetch('/api/trainers', {
         method: 'POST',
         headers: {
@@ -3454,7 +3454,7 @@ export const VelocityAPI = {
 
   async updateTrainerAsync(id: string, trainerData: Partial<BxTrainer>): Promise<{ success: boolean; data?: BxTrainer; error?: string }> {
     try {
-      const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+      const token = getToken();
       const res = await fetch(`/api/trainers/${id}`, {
         method: 'PUT',
         headers: {
@@ -3487,7 +3487,7 @@ export const VelocityAPI = {
 
   async deleteTrainerAsync(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+      const token = getToken();
       await fetch(`/api/trainers/${id}`, {
         method: 'DELETE',
         headers: {

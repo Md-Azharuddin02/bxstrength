@@ -84,24 +84,15 @@ export const Header: React.FC<HeaderProps> = ({
   const navItems: { label: string; page: ViewPage }[] = [
     { label: "HOME", page: "home" },
     { label: "SERVICES", page: "services" },
-    { label: "ABOUT", page: "about" },
     { label: "COACHES", page: "trainers" },
+    { label: "ABOUT", page: "about" },
     { label: "BLOG", page: "blog" },
     { label: "CONTACT", page: "contact" },
   ];
 
   const scrollToSection = (id: string) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
-    // Smooth scroll can be cancelled by layout shifts (hero video / images loading);
-    // if it didn't land near the target, snap to it instantly.
-    setTimeout(() => {
-      const again = document.getElementById(id);
-      if (again && Math.abs(again.getBoundingClientRect().top - 96) > 140) {
-        again.scrollIntoView({ behavior: "auto", block: "start" });
-      }
-    }, 650);
+    // Instant jump: smooth scroll stutters on this heavy (video) landing page.
+    document.getElementById(id)?.scrollIntoView({ block: "start" });
   };
 
   const handleNav = (page: ViewPage, targetElementId?: string) => {

@@ -240,7 +240,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         isAuthenticated: !!user && user.isVerified !== false,
         isInitialized,
         isLoading,
-        isInitialized,
         login,
         loginWithGoogle,
         register,

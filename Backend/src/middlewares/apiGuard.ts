@@ -36,7 +36,7 @@ const guard = Router();
 guard.use('/auth', open); // the auth router does its own checks
 guard.get('/health', open);
 
-guard.get(['/trainers', '/classes', '/reviews'], open);
+guard.get(['/trainers', '/classes', '/reviews', '/announcements'], open);
 
 guard.post(['/assessments', '/consultations', '/enquiries', '/reviews', '/tickets', '/send-email'], open);
 

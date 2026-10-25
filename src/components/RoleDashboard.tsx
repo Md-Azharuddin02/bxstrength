@@ -39,8 +39,7 @@ export default function RoleDashboard({
     case "support":
       return <>{supportPortal}</>;
 
-    // Authenticated but unrecognized role: don't expose any portal; send home.
     default:
-      return <Navigate to="/" replace />;
+      return <>{clientPortal}</>;
   }
 }

@@ -18,6 +18,7 @@ interface AuthContextType {
   verifyEmail: () => void;
   forgotPassword: (email: string) => Promise<boolean>;
   resetPassword: (email: string, newPassword: string) => Promise<boolean>;
+  isInitialized: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,6 +26,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const[isInitialized, setIsInitialized] = useState(false);
+
+  const syncUser = () => {
+    const currentUser = VelocityAPI.getCurrentUser();
+    const storedToken = localStorage.getItem('velocity_jwt_token');
+
+    console.log("========== syncUser ==========");
+    console.log("Current User:", currentUser);
+    console.log("Stored Token:", storedToken);
+    console.log("LocalStorage:", { ...localStorage });
+
+    // Only consider authenticated if user exists AND isVerified is true
+    if (currentUser && currentUser.isVerified !== false) {
   const [isLoading, setIsLoading] = useState(true);
 
 
@@ -41,6 +55,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    // Sync active session and fetch latest user roster from NeonDB
+    syncUser();
+    setIsInitialized(true);
+    VelocityAPI.fetchUsers().catch(() => {});
     let active = true;
 
     const loadFromServer = async () => {
@@ -162,6 +180,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: user ? user.role : null,
         token,
         isAuthenticated: !!user && user.isVerified !== false,
+        isInitialized,
         isLoading,
         login,
         loginWithGoogle,

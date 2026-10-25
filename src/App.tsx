@@ -1,26 +1,15 @@
+import AppRoutes from './routes/AppRoutes';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { PAGE_PATHS, pathToPage } from './routes';
+import { normalizeRole } from './utils/auth';
 import React, { useState, useEffect } from 'react';
 import { ViewPage, Trainer, UserRole, SelfAssessmentData } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Header } from './components/Header';
-import { Hero } from './components/Hero';
-import { AssessmentSection } from './components/AssessmentSection';
-import { TrustBar } from './components/TrustBar';
-import { TransformationJourney } from './components/TransformationJourney';
-import { BeforeAfterShowcase } from './components/BeforeAfterShowcase';
-import { ServicesSection } from './components/ServicesSection';
-import { TrainersSection } from './components/TrainersSection';
-import { FaqSection } from './components/FaqSection';
 import { SelfAssessmentModal } from './components/SelfAssessmentModal';
 import { BookingModal } from './components/BookingModal';
 import { MembershipModal } from './components/MembershipModal';
-import { TestimonialsSection } from './components/TestimonialsSection';
 import { Footer } from './components/Footer';
-import { AboutView } from './components/AboutView';
-import { BlogView } from './components/BlogView';
-import { ContactView } from './components/ContactView';
-import { TermsView } from './components/TermsView';
-import { PrivacyView } from './components/PrivacyView';
-import { OnboardingTermsView } from './components/OnboardingTermsView';
 import { SearchModal } from './components/SearchModal';
 import {
   AdminDashboard,
@@ -34,13 +23,28 @@ import { RegisterModal } from './components/auth/RegisterModal';
 import { ForgotPasswordModal } from './components/auth/ForgotPasswordModal';
 import { OtpVerificationModal } from './components/auth/OtpVerificationModal';
 import { SeoHead } from './components/SeoHead';
+import { ScrollToTop } from './components/ScrollToTop';
 import { FloatingActionWidget } from './components/ui/FloatingActionWidget';
-import { Lock } from 'lucide-react';
 import { ChatbotWidget } from './components/ui/ChatbotWidget';
 import { ServiceCustomizationModal } from './components/ServiceCustomizationModal';
 import { Preloader } from './components/ui/Preloader';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { CheckCircle2, X, WifiOff, AlertTriangle } from 'lucide-react';
+
+const PORTAL_PAGES: ViewPage[] = ['dashboard'];
+
+function AppContent() {
+  const { user, logout } = useAuth();
+  const network = useNetworkStatus();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { pathname } = location;
+
+  // URL decides page (null = unknown URL / 404)
+  const currentPage = pathToPage(pathname);
+  const isPortal = currentPage !== null && PORTAL_PAGES.includes(currentPage);
+
+  const setCurrentPage = (page: ViewPage) => navigate(PAGE_PATHS[page]);
 
 function AppContent() {
   const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
@@ -82,25 +86,46 @@ function AppContent() {
   const [selectedTrainerForBooking, setSelectedTrainerForBooking] = useState<string | undefined>(undefined);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [searchModalOpen, setSearchModalOpen] = useState<boolean>(false);
-  const [selectedBlogPostId, setSelectedBlogPostId] = useState<string | null>(null);
   const [isChatbotOpen, setIsChatbotOpen] = useState<boolean>(false);
   const [serviceCustomizationModalOpen, setServiceCustomizationModalOpen] = useState<boolean>(false);
   const [selectedServiceForCustomization, setSelectedServiceForCustomization] = useState<any>(null);
+  
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 4000);
+  };
 
   const handleSelectService = (srv: any) => {
     setSelectedServiceForCustomization(srv);
     setServiceCustomizationModalOpen(true);
   };
 
+  // Open the reset-password modal when the URL asks for it
   useEffect(() => {
-    const hash = window.location.hash;
-    const search = window.location.search;
-    const path = window.location.pathname;
-
-    if (hash.includes('reset-password') || search.includes('reset-password')) {
+    if (
+      pathname.includes('reset-password') ||
+      location.search.includes('reset-password') ||
+      location.hash.includes('reset-password')
+    ) {
       setForgotPassModalOpen(true);
     }
+  }, [pathname, location.search, location.hash]);
 
+  // Messages sent by route guards (ProtectedRoute) through navigation state
+  useEffect(() => {
+    const s = location.state as { openLogin?: boolean; denied?: string } | null;
+    if (!s) return;
+    if (s.openLogin) {
+      setLoginModalOpen(true);
+      showToast('Please sign in to continue.');
+    }
+    if (s.denied) {
+      showToast('Access restricted: you do not have permission for that page.');
+    }
+    navigate(location.pathname + location.search, { replace: true, state: null });
+  }, [location.state]);
     const isSupportRoute = path.includes('support') || hash.includes('support') || search.includes('support');
 
     if (isSupportRoute) {
@@ -132,7 +157,6 @@ function AppContent() {
   const navigateAndScroll = (page: ViewPage, elementId?: string) => {
     navigateToPage(page);
     setSearchModalOpen(false);
-    setSelectedBlogPostId(null);
     if (elementId) {
       setTimeout(() => {
         const element = document.getElementById(elementId);
@@ -145,14 +169,15 @@ function AppContent() {
     }
   };
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 4000);
-  };
-
   const handleAuthSuccessNavigate = (role: UserRole) => {
+    const r = normalizeRole(role);
+    // /dashboard shows the right dashboard for every role
+    navigate('/dashboard');
+    if (r === 'customersupport' || r === 'support') {
+      showToast('Welcome to BxStrength Customer Support Workspace');
+    } else if (['admin', 'headcoach', 'coach'].includes(r)) {
+      showToast(`Welcome to BxStrength Admin CRM (${String(role).toUpperCase()} Session)`);
+    } else {
     const roleClean = (role || '').toLowerCase();
     if (roleClean === 'customer_support' || roleClean === 'support') {
       navigateToPage('support_dashboard');
@@ -166,15 +191,15 @@ function AppContent() {
     }
   };
 
-  const handleOpenBookingWithTrainer = (trainerName: string) => {
-    setSelectedTrainerForBooking(trainerName);
+  const openBookingFresh = () => {
     setSelectedClassForBooking(undefined);
+    setSelectedTrainerForBooking(undefined);
     setBookingModalOpen(true);
   };
 
-  const handleOpenBookingWithDetails = (className: string, trainerName: string) => {
-    setSelectedClassForBooking(className);
+  const handleOpenBookingWithTrainer = (trainerName: string) => {
     setSelectedTrainerForBooking(trainerName);
+    setSelectedClassForBooking(undefined);
     setBookingModalOpen(true);
   };
 
@@ -191,6 +216,60 @@ function AppContent() {
     setBookingModalOpen(true);
   };
 
+  // The portal (dashboard) for the logged-in user, chosen by role.
+  // Route guards in AppRoutes decide who may reach it.
+  const signOut = (label: string) => () => {
+    navigate("/", { replace: true });
+    logout();
+    showToast(`Signed Out of ${label}`);
+  };
+
+  const common = {
+    user: user!,
+    onNavigateHome: () => navigate("/"),
+  };
+  
+  //Client Portal
+  const clientPortal = user ? (
+    <ClientDashboard
+      {...common}
+      onLogout={signOut("session")}
+      onOpenBooking={() => setBookingModalOpen(true)}
+    />
+  ) : null;
+
+  //Coach Portal
+  const coachPortal = user ? (
+    <CoachDashboard
+      {...common}
+      onLogout={signOut("Coach session")}
+    />
+  ) : null;
+
+  //Head Coach Portal
+  const headCoachPortal = user ? (
+    <HeadCoachDashboard
+      {...common}
+      onLogout={signOut("Head Coach session")}
+    />
+  ) : null;
+
+  //Admin Portal
+  const adminPortal = user ? (
+    <AdminDashboard
+      {...common}
+      onLogout={signOut("Admin session")}
+    />
+  ) : null;
+
+  //Support Portal
+  const supportPortal = user ? (
+    <CustomerSupportDashboard
+      {...common}
+      onShowToast={showToast}
+      onLogout={signOut("Customer Support Workspace")}
+    />
+  ) : null;
   // If viewing Dashboard or Admin CRM full-screen portal views
   if (currentPage === 'dashboard' && user) {
     const userRoleClean = (user.role || '').toLowerCase();
@@ -272,9 +351,11 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans flex flex-col selection:bg-white selection:text-black">
+      <ScrollToTop />
       {/* Dynamic SEO Meta Head Manager */}
       <SeoHead currentPage={currentPage} />
 
+    
       {/* 3-5 Sec Animated Preloader Splash Screen */}
       {isLoadingSplash && <Preloader onComplete={() => setIsLoadingSplash(false)} />}
 
@@ -302,6 +383,40 @@ function AppContent() {
         </div>
       )}
 
+      {/* Global Header Navigation (hidden on full-screen dashboards) */}
+      {!isPortal && (
+        <Header
+          currentPage={currentPage}
+          onNavigate={(page) => setCurrentPage(page)}
+          onOpenBooking={() => {
+            setSelectedClassForBooking(undefined);
+            setSelectedTrainerForBooking(undefined);
+            setBookingModalOpen(true);
+          }}
+          onOpenAssessment={() => setAssessmentModalOpen(true)}
+          onOpenSearch={() => setSearchModalOpen(true)}
+          onOpenLogin={() => setLoginModalOpen(true)}
+          onOpenRegister={() => setRegisterModalOpen(true)}
+        />
+      )}
+
+      {/* Page Routing Views */}
+      <main className="flex-grow">
+        <AppRoutes
+          ready={!isLoadingSplash}
+          onNavigate={(page) => setCurrentPage(page)}
+          onOpenBooking={() => setBookingModalOpen(true)}
+          onOpenBookingFresh={openBookingFresh}
+          onOpenAssessment={() => setAssessmentModalOpen(true)}
+          onSelectService={handleSelectService}
+          onOpenBookingWithTrainer={handleOpenBookingWithTrainer}
+          onSelectTrainer={handleSelectTrainer}
+          clientPortal={clientPortal}
+          coachPortal={coachPortal}
+          headCoachPortal={headCoachPortal}
+          adminPortal={adminPortal}
+          supportPortal={supportPortal}
+        />
       {/* Global Header Navigation */}
       <Header
         currentPage={currentPage}
@@ -450,7 +565,7 @@ function AppContent() {
       </main>
 
       {/* Global Footer */}
-      <Footer onNavigate={(page) => setCurrentPage(page)} />
+      {!isPortal && <Footer onNavigate={(page) => setCurrentPage(page)} />}
 
       {/* Interactive 5-Step Lead Diagnostic Self Assessment Modal */}
       <SelfAssessmentModal
@@ -493,9 +608,8 @@ function AppContent() {
           setSearchModalOpen(false);
         }}
         onSelectBlogPost={(postId) => {
-          setSelectedBlogPostId(postId);
           setSearchModalOpen(false);
-          setCurrentPage('blog');
+          navigate(`/blog/${postId}`);
         }}
       />
 
@@ -562,16 +676,20 @@ function AppContent() {
       />
 
       {/* Floating Action Suite: AI Chatbot, WhatsApp, Email, Go-To-Top */}
-      <FloatingActionWidget
-        isChatbotOpen={isChatbotOpen}
-        onToggleChatbot={() => setIsChatbotOpen(!isChatbotOpen)}
-      />
-      <ChatbotWidget
-        isOpen={isChatbotOpen}
-        onClose={() => setIsChatbotOpen(false)}
-        hideFloatingButton={true}
-        onOpenConsultation={() => setBookingModalOpen(true)}
-      />
+      {!isPortal && (
+        <>
+          <FloatingActionWidget
+            isChatbotOpen={isChatbotOpen}
+            onToggleChatbot={() => setIsChatbotOpen(!isChatbotOpen)}
+          />
+          <ChatbotWidget
+            isOpen={isChatbotOpen}
+            onClose={() => setIsChatbotOpen(false)}
+            hideFloatingButton={true}
+            onOpenConsultation={() => setBookingModalOpen(true)}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -583,4 +701,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-

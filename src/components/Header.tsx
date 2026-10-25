@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { ViewPage } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { Dumbbell, Menu, X, Calendar, Phone, Search, LogIn, UserPlus, LayoutDashboard } from 'lucide-react';
+import { normalizeRole } from "../utils/auth";
 import { Dumbbell, Menu, X, Calendar, Phone, Search, LogIn, UserPlus, LayoutDashboard, LogOut } from 'lucide-react';
 
 interface HeaderProps {
-  currentPage: ViewPage;
+  currentPage: ViewPage | null;
   onNavigate: (page: ViewPage) => void;
   onOpenBooking: () => void;
   onOpenAssessment: () => void;
@@ -29,7 +31,6 @@ export const Header: React.FC<HeaderProps> = ({
   const [scrolled, setScrolled] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [servicesActive, setServicesActive] = useState(false);
-
   useEffect(() => {
     if (currentPage !== 'home') setServicesActive(false);
   }, [currentPage]);
@@ -70,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
   const navItems: { label: string; page: ViewPage }[] = [
     { label: 'HOME', page: 'home' },
     { label: 'ABOUT', page: 'about' },
-    { label: 'SERVICES', page: 'home' },
+    { label: 'SERVICES', page: 'services' },
     { label: 'COACHES', page: 'trainers' },
     { label: 'BLOG', page: 'blog' },
     { label: 'CONTACT', page: 'contact' },
@@ -80,40 +81,28 @@ export const Header: React.FC<HeaderProps> = ({
     setServicesActive(targetElementId === SERVICES_SECTION_ID);
     onNavigate(page);
     setMobileMenuOpen(false);
-    if (targetElementId) {
+    if (page ==="home" && targetElementId) {
       setTimeout(() => {
-        const elem = document.getElementById(targetElementId);
-        if (elem) elem.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
+        document.getElementById(targetElementId)
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 150);
     } else {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  const isCoachOrAdmin = user && (user.role === 'admin' || user.role === 'coach');
-
-  const getTargetDashboardPage = (): ViewPage => {
-    if (!user) return 'dashboard';
-    const roleClean = (user.role || '').toLowerCase();
-    if (['customer_support', 'support'].includes(roleClean)) {
-      return 'support_dashboard';
-    }
-    if (roleClean === 'admin' || roleClean === 'headcoach' || roleClean === 'coach') {
-      return 'admin';
-    }
-    return 'dashboard';
-  };
-
   const getRoleBadgeLabel = (): string => {
-    if (!user) return 'PORTAL';
-    const roleClean = (user.role || '').toLowerCase();
-    if (['customer_support', 'support'].includes(roleClean)) {
-      return 'CUSTOMER SUPPORT PORTAL';
+    switch (normalizeRole(user?.role)) {
+      case 'customersupport':
+      case 'support':   return 'CUSTOMER SUPPORT PORTAL';
+      case 'admin':     return 'ADMIN PORTAL';
+      case 'headcoach': return 'HEAD COACH PORTAL';
+      case 'coach':     return 'COACH PORTAL';
+      default:          return 'CLIENT PORTAL';
     }
-    if (roleClean === 'admin') return 'ADMIN PORTAL';
-    if (roleClean === 'headcoach') return 'HEAD COACH PORTAL';
-    if (roleClean === 'coach') return 'COACH PORTAL';
-    return 'CLIENT PORTAL';
   };
 
   return (
@@ -197,7 +186,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {/* Primary Action Suite */}
-          <div className="hidden sm:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-3">
             <button
               onClick={onOpenSearch}
               className="bg-[#141416] hover:bg-zinc-800 text-zinc-300 hover:text-white font-bold text-xs tracking-wider px-3.5 py-2.5 rounded-lg border border-zinc-800 hover:border-zinc-700 transition-all flex items-center gap-2 cursor-pointer shadow-sm"
@@ -216,6 +205,25 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {isAuthenticated && user ? (
+              <button
+                onClick={() => handleNav('dashboard')}
+                className="bg-[#18181b] hover:bg-zinc-800 text-white rounded-lg transition-all ml-1 border border-zinc-700/80 px-3 py-1.5 flex items-center gap-2.5 cursor-pointer shadow-sm group"
+                title={`Logged in as ${user.name} - Open ${getRoleBadgeLabel()}`}
+              >
+                <img
+                  src={user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.name)}`}
+                  alt={user.name}
+                  className="w-7 h-7 rounded-full object-cover border border-zinc-600 group-hover:border-white transition-colors"
+                />
+                <div className="text-left flex flex-col">
+                  <span className="text-xs font-black uppercase text-white tracking-wide truncate max-w-[130px] leading-tight">
+                    {user.name}
+                  </span>
+                  <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider block">
+                    {getRoleBadgeLabel()}
+                  </span>
+                </div>
+              </button>
               <div className="flex items-center gap-1.5 ml-1">
                 <button
                   onClick={() => handleNav(getTargetDashboardPage())}
@@ -261,7 +269,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Mobile menu toggle & quick actions */}
-          <div className="flex items-center gap-2 sm:hidden">
+          <div className="flex items-center gap-2 lg:hidden">
             <button
               onClick={onOpenSearch}
               className="p-2 text-emerald-400 hover:text-white bg-[#141416] border border-zinc-800 rounded-lg cursor-pointer flex items-center justify-center"
@@ -273,7 +281,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             {isAuthenticated ? (
               <button
-                onClick={() => handleNav(getTargetDashboardPage())}
+                onClick={() => handleNav('dashboard')}
                 className="bg-[#18181b] text-white p-1.5 rounded-lg border border-zinc-700 flex items-center gap-1.5 cursor-pointer"
                 title="Open Dashboard"
               >
@@ -418,6 +426,22 @@ export const Header: React.FC<HeaderProps> = ({
 
             <div className="pt-4 flex flex-col gap-2.5">
               {isAuthenticated && user ? (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleNav('dashboard');
+                  }}
+                  className="w-full bg-[#18181b] border border-zinc-700 text-white p-3 rounded-lg flex items-center justify-between cursor-pointer mb-1"
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.name)}`}
+                      alt={user.name}
+                      className="w-9 h-9 rounded-full object-cover border border-zinc-600"
+                    />
+                    <div className="text-left">
+                      <span className="text-xs font-black uppercase text-white block">{user.name}</span>
+                      <span className="text-[10px] text-zinc-400 font-bold uppercase">{getRoleBadgeLabel()}</span>
                 <>
                   <button
                     onClick={() => {

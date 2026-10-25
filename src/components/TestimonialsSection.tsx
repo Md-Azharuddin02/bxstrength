@@ -40,29 +40,24 @@ export const TestimonialsSection: React.FC = () => {
   };
 
   const fetchReviews = async () => {
-    const localReviews = VelocityAPI.getReviews().filter(isRealReview);
     try {
       const apiUrl = getApiUrl('/api/reviews');
       const res = await fetch(apiUrl);
-      console.log('Review API:', apiUrl, res.status);
-      if (!res.ok) throw new Error('HTTP ${res.status}');
+      if (res.ok) {
+        const serverReviews: Testimonial[] = await res.json();
+        const seenIds = new Set<string>();
+        const seenContent = new Set<string>();
+        const unique: Testimonial[] = [];
 
-      const serverReviews: Testimonial[] = await res.json();
-      if(!Array.isArray(serverReviews)) throw new Error('Review responsee is not a list');
-
-      const seenIds = new Set<string>();
-      const seenContent = new Set<string>();
-      const unique: Testimonial[] = [];
-
-      serverReviews.filter(isRealReview).forEach(item => {
-        const cleanName = decodeHtmlEntities(item.name);
-        const cleanRole = decodeHtmlEntities(item.role || 'BxStrength Athlete');
-        const cleanComment = decodeHtmlEntities(item.comment);
-        const contentKey = `${cleanName.toLowerCase().trim()}:::${cleanComment.trim()}`;
-        if (!seenIds.has(item.id) && !seenContent.has(contentKey)) {
-          seenIds.add(item.id);
-          seenContent.add(contentKey);
-          unique.push({
+        serverReviews.filter(isRealReview).forEach(item => {
+          const cleanName = decodeHtmlEntities(item.name);
+          const cleanRole = decodeHtmlEntities(item.role || 'BxStrength Athlete');
+          const cleanComment = decodeHtmlEntities(item.comment);
+          const contentKey = `${cleanName.toLowerCase().trim()}:::${cleanComment.trim()}`;
+          if (!seenIds.has(item.id) && !seenContent.has(contentKey)) {
+            seenIds.add(item.id);
+            seenContent.add(contentKey);
+            unique.push({
               ...item,
               name: cleanName,
               role: cleanRole,
@@ -70,42 +65,20 @@ export const TestimonialsSection: React.FC = () => {
             });
           }
         });
-
-        if(unique.length > 0) {
-          setReviews(unique);
-          localStorage.setItem('bxstrength_client_reviews', JSON.stringify(unique));
-        } else {
-          setReviews(localReviews);
-        }
-      }catch (err) {
-        console.error('Failed to fetch reviews:', err);
+        setReviews(unique);
+        localStorage.setItem('bxstrength_client_reviews', JSON.stringify(unique));
+      } else {
+        const localReviews = VelocityAPI.getReviews().filter(isRealReview);
         setReviews(localReviews);
-      }finally {
-        setIsLoading(false);
       }
+    } catch (err) {
+      console.error('Failed to fetch reviews:', err);
+      const localReviews = VelocityAPI.getReviews().filter(isRealReview);
+      setReviews(localReviews);
+    } finally {
+      setIsLoading(false);
+    }
   };
-        
-       // const localReviews = VelocityAPI.getReviews().filter(isRealReview);
-
-        ///console.log("Velocity Reviews:", VelocityAPI.getReviews());
-        //console.log("Filtered Reviews:", localReviews);
-
-        //setReviews(localReviews);
-        
-        //setReviews(unique);
-        //localStorage.setItem('bxstrength_client_reviews', JSON.stringify(unique));
-      //} else {
-      //  const localReviews = VelocityAPI.getReviews().filter(isRealReview);
-      //  setReviews(localReviews);
-      //}
-    //} catch (err) {
-    //  console.error('Failed to fetch reviews:', err);
-      //const localReviews = VelocityAPI.getReviews().filter(isRealReview);
-    //  setReviews(localReviews);
-    //} finally {
-    //  setIsLoading(false);
-    //}
-  //};
 
   useEffect(() => {
     fetchReviews();

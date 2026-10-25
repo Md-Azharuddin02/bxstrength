@@ -1,0 +1,47 @@
+name: Production validation
+
+# Runs after you manually merge the release PR into main. Render auto-deploys the same commit;
+# this job waits for that deploy to be live and runs non-destructive smoke tests against prod.
+# It never deploys, never merges, and never mutates production data.
+on:
+  # Production deploys MANUALLY on Render. After you trigger the Render deploy, run this
+  # workflow (Actions tab -> Production validation -> Run workflow, on main) to smoke-test prod.
+  # It polls /api/health until the current main SHA is live, so you can start it immediately —
+  # it waits for your manual deploy to finish before testing.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Serialize production validations; never cancel one midway.
+concurrency:
+  group: production-validation
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate deployed production
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Wait for deploy + smoke test (production)
+        env:
+          BASE_URL: ${{ vars.PROD_API_URL || 'https://bxstrength-api.onrender.com' }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: node scripts/smoke.mjs
+
+      - name: Release report
+        if: always()
+        run: |
+          {
+            echo "## Production release — \`${{ github.sha }}\`"
+            echo "- Deploy + smoke: **${{ job.status }}**"
+            echo "- Target: ${{ vars.PROD_API_URL || 'https://bxstrength-api.onrender.com' }}"
+            [ "${{ job.status }}" != "success" ] && echo "- ⚠️ **Validation failed** — see docs/ci-cd.md → Rollback." || true
+          } >> "$GITHUB_STEP_SUMMARY"

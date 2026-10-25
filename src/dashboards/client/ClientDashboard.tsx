@@ -98,7 +98,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     setEnquiries(enqData);
 
     try {
-      const notifs = await VelocityAPI.fetchInAppNotifications(user.id);
+      const notifs = await VelocityAPI.fetchInAppNotifications(user.email);
       setNotifications(notifs);
     } catch {
       setNotifications([]);
@@ -112,15 +112,14 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   useEffect(() => {
     loadDashboardData(true);
     const handleSync = () => loadDashboardData(false);
-    window.addEventListener('storage', handleSync);
     window.addEventListener('bxstrength_programs_updated', handleSync);
     window.addEventListener('bxstrength_nutrition_updated', handleSync);
     window.addEventListener('bxstrength_assignments_updated', handleSync);
     window.addEventListener('bxstrength_notifications_updated', handleSync);
-    const interval = setInterval(() => loadDashboardData(false), 8000);
+
+    const interval = setInterval(() => { if (!document.hidden) loadDashboardData(false); }, 30000);
 
     return () => {
-      window.removeEventListener('storage', handleSync);
       window.removeEventListener('bxstrength_programs_updated', handleSync);
       window.removeEventListener('bxstrength_nutrition_updated', handleSync);
       window.removeEventListener('bxstrength_assignments_updated', handleSync);

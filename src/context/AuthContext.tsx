@@ -7,8 +7,9 @@ interface AuthContextType {
   role: UserRole | null;
   token: string | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (email: string, password_or_hash: string) => Promise<User>;
-  loginWithGoogle: (email?: string, name?: string, avatarUrl?: string) => Promise<User>;
+  loginWithGoogle: (accessToken: string) => Promise<User>;
   register: (name: string, email: string, phone?: string, role?: UserRole, password?: string) => Promise<{ user: User; requireOtp?: boolean }>;
   verifyOtp: (email: string, otp: string) => Promise<User>;
   resendOtp: (email: string) => Promise<{ success: boolean; message: string }>;
@@ -38,8 +39,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Only consider authenticated if user exists AND isVerified is true
     if (currentUser && currentUser.isVerified !== false) {
+  const [isLoading, setIsLoading] = useState(true);
+
+
+  const syncUser = () => {
+    const currentUser = VelocityAPI.getCurrentUser();
+    const storedToken = VelocityAPI.getAccessToken();
+    if (currentUser && currentUser.isVerified !== false && storedToken) {
       setUser(currentUser);
-      setToken(storedToken || `jwt_${currentUser.id}`);
+      setToken(storedToken);
     } else {
       setUser(null);
       setToken(null);
@@ -51,15 +59,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     syncUser();
     setIsInitialized(true);
     VelocityAPI.fetchUsers().catch(() => {});
+    let active = true;
 
-    // Listen to storage events and poll every 2 seconds for manual role updates
+    const loadFromServer = async () => {
+      try {
+        await VelocityAPI.refreshSession();
+      } catch {}
+      const me = await VelocityAPI.fetchMe();
+      if (!active) return;
+      if (me) {
+        setUser(me);
+        setToken(VelocityAPI.getAccessToken());
+      } else {
+        const currentUser = VelocityAPI.getCurrentUser();
+        const storedToken = VelocityAPI.getAccessToken();
+        if (currentUser && storedToken) {
+          setUser(currentUser);
+          setToken(storedToken);
+        } else {
+          setUser(null);
+          setToken(null);
+        }
+      }
+      setIsLoading(false);
+    };
+
+    loadFromServer();
+
+    // Other tabs logging in/out update this tab from the cache.
     const handleStorageChange = () => syncUser();
     window.addEventListener('storage', handleStorageChange);
-    const interval = setInterval(syncUser, 2000);
+
+    // Keep the access token fresh and re-check the role with the server.
+    const refreshInterval = setInterval(loadFromServer, 10 * 60 * 1000);
 
     return () => {
+      active = false;
       window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
+      clearInterval(refreshInterval);
     };
   }, []);
 
@@ -72,8 +109,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return res.user;
   };
 
-  const loginWithGoogle = async (email?: string, name?: string, avatarUrl?: string): Promise<User> => {
-    const res = await VelocityAPI.loginWithGoogle(email, name, avatarUrl);
+  const loginWithGoogle = async (accessToken: string): Promise<User> => {
+    const res = await VelocityAPI.loginWithGoogle(accessToken);
     setUser(res.user);
     setToken(res.token);
     return res.user;
@@ -144,6 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         isAuthenticated: !!user && user.isVerified !== false,
         isInitialized,
+        isLoading,
         login,
         loginWithGoogle,
         register,

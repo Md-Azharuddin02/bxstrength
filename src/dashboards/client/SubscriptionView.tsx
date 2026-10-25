@@ -23,11 +23,10 @@ export const SubscriptionView: React.FC<SubscriptionViewProps> = ({ user, onShow
     };
 
     fetchSubs();
-    window.addEventListener('storage', fetchSubs);
+    
     const interval = setInterval(fetchSubs, 3000);
 
     return () => {
-      window.removeEventListener('storage', fetchSubs);
       clearInterval(interval);
     };
   }, [user]);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { SupportTicket, TicketStatus, TicketPriority, TicketCategory, User } from '../../types';
-import { VelocityAPI } from '../../services/api';
+import { VelocityAPI, apiFetch } from '../../services/api';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import {
   LifeBuoy, CheckCircle2, Clock, AlertCircle, MessageSquare, Search, Filter,
@@ -59,7 +59,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
       let serverTickets: SupportTicket[] = [];
 
       try {
-        const res = await fetch('/api/tickets');
+        const res = await apiFetch('/api/tickets');
         if (res.ok) {
           serverTickets = await res.json();
         }
@@ -182,7 +182,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
 
       // 2. Update via server API endpoint
       try {
-        await fetch(`/api/tickets/${ticketId}`, {
+        await apiFetch(`/api/tickets/${ticketId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -212,7 +212,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
       VelocityAPI.assignTicket(ticketId, agentName, 'admin');
 
       try {
-        await fetch(`/api/tickets/${ticketId}`, {
+        await apiFetch(`/api/tickets/${ticketId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ assignedAgent: agentName })
@@ -275,7 +275,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
       VelocityAPI.deleteTicket(targetId);
 
       try {
-        await fetch(`/api/tickets/${targetId}`, { method: 'DELETE' });
+        await apiFetch(`/api/tickets/${targetId}`, { method: 'DELETE' });
       } catch (err) {
         console.error('Failed to delete ticket on server:', err);
       }

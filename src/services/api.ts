@@ -1,151 +1,93 @@
 import {
-  User, UserRole, CoachPosition, CoachPermissions, BodyStat, WorkoutProgram, NutritionPlan,
-  ClassSchedule, Booking, AttendanceRecord, Subscription,
-  Enquiry, EnquiryActivityLog, AuditLog, Announcement, BlogPost, Testimonial,
-  SupportTicket, TicketStatus, TicketCategory, TicketPriority,
-  AssignmentStatus, ApprovalLogEntry, InAppNotification, EmailNotificationLog,
-  CoachAssignment, CoachAssignmentType, CoachAssignmentPriority
-} from '../types';
-import { BxTrainer, TRAINERS_DATA } from '../data/gymData';
+  User,
+  UserRole,
+  CoachPosition,
+  CoachPermissions,
+  BodyStat,
+  WorkoutProgram,
+  NutritionPlan,
+  ClassSchedule,
+  Booking,
+  AttendanceRecord,
+  Subscription,
+  Enquiry,
+  EnquiryActivityLog,
+  AuditLog,
+  Announcement,
+  BlogPost,
+  Testimonial,
+  SupportTicket,
+  TicketStatus,
+  TicketCategory,
+  TicketPriority,
+  AssignmentStatus,
+  ApprovalLogEntry,
+  InAppNotification,
+  EmailNotificationLog,
+  CoachAssignment,
+  CoachAssignmentType,
+  CoachAssignmentPriority,
+} from "../types";
+import { BxTrainer, TRAINERS_DATA } from "../data/gymData";
+import {
+  STORAGE_KEYS,
+  SEED_USERS,
+  SEED_BODY_STATS,
+  SEED_CLASSES,
+  SEED_PROGRAMS,
+  SEED_NUTRITION,
+  SEED_BOOKINGS,
+  SEED_SUBSCRIPTIONS,
+  SEED_ENQUIRIES,
+  SEED_AUDIT_LOGS,
+  SEED_ANNOUNCEMENTS,
+  SEED_REVIEWS,
+  getItem,
+  setItem,
+  initStore,
+} from "./core/storage";
+import {
+  getApiUrl,
+  readCookie,
+  CSRF_COOKIE,
+  apiFetch,
+  setUnauthorizedHandler,
+} from "./core/http";
+import {
+  decodeHtmlEntities,
+  dicebearAvatar,
+  toUser,
+  upsertUser,
+} from "./core/mappers";
+import { getToken, setToken } from "./core/token";
+import { DEFAULT_COACH_PERMISSIONS } from "./core/constants";
+import { sessionApi } from "./features/session";
+import { authApi } from "./features/auth";
+import { usersApi } from "./features/users";
+import { bodyStatsApi } from "./features/bodyStats";
+import { classesApi } from "./features/classes";
+import { workoutsApi } from "./features/workouts";
+import { nutritionApi } from "./features/nutrition";
+import { notificationsApi } from "./features/notifications";
+import { assignmentsApi } from "./features/assignments";
+import { subscriptionsApi } from "./features/subscriptions";
+import { enquiriesApi } from "./features/enquiries";
+import { auditApi } from "./features/audit";
+import { announcementsApi } from "./features/announcements";
+import { blogApi } from "./features/blog";
+import { reviewsApi } from "./features/reviews";
+import { ticketsApi } from "./features/tickets";
+import { coachPermissionsApi } from "./features/coachPermissions";
+import { trainersApi } from "./features/trainers";
 
-const metaEnv = (import.meta as any).env || {};
+// Re-exported so existing `services/api` importers keep working unchanged.
+export { getApiUrl, apiFetch } from "./core/http";
+export { decodeHtmlEntities } from "./core/mappers";
+export { initStore } from "./core/storage";
+export { DEFAULT_COACH_PERMISSIONS } from "./core/constants";
 
-export const decodeHtmlEntities = (text: string): string => {
-  if (!text || typeof text !== 'string') return '';
-  return text
-    .replace(/&amp;/g, '&')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, '/');
-};
-
-export const getApiUrl = (path: string): string => {
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-
-  if (typeof window !== 'undefined') {
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    if (isLocal) {
-      return `http://localhost:3001${cleanPath}`;
-    }
-  }
-
-  const configured = metaEnv.VITE_API_URL || metaEnv.API_URL || '';
-  if (configured) {
-    return `${configured.replace(/\/$/, '')}${cleanPath}`;
-  }
-
-  return `https://bxstrength-api.onrender.com${cleanPath}`;
-};
-
-const STORAGE_KEYS = {
-  USERS: 'velocity_users',
-  CURRENT_USER: 'velocity_current_user',
-  TOKEN: 'velocity_jwt_token',
-  BODY_STATS: 'velocity_body_stats',
-  CLASSES: 'velocity_classes',
-  BOOKINGS: 'velocity_bookings',
-  PROGRAMS: 'velocity_programs',
-  NUTRITION: 'velocity_nutrition',
-  NUTRITION_PLANS: 'velocity_nutrition_plans',
-  ATTENDANCE: 'velocity_attendance',
-  SUBSCRIPTIONS: 'velocity_subscriptions',
-  ENQUIRIES: 'velocity_enquiries',
-  AUDIT_LOGS: 'velocity_audit_logs',
-  ANNOUNCEMENTS: 'velocity_announcements',
-  BLOG_POSTS: 'bxstrength_blog_posts',
-  REVIEWS: 'bxstrength_client_reviews',
-  TICKETS: 'bxstrength_support_tickets',
-  COACH_PERMISSIONS: 'bxstrength_coach_permissions',
-  NOTIFICATIONS: 'bxstrength_in_app_notifications',
-  EMAIL_LOGS: 'bxstrength_email_logs',
-  COACH_ASSIGNMENTS: 'bxstrength_coach_assignments'
-};
-
-export const DEFAULT_COACH_PERMISSIONS: CoachPermissions = {
-  allowFinancials: false,        // Strict Default: Client Payments & Financials hidden from Coaches
-  allowLeadPipeline: true,
-  allowClientRoster: true,
-  allowClassSchedules: true,
-  allowWorkoutPrograms: true,
-  allowNutritionPlans: true,
-  allowSupportTickets: true,
-  allowDirectMessaging: true,
-
-  // Default User Dashboard Features (All Enabled by Default)
-  showUserNutritionTracker: true,
-  showUserWorkoutLogger: true,
-  showUserBillingHistory: true,
-  showUserLiveVideoCalls: true,
-  showUserSelfAssessment: true,
-  showUserCommunityFeed: true,
-};
-
-// Seed initial data (Strict Clean Setup: Zero dummy data loaded)
-const SEED_USERS: User[] = [];
-
-const SEED_BODY_STATS: BodyStat[] = [];
-const SEED_CLASSES: ClassSchedule[] = [];
-const SEED_PROGRAMS: WorkoutProgram[] = [];
-const SEED_NUTRITION: NutritionPlan[] = [];
-const SEED_BOOKINGS: Booking[] = [];
-const SEED_SUBSCRIPTIONS: Subscription[] = [];
-const SEED_ENQUIRIES: Enquiry[] = [];
-const SEED_AUDIT_LOGS: AuditLog[] = [];
-const SEED_ANNOUNCEMENTS: Announcement[] = [];
-
-const SEED_REVIEWS: Testimonial[] = [];
-
-// Helper to initialize local storage
-function getItem<T>(key: string, seed: T): T {
-  const data = localStorage.getItem(key);
-  if (!data) {
-    localStorage.setItem(key, JSON.stringify(seed));
-    return seed;
-  }
-  try {
-    return JSON.parse(data) as T;
-  } catch {
-    return seed;
-  }
-}
-
-function setItem<T>(key: string, value: T): void {
-  localStorage.setItem(key, JSON.stringify(value));
-}
-
-// Initializing store
-export function initStore() {
-  const storeInitialized = localStorage.getItem('bxstrength_store_v2_initialized');
-  if (!storeInitialized) {
-    getItem(STORAGE_KEYS.USERS, SEED_USERS);
-    getItem(STORAGE_KEYS.BODY_STATS, SEED_BODY_STATS);
-    getItem(STORAGE_KEYS.CLASSES, SEED_CLASSES);
-    getItem(STORAGE_KEYS.BOOKINGS, SEED_BOOKINGS);
-    getItem(STORAGE_KEYS.PROGRAMS, SEED_PROGRAMS);
-    getItem(STORAGE_KEYS.NUTRITION, SEED_NUTRITION);
-    getItem(STORAGE_KEYS.SUBSCRIPTIONS, SEED_SUBSCRIPTIONS);
-    getItem(STORAGE_KEYS.ENQUIRIES, []);
-    getItem(STORAGE_KEYS.REVIEWS, SEED_REVIEWS);
-    getItem(STORAGE_KEYS.TICKETS, []);
-    getItem(STORAGE_KEYS.AUDIT_LOGS, SEED_AUDIT_LOGS);
-    getItem(STORAGE_KEYS.ANNOUNCEMENTS, SEED_ANNOUNCEMENTS);
-    localStorage.setItem('bxstrength_store_v2_initialized', 'true');
-  }
-}
-
-function sanitizeStr(input: string | undefined): string {
-  if (!input) return '';
-  return input
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .trim();
-}
+// Let apiFetch recover from a 401 by refreshing the session, without core importing this file.
+setUnauthorizedHandler(() => VelocityAPI.refreshSession());
 
 // Service Engine
 export const VelocityAPI = {
@@ -3561,4 +3503,22 @@ export const VelocityAPI = {
     localStorage.setItem('bxstrength_trainers_local_store', JSON.stringify(filtered));
     return { success: true };
   }
+  ...sessionApi,
+  ...authApi,
+  ...usersApi,
+  ...bodyStatsApi,
+  ...classesApi,
+  ...workoutsApi,
+  ...nutritionApi,
+  ...notificationsApi,
+  ...assignmentsApi,
+  ...subscriptionsApi,
+  ...enquiriesApi,
+  ...auditApi,
+  ...announcementsApi,
+  ...blogApi,
+  ...reviewsApi,
+  ...ticketsApi,
+  ...coachPermissionsApi,
+  ...trainersApi,
 };

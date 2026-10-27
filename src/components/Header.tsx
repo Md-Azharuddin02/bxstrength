@@ -23,8 +23,6 @@ interface HeaderProps {
   onOpenRegister: () => void;
 }
 
-const SERVICES_SECTION_ID = "services-section";
-const COACHES_SECTION_ID = "coaches-section";
 
 export const Header: React.FC<HeaderProps> = ({
   currentPage,
@@ -39,10 +37,6 @@ export const Header: React.FC<HeaderProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
-  const [servicesActive, setServicesActive] = useState(false);
-  useEffect(() => {
-    if (currentPage !== "home") setServicesActive(false);
-  }, [currentPage]);
 
   useEffect(() => {
     let ticking = false;
@@ -90,29 +84,8 @@ export const Header: React.FC<HeaderProps> = ({
     { label: "CONTACT", page: "contact" },
   ];
 
-  const scrollToSection = (id: string) => {
-    // Instant jump: smooth scroll stutters on this heavy (video) landing page.
-    document.getElementById(id)?.scrollIntoView({ block: "start" });
-  };
-
-  const handleNav = (page: ViewPage, targetElementId?: string) => {
-    setServicesActive(targetElementId === SERVICES_SECTION_ID);
+  const handleNav = (page: ViewPage) => {
     setMobileMenuOpen(false);
-
-    if (page === "home" && targetElementId) {
-      const existing = document.getElementById(targetElementId);
-      if (existing) {
-        // Section is already on screen (we're on home): scroll straight to it.
-        // (Calling navigate('/') here would cancel the smooth scroll.)
-        scrollToSection(targetElementId);
-        return;
-      }
-      // Coming from another page: go home first, then scroll once it renders.
-      onNavigate(page);
-      setTimeout(() => scrollToSection(targetElementId), 300);
-      return;
-    }
-
     onNavigate(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -343,24 +316,11 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex items-center justify-center gap-8">
             {navItems.map((item) => {
-              const isActive =
-                item.label === "SERVICES"
-                  ? currentPage === "home" && servicesActive
-                  : item.label === "HOME"
-                    ? currentPage === "home" && !servicesActive
-                    : currentPage === item.page;
+              const isActive = currentPage === item.page;
               return (
                 <button
                   key={item.label}
-                  onClick={() => {
-                    if (item.label === "SERVICES") {
-                      handleNav("home", SERVICES_SECTION_ID);
-                    } else if (item.label === "COACHES") {
-                      handleNav("home", COACHES_SECTION_ID);
-                    } else {
-                      handleNav(item.page);
-                    }
-                  }}
+                  onClick={() => handleNav(item.page)}
                   className={`text-xs font-black tracking-widest uppercase transition-colors duration-200 px-3 py-1.5 rounded-md cursor-pointer flex items-center gap-1.5 border ${
                     isActive
                       ? "bg-zinc-800 text-white shadow-sm border-zinc-700"
@@ -398,24 +358,11 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             ))}*/
               }
-              const isActive =
-                item.label === "SERVICES"
-                  ? currentPage === "home" && servicesActive
-                  : item.label === "HOME"
-                    ? currentPage === "home" && !servicesActive
-                    : currentPage === item.page;
+              const isActive = currentPage === item.page;
               return (
                 <button
                   key={item.label}
-                  onClick={() => {
-                    if (item.label === "SERVICES") {
-                      handleNav("home", SERVICES_SECTION_ID);
-                    } else if (item.label === "COACHES") {
-                      handleNav("home", COACHES_SECTION_ID);
-                    } else {
-                      handleNav(item.page);
-                    }
-                  }}
+                  onClick={() => handleNav(item.page)}
                   className={`text-left text-xs font-black tracking-widest py-2.5 uppercase border-b border-zinc-800 flex items-center justify-between ${
                     isActive ? "text-white" : "text-zinc-400"
                   }`}

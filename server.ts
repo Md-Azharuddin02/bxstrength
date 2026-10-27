@@ -1511,6 +1511,7 @@ if (dbPool) {
             name VARCHAR(255) NOT NULL,
             email VARCHAR(255) NOT NULL,
             phone VARCHAR(100),
+            preferred_contact_method VARCHAR(20),
             subject VARCHAR(500),
             message TEXT NOT NULL,
             status VARCHAR(50) DEFAULT 'new',
@@ -1734,6 +1735,7 @@ if (dbPool) {
           ALTER TABLE enquiries ADD COLUMN IF NOT EXISTS weightage VARCHAR(100) DEFAULT 'Normal Weightage (50/100)';
           ALTER TABLE enquiries ADD COLUMN IF NOT EXISTS assigned_coach VARCHAR(255) DEFAULT 'Unassigned';
           ALTER TABLE enquiries ADD COLUMN IF NOT EXISTS transferred_to_headcoach BOOLEAN DEFAULT FALSE;
+          ALTER TABLE enquiries ADD COLUMN IF NOT EXISTS preferred_contact_method VARCHAR(20);
 
           ALTER TABLE workout_programs ADD COLUMN IF NOT EXISTS assigned_by VARCHAR(255);
           ALTER TABLE workout_programs ADD COLUMN IF NOT EXISTS assigned_by_role VARCHAR(100);
@@ -2666,6 +2668,7 @@ interface ServerEnquiry {
   name: string;
   email: string;
   phone?: string;
+  preferredContactMethod?: 'whatsapp' | 'email' | 'call';
   subject: string;
   message: string;
   createdAt: string;
@@ -2677,9 +2680,28 @@ const enquiriesStore: ServerEnquiry[] = [];
 
 app.post('/api/assessments', enquiryLimiter, async (req, res) => {
   try {
-    const { primaryGoal, mainObstacle, experienceLevel, weeklyCommitment, name, email, phone } = req.body;
+    const {
+      primaryGoal,
+      mainObstacle,
+      experienceLevel,
+      weeklyCommitment,
+      trainingLocation,
+      equipment,
+      trainingInterest,
+      hasInjury,
+      name,
+      email,
+      phone,
+    } = req.body;
     if (!name || !email) {
       return res.status(400).json({ error: 'Name and email are required for diagnostic lead score.' });
+    }
+
+    const rawContactMethod = req.body.preferredContactMethod ?? req.body.preferred_contact_method;
+    const allowedContactMethods = ['whatsapp', 'email', 'call'];
+    const preferredContactMethod = rawContactMethod ? sanitizeInput(String(rawContactMethod)).toLowerCase() : undefined;
+    if (preferredContactMethod && !allowedContactMethods.includes(preferredContactMethod)) {
+      return res.status(400).json({ error: 'Preferred contact method must be WhatsApp, email, or call.' });
     }
 
     const leadName = sanitizeInput(name);
@@ -2689,15 +2711,20 @@ app.post('/api/assessments', enquiryLimiter, async (req, res) => {
     const obstacle = sanitizeInput(mainObstacle || 'Time');
     const experience = sanitizeInput(experienceLevel || 'Intermediate');
     const commitment = sanitizeInput(weeklyCommitment || '3 Days');
+    const location = sanitizeInput(trainingLocation || 'Not provided');
+    const equipmentDetails = sanitizeInput(equipment || 'Not provided');
+    const interest = sanitizeInput(trainingInterest || 'Not provided');
+    const injuryDetails = sanitizeInput(hasInjury || 'Not provided');
 
     const enquiryId = `enq-assess-${Date.now()}`;
-    const assessmentMessage = `[SELF ASSESSMENT DIAGNOSTIC]\nGoal: ${goal}\nMain Obstacle: ${obstacle}\nExperience Level: ${experience}\nWeekly Commitment: ${commitment}`;
+    const assessmentMessage = `[SELF ASSESSMENT DIAGNOSTIC]\nGoal: ${goal}\nMain Obstacle: ${obstacle}\nExperience Level: ${experience}\nWeekly Commitment: ${commitment}\nTraining Location: ${location}\nEquipment: ${equipmentDetails}\nTraining Interest: ${interest}\nInjury / Medical Restriction: ${injuryDetails}\nPreferred Contact Method: ${preferredContactMethod || 'Not provided'}`;
 
     const newEnquiry: ServerEnquiry = {
       id: enquiryId,
       name: leadName,
       email: leadEmail,
       phone: leadPhone,
+      preferredContactMethod: preferredContactMethod as ServerEnquiry['preferredContactMethod'],
       subject: `Digital Diagnostic: ${goal}`,
       message: assessmentMessage,
       createdAt: new Date().toISOString(),
@@ -2705,18 +2732,20 @@ app.post('/api/assessments', enquiryLimiter, async (req, res) => {
       assignedNotes: 'Automatically created from 5-Min Self Assessment Lead Funnel'
     };
 
-    enquiriesStore.unshift(newEnquiry);
-
     if (dbPool) {
       try {
         await dbPool.query(
-          `INSERT INTO enquiries (id, name, email, phone, subject, message, status, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, 'new', NOW())`,
-          [enquiryId, leadName, leadEmail, leadPhone, newEnquiry.subject, assessmentMessage]
+          `INSERT INTO enquiries (id, name, email, phone, preferred_contact_method, subject, message, status, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'new', NOW())`,
+          [enquiryId, leadName, leadEmail, leadPhone, preferredContactMethod || null, newEnquiry.subject, assessmentMessage]
         );
-      } catch (e: any) { }
+      } catch (dbErr: any) {
+        console.error('Assessment database save error:', dbErr.message);
+        return res.status(500).json({ error: 'Failed to record self assessment' });
+      }
     }
 
+    enquiriesStore.unshift(newEnquiry);
     res.status(201).json({ message: 'Lead self-assessment recorded successfully', data: newEnquiry });
   } catch (err: any) {
     console.error('Assessment capture error:', err.message);
@@ -3267,6 +3296,12 @@ app.post('/api/enquiries', enquiryLimiter, async (req, res) => {
     const cleanName = sanitizeInput(rawName);
     const cleanEmail = sanitizeInput(rawEmail).toLowerCase();
     const cleanPhone = sanitizeInput(phone || req.body.phone || '');
+    const rawContactMethod = req.body.preferredContactMethod ?? req.body.preferred_contact_method;
+    const allowedContactMethods = ['whatsapp', 'email', 'call'];
+    const preferredContactMethod = rawContactMethod ? sanitizeInput(String(rawContactMethod)).toLowerCase() : undefined;
+    if (preferredContactMethod && !allowedContactMethods.includes(preferredContactMethod)) {
+      return res.status(400).json({ error: 'Preferred contact method must be WhatsApp, email, or call.' });
+    }
     const cleanSubject = sanitizeInput(subject || req.body.subject || 'General Website Enquiry');
     const cleanMessage = sanitizeInput(rawMessage);
     const cleanCategory = sanitizeInput(category || req.body.category || '1-on-1 Coaching');
@@ -3285,6 +3320,7 @@ app.post('/api/enquiries', enquiryLimiter, async (req, res) => {
       name: cleanName,
       email: cleanEmail,
       phone: cleanPhone,
+      preferredContactMethod: preferredContactMethod as ServerEnquiry['preferredContactMethod'],
       subject: cleanSubject,
       message: cleanMessage,
       createdAt: new Date().toISOString(),
@@ -3296,14 +3332,15 @@ app.post('/api/enquiries', enquiryLimiter, async (req, res) => {
     if (dbPool) {
       try {
         await dbPool.query(
-          `INSERT INTO enquiries (id, name, email, phone, subject, message, category, priority, weightage, assigned_coach, transferred_to_headcoach, status, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+          `INSERT INTO enquiries (id, name, email, phone, preferred_contact_method, subject, message, category, priority, weightage, assigned_coach, transferred_to_headcoach, status, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
            ON CONFLICT (id) DO UPDATE SET 
              message = EXCLUDED.message,
+             preferred_contact_method = EXCLUDED.preferred_contact_method,
              status = EXCLUDED.status,
              assigned_coach = EXCLUDED.assigned_coach,
              transferred_to_headcoach = EXCLUDED.transferred_to_headcoach`,
-          [enqId, cleanName, cleanEmail, cleanPhone, cleanSubject, cleanMessage, cleanCategory, cleanPriority, cleanWeightage, cleanAssignedCoach, isTransferred, cleanStatus]
+          [enqId, cleanName, cleanEmail, cleanPhone, preferredContactMethod || null, cleanSubject, cleanMessage, cleanCategory, cleanPriority, cleanWeightage, cleanAssignedCoach, isTransferred, cleanStatus]
         );
       } catch (dbErr: any) {
         console.warn('database enquiry save notice:', dbErr.message);

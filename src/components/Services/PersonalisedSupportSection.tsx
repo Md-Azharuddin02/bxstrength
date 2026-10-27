@@ -25,7 +25,7 @@ export const PersonalisedSupportSection: React.FC<SectionProps> = ({ symbol, onC
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 items-stretch">
 
             {/* Card 1: BX MINDSET & WELLNESS */}
-            <div style={{ animationDelay: '360ms' }} className="service-card-enter bg-[#121215] border border-zinc-800 rounded-2xl p-5 sm:p-6 lg:p-7 flex flex-col justify-between transition-all duration-300 hover:border-zinc-700 hover:-translate-y-1 shadow-lg">
+            <div style={{ animationDelay: '360ms' }} className="service-card-enter service-card-hover bg-[#121215] border border-zinc-800 rounded-2xl p-5 sm:p-6 lg:p-7 flex flex-col justify-between transition-all duration-300 hover:border-zinc-700 hover:-translate-y-1 shadow-lg">
               <div>
                 <h3 className="text-xl sm:text-2xl font-black uppercase tracking-wide text-white">
                   BX MINDSET &amp; WELLNESS
@@ -94,7 +94,7 @@ export const PersonalisedSupportSection: React.FC<SectionProps> = ({ symbol, onC
             </div>
 
             {/* Card 2: BX CUSTOM */}
-            <div style={{ animationDelay: '450ms' }} className="service-card-enter bg-[#121215] border border-zinc-800 rounded-2xl p-5 sm:p-6 lg:p-7 flex flex-col justify-between transition-all duration-300 hover:border-zinc-700 hover:-translate-y-1 shadow-lg">
+            <div style={{ animationDelay: '450ms' }} className="service-card-enter service-card-hover bg-[#121215] border border-zinc-800 rounded-2xl p-5 sm:p-6 lg:p-7 flex flex-col justify-between transition-all duration-300 hover:border-zinc-700 hover:-translate-y-1 shadow-lg">
               <div>
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-4 sm:mb-6">
                   <div>

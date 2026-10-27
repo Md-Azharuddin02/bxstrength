@@ -100,6 +100,7 @@ export const enquiriesApi = {
     name: string;
     email: string;
     phone?: string;
+    preferredContactMethod?: 'whatsapp' | 'email' | 'call';
     subject: string;
     message: string;
     category?: string;
@@ -128,6 +129,7 @@ export const enquiriesApi = {
       name: data.name,
       email: data.email,
       phone: data.phone || "",
+      preferredContactMethod: data.preferredContactMethod,
       subject: data.subject,
       message: data.message,
       category: data.category || "1-on-1 Coaching",

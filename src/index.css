@@ -83,6 +83,15 @@
   to { opacity: 1; scale: 1; }
 }
 
+@keyframes service-section-reveal {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.service-section-reveal {
+  animation: service-section-reveal 700ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
 @keyframes service-monthly-glow {
   0%, 100% { box-shadow: 0 0 26px -16px rgba(204, 255, 0, 0.35); }
   50% { box-shadow: 0 0 42px -12px rgba(204, 255, 0, 0.58); }
@@ -108,6 +117,17 @@
 
 .service-monthly-cta {
   animation: service-monthly-cta 3.2s ease-in-out infinite;
+}
+
+@media (hover: hover) {
+  .service-card-hover:not(.service-monthly-feature):hover {
+    background-color: #17171b;
+    box-shadow: 0 0 30px -14px rgba(204, 255, 0, 0.58);
+  }
+
+  .service-card-hover.service-monthly-feature:hover {
+    box-shadow: 0 0 48px -8px rgba(204, 255, 0, 0.52);
+  }
 }
 
 @keyframes payment-success-spinner {
@@ -198,6 +218,7 @@
   .service-card-enter,
   .service-monthly-feature.service-card-enter,
   .service-monthly-cta,
+  .service-section-reveal,
   .payment-success-spinner,
   .payment-success-alert,
   .payment-success-firework-particle,

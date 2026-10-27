@@ -123,6 +123,7 @@ export const BlogView: React.FC<BlogViewProps> = ({ initialSelectedPostId, onCle
             </p>
           </div>
 
+          {/* Temporarily hidden from the Blog page UI.
           <button
             onClick={() => setShowPublishModal(true)}
             className="bg-white hover:bg-zinc-200 text-black font-black text-xs tracking-wider uppercase px-6 py-3.5 rounded-lg transition-all shadow-lg cursor-pointer flex items-center gap-2 self-start md:self-auto"
@@ -130,6 +131,7 @@ export const BlogView: React.FC<BlogViewProps> = ({ initialSelectedPostId, onCle
             <Plus className="w-4 h-4" />
             <span>WRITE SHORT ARTICLE</span>
           </button>
+          */}
         </div>
       </div>
 

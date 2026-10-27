@@ -25,7 +25,7 @@ export const CommitAndSaveSection: React.FC<SectionProps> = ({ symbol, onChoose 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 items-stretch">
 
             {/* Card 1: BX WEEKLY FLEX */}
-            <div style={{ animationDelay: '540ms' }} className="service-card-enter bg-[#121215] border border-zinc-800 rounded-2xl p-5 sm:p-6 lg:p-7 flex flex-col justify-between transition-all duration-300 hover:border-zinc-700 hover:-translate-y-1 shadow-lg">
+            <div style={{ animationDelay: '540ms' }} className="service-card-enter service-card-hover bg-[#121215] border border-zinc-800 rounded-2xl p-5 sm:p-6 lg:p-7 flex flex-col justify-between transition-all duration-300 hover:border-zinc-700 hover:-translate-y-1 shadow-lg">
               <div>
                 <h3 className="text-xl sm:text-2xl font-black uppercase tracking-wide text-white">
                   BX WEEKLY FLEX
@@ -100,7 +100,7 @@ export const CommitAndSaveSection: React.FC<SectionProps> = ({ symbol, onChoose 
             </div>
 
             {/* Card 2: BX MONTHLY FLEX (Featured Card) */}
-            <div style={{ animationDelay: '630ms, 650ms' }} className="service-card-enter service-monthly-feature relative bg-gradient-to-b from-[#18181f] to-[#101013] border-2 border-[#CCFF00]/80 rounded-2xl p-5 sm:p-6 lg:p-7 flex flex-col justify-between transition-all duration-300 hover:border-[#CCFF00] hover:-translate-y-1 shadow-[0_0_40px_-10px_rgba(204,255,0,0.3)]">
+            <div style={{ animationDelay: '630ms, 650ms' }} className="service-card-enter service-card-hover service-monthly-feature relative bg-gradient-to-b from-[#18181f] to-[#101013] border-2 border-[#CCFF00]/80 rounded-2xl p-5 sm:p-6 lg:p-7 flex flex-col justify-between transition-all duration-300 hover:border-[#CCFF00] hover:-translate-y-1 shadow-[0_0_40px_-10px_rgba(204,255,0,0.3)]">
               <div>
                 {/* Top Badges */}
                 <div className="flex flex-wrap items-center justify-start gap-2 mb-3">

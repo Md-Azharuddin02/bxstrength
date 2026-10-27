@@ -37,7 +37,7 @@ export const TrainYourWaySection: React.FC<SectionProps> = ({ symbol, onChoose }
             {trainYourWayServices.map((srv, idx) => (
               <div
                 key={idx}
-                className="bg-[#121215] border border-zinc-800 rounded-2xl p-4 sm:p-4 lg:p-5 flex flex-col justify-between transition-all duration-300 hover:border-zinc-700 hover:-translate-y-1 shadow-lg"
+                className="service-card-hover bg-[#121215] border border-zinc-800 rounded-2xl p-4 sm:p-4 lg:p-5 flex flex-col justify-between transition-all duration-300 hover:border-zinc-700 hover:-translate-y-1 shadow-lg"
               >
                 <div>
                   {/* Title & Subtitle */}

@@ -53,13 +53,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     let active = true;
-    // Render auth-gated routes from the cached session immediately; loadFromServer refines it.
+    // A full page refresh clears the in-memory access token. Keep protected routes
+    // waiting until the refresh cookie has been exchanged and the user is restored.
     syncUser();
-    setIsInitialized(true);
 
     const loadFromServer = async () => {
       try {
         await VelocityAPI.refreshSession();
+
+        // Do not treat a cached user as authenticated unless a usable access
+        // token was restored (or was already present in this page session).
+        if (!VelocityAPI.getAccessToken()) {
+          if (!active) return;
+          setUser(null);
+          setToken(null);
+          return;
+        }
 
         const me = await VelocityAPI.fetchMe();
 
@@ -69,7 +78,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setUser(me);
           setToken(VelocityAPI.getAccessToken());
         } else {
-          syncUser();
+          setUser(null);
+          setToken(null);
         }
       } catch {
         if (!active) return;

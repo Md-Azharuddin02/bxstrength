@@ -31,6 +31,7 @@ if (JWT_SECRET === JWT_REFRESH_SECRET) {
 }
 
 export const REDIS_URL = IS_DEPLOYED ? required('REDIS_URL') : process.env.REDIS_URL || 'redis://127.0.0.1:6379';
+if (IS_DEPLOYED) required('DATABASE_URL');
 
 export const APP_URL = (process.env.APP_URL || '').replace(/\/$/, '');
 
@@ -40,6 +41,7 @@ export const GOOGLE_CLIENT_ID =
 
 
 export const CORS_ORIGINS = (process.env.CORS_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean);
+if (IS_DEPLOYED && CORS_ORIGINS.length === 0) required('CORS_ORIGINS');
 
 // Shared parent domain for auth cookies, e.g. ".bxstrength.com" when the frontend is app.bxstrength.com
 // and the API is api.bxstrength.com. Makes cookies same-site/first-party across subdomains. Leave

@@ -54,12 +54,9 @@ jobs:
           JWT_REFRESH_SECRET: ci-test-refresh-secret
 
   security:
-    name: Dependency & secret scan (informational)
+    name: Dependency & secret scan
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Informational until the existing advisories are triaged; promote to Required
-    # (remove continue-on-error) once `npm audit` is clean. See docs/ci-cd.md.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:

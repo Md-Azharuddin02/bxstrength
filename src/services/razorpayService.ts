@@ -1,5 +1,6 @@
-import { getApiUrl } from "./api";
+import { apiFetch, getApiUrl } from "./core/http";
 import { getActiveMarketCountry } from "../utils/marketService";
+import { canUseMockPayments } from "./mockPayment";
 
 export interface RazorpayOrderResponse {
   success: boolean;
@@ -29,6 +30,7 @@ export interface RazorpayCheckoutOptions {
   userName?: string;
   userPhone?: string;
   notes?: Record<string, any>;
+  simulateSuccess?: boolean;
   onSuccess: (result: {
     razorpay_order_id: string;
     razorpay_payment_id: string;
@@ -84,7 +86,7 @@ export const createRazorpayOrder = async (
 ): Promise<any> => {
   const activeCountry = country || getActiveMarketCountry();
   const idempotencyKey = `idemp_${notes?.userEmail || "client"}_${Date.now()}`;
-  const response = await fetch(getApiUrl("/api/payments/create-intent"), {
+  const response = await apiFetch(getApiUrl("/api/payments/create-intent"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -93,8 +95,8 @@ export const createRazorpayOrder = async (
       country: activeCountry,
       phone: phone || notes?.userPhone,
       receipt,
-      planName: notes?.planName || "Testing",
-      serviceType: notes?.serviceType || "individual",
+      planName: notes?.planName || notes?.planTitle,
+      serviceType: notes?.serviceType || notes?.planType || "individual",
       customExercises: notes?.customExercises
         ? String(notes.customExercises).split(", ")
         : [],
@@ -125,7 +127,7 @@ export const verifyRazorpayPayment = async (payload: {
   razorpay_signature: string;
   [key: string]: any;
 }): Promise<RazorpayVerificationResponse> => {
-  const response = await fetch(getApiUrl("/api/payments/verify"), {
+  const response = await apiFetch(getApiUrl("/api/payments/verify"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -148,6 +150,18 @@ export const openRazorpayCheckout = async (
   options: RazorpayCheckoutOptions,
 ): Promise<void> => {
   try {
+    if (
+      options.simulateSuccess &&
+      canUseMockPayments(import.meta.env.DEV, import.meta.env.VITE_ENABLE_MOCK_PAYMENTS)
+    ) {
+      options.onSuccess({
+        razorpay_order_id: `test_order_${Date.now()}`,
+        razorpay_payment_id: `test_payment_${Date.now()}`,
+        razorpay_signature: "MOCK_PAYMENT_SIMULATION",
+      });
+      return;
+    }
+
     const activeCountry = options.country || getActiveMarketCountry();
     // 1. Create order intent on server (handles Razorpay -> Stripe automatic failover)
     const orderData = await createRazorpayOrder(

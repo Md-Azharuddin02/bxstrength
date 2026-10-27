@@ -193,7 +193,10 @@ test('protected routes reject a request without a token', async () => {
       ['GET', '/users'], ['POST', '/users'], ['DELETE', '/users/u1'], ['POST', '/trainers'], ['GET', '/tickets'],
       ['GET', '/workout-programs'], ['POST', '/nutrition-plans'], ['GET', '/coach-assignments'], ['DELETE', '/audit-logs'],
       ['POST', '/announcements'], ['GET', '/subscriptions'], ['POST', '/classes'], ['GET', '/admin/journey/bookings'],
-      ['POST', '/email/test'], ['GET', '/route-that-does-not-exist']
+      ['POST', '/email/test'], ['POST', '/journey/verify-payment'], ['GET', '/journey/booking/BXSC12345'],
+      ['POST', '/payments/create-intent'], ['POST', '/payments/verify'], ['POST', '/journey/initiate'],
+      ['POST', '/journey/create-checkout-intent'], ['GET', '/journey/latest-by-email/client%40example.com'],
+      ['GET', '/route-that-does-not-exist']
     ]) {
       assert.equal(await call(base, method, path), 401, `${method} ${path}`);
     }
@@ -207,7 +210,7 @@ test('public routes stay open', async () => {
   try {
     for (const [method, path] of [
       ['GET', '/health'], ['GET', '/trainers'], ['GET', '/classes'], ['GET', '/reviews'], ['POST', '/enquiries'],
-      ['POST', '/consultations'], ['POST', '/journey/initiate'], ['POST', '/webhooks/razorpay'], ['POST', '/auth/login']
+      ['POST', '/consultations'], ['POST', '/webhooks/razorpay'], ['POST', '/auth/login']
     ]) {
       assert.equal(await call(base, method, path), 200, `${method} ${path}`);
     }
@@ -224,6 +227,9 @@ test('roles decide what a logged in user can reach', async () => {
   const admin = tokenFor('admin');
   try {
     assert.equal(await call(base, 'GET', '/users', client), 403);
+    assert.equal(await call(base, 'POST', '/payments/create-intent', client), 200);
+    assert.equal(await call(base, 'POST', '/payments/verify', client), 200);
+    assert.equal(await call(base, 'POST', '/journey/initiate', client), 200);
     assert.equal(await call(base, 'GET', '/users', support), 200);
     assert.equal(await call(base, 'POST', '/users', coach), 403);
     assert.equal(await call(base, 'POST', '/users', admin), 200);

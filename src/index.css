@@ -75,3 +75,135 @@
   from { transform: scaleX(1); }
   to { transform: scaleX(0); }
 }
+
+
+/* Service section card motion and Monthly Flex emphasis */
+@keyframes service-card-enter {
+  from { opacity: 0; scale: 0.985; }
+  to { opacity: 1; scale: 1; }
+}
+
+@keyframes service-monthly-glow {
+  0%, 100% { box-shadow: 0 0 26px -16px rgba(204, 255, 0, 0.35); }
+  50% { box-shadow: 0 0 42px -12px rgba(204, 255, 0, 0.58); }
+}
+
+@keyframes service-monthly-cta {
+  0%, 100% { box-shadow: 0 8px 22px -12px rgba(204, 255, 0, 0.35); }
+  50% { box-shadow: 0 10px 26px -10px rgba(204, 255, 0, 0.62); }
+}
+
+.service-card-enter {
+  animation: service-card-enter 650ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.service-monthly-feature.service-card-enter {
+  animation-name: service-card-enter, service-monthly-glow;
+  animation-duration: 650ms, 3.2s;
+  animation-timing-function: cubic-bezier(0.2, 0.75, 0.25, 1), ease-in-out;
+  animation-delay: 630ms, 650ms;
+  animation-fill-mode: both, none;
+  animation-iteration-count: 1, infinite;
+}
+
+.service-monthly-cta {
+  animation: service-monthly-cta 3.2s ease-in-out infinite;
+}
+
+@keyframes payment-success-spinner {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes payment-success-overlay-check {
+  0% { opacity: 0; transform: scale(0.45) rotate(-18deg); }
+  60% { opacity: 1; transform: scale(1.12) rotate(4deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@keyframes payment-success-alert-in {
+  0% { opacity: 0; transform: translateY(10px) scale(0.9); }
+  70% { opacity: 1; transform: translateY(0) scale(1.025); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes payment-success-firework-burst {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--burst-angle)) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--burst-angle)) translateY(calc(-1 * var(--burst-distance))) scale(0.15);
+  }
+}
+
+@keyframes payment-success-pulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(204, 255, 0, 0)); }
+  50% { transform: scale(1.09); filter: drop-shadow(0 0 12px rgba(204, 255, 0, 0.65)); }
+}
+
+@keyframes payment-success-rays-burst {
+  0%, 100% { opacity: 0.72; transform: scale(0.94); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+
+.payment-success-spinner {
+  animation: payment-success-spinner 1.2s linear infinite;
+}
+
+.payment-success-alert {
+  animation: payment-success-alert-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.payment-success-firework-particle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: 3px;
+  height: 11px;
+  margin-left: -1.5px;
+  margin-top: -5.5px;
+  border-radius: 999px;
+  background: #ccff00;
+  box-shadow: 0 0 8px rgba(204, 255, 0, 0.8);
+  transform-origin: center;
+  animation: payment-success-firework-burst 850ms cubic-bezier(0.1, 0.75, 0.2, 1) var(--burst-delay) both;
+}
+
+.payment-success-firework-particle:nth-child(3n + 1) {
+  background: #ffffff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.75);
+}
+
+.payment-success-firework-particle:nth-child(3n + 2) {
+  background: #ffd166;
+  box-shadow: 0 0 8px rgba(255, 209, 102, 0.8);
+}
+
+.payment-success-overlay-check {
+  animation: payment-success-overlay-check 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.payment-success-rays {
+  transform-origin: center;
+  animation: payment-success-rays-burst 1.8s ease-in-out infinite;
+}
+
+.payment-success-mark {
+  animation: payment-success-pulse 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .service-card-enter,
+  .service-monthly-feature.service-card-enter,
+  .service-monthly-cta,
+  .payment-success-spinner,
+  .payment-success-alert,
+  .payment-success-firework-particle,
+  .payment-success-overlay-check,
+  .payment-success-rays,
+  .payment-success-mark {
+    animation: none !important;
+  }
+}

@@ -78,7 +78,15 @@ app.use(
 // 2. CORS & BODY PARSER WITH STRICT PAYLOAD LIMIT (10MB for base64 photo uploads up to 500KB)
 // app.use(cors());
 // cookies are only accepted when the origin is named and credentials are allowed
-app.use(cors({ origin: CORS_ORIGINS.length ? CORS_ORIGINS : true, credentials: true }));
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (CORS_ORIGINS.includes(origin)) return callback(null, true);
+    if (process.env.NODE_ENV === 'development' && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
+    return callback(null, false);
+  },
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb', verify: (req, _res, buf) => { (req as any).rawBody = buf; } }));
 
 // Global Request Body & Query XSS Protection Sanitizer
@@ -152,58 +160,8 @@ const getCashfreeConfig = () => {
   return { appId, secretKey, isProd };
 };
 
-app.post(['/api/create-cashfree-order', '/api/create-cashfree-checkout-session'], async (req, res) => {
-  try {
-    const { planName = 'BxStrength Protocol', amount = 40, currency = 'GBP', clientEmail, userName, phone, serviceType = 'individual' } = req.body;
-    const { appId, secretKey, isProd } = getCashfreeConfig();
-
-    const orderId = `cf_ord_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const baseUrl = isProd ? 'https://api.cashfree.com/pg/orders' : 'https://sandbox.cashfree.com/pg/orders';
-    const checkoutBase = isProd ? 'https://payments.cashfree.com/order/#' : 'https://payments-test.cashfree.com/order/#';
-
-    if (appId && secretKey && !appId.includes('placeholder')) {
-      const response = await fetch(baseUrl, {
-        method: 'POST',
-        headers: {
-          'x-client-id': appId,
-          'x-client-secret': secretKey,
-          'x-api-version': '2023-08-01',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          order_id: orderId,
-          order_amount: Number(amount),
-          order_currency: currency.toUpperCase(),
-          customer_details: {
-            customer_id: `cust_${Date.now()}`,
-            customer_name: userName || 'Client Athlete',
-            customer_email: clientEmail || 'client@bxstrength.com',
-            customer_phone: (phone || '9876543210').replace(/[\s\-\(\)\+]/g, '').slice(-10) || '9876543210'
-          },
-          order_meta: {
-            return_url: `${req.headers.origin || 'http://localhost:3000'}/?cashfree_order_id={order_id}&payment_status={order_status}`
-          },
-          order_note: `${planName} (${serviceType.toUpperCase()})`
-        })
-      });
-
-      const cfData = await response.json();
-      if (response.ok && cfData.payment_session_id) {
-        return res.json({
-          success: true,
-          gateway: 'cashfree',
-          order_id: cfData.order_id || orderId,
-          payment_session_id: cfData.payment_session_id,
-          url: `${checkoutBase}${cfData.payment_session_id}`
-        });
-      }
-    }
-
-    const fallbackUrl = `https://payments.cashfree.com/order/#plan=${encodeURIComponent(planName)}&amount=${amount}`;
-    return res.json({ success: true, gateway: 'cashfree', url: fallbackUrl });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message || 'Cashfree Order initialization error' });
-  }
+app.post(['/api/create-cashfree-order', '/api/create-cashfree-checkout-session'], (_req, res) => {
+  return res.status(410).json({ success: false, error: 'This checkout endpoint is retired. Use the server-priced payment intent flow.' });
 });
 
 // --- FAULT-TOLERANT SERVER PAYMENT ENGINE & IDEMPOTENCY STORE ---
@@ -260,7 +218,6 @@ const AUTHORITATIVE_PRICING_CATALOG: Record<string, MarketPrice> = {
   'personal-training': { gbpBasePrice: 50, inrBasePrice: 3999, name: 'Personal Training' },
   'boxing-training': { gbpBasePrice: 48, inrBasePrice: 4499, name: 'Boxing Training' },
   'fitness-training': { gbpBasePrice: 30, inrBasePrice: 2499, name: 'Fitness Training' },
-  'testing': { gbpBasePrice: 1, inrBasePrice: 1, name: 'Testing' },
 };
 
 function determineMarketCountry(_country?: string, _phone?: string): 'GB' {
@@ -274,7 +231,10 @@ function calculateAuthoritativePriceForMarket(
   customExercises?: string[]
 ): { amount: number; currency: 'GBP'; amountInSubUnits: number } {
   const normKey = (planName || '').toLowerCase().replace(/[^a-z0-9]/g, '-');
-  let matched = AUTHORITATIVE_PRICING_CATALOG['testing'];
+  let matched: MarketPrice | undefined;
+
+  if (/monthly.*flex|bx.*monthly.*flex/i.test(planName)) matched = { gbpBasePrice: 359, inrBasePrice: 35900, name: 'BX Monthly Flex' };
+  else if (/weekly/i.test(planName)) matched = { gbpBasePrice: 110, inrBasePrice: 11000, name: 'Weekly Plan' };
 
   for (const [key, val] of Object.entries(AUTHORITATIVE_PRICING_CATALOG)) {
     if (key !== 'default' && normKey.includes(key)) {
@@ -283,8 +243,10 @@ function calculateAuthoritativePriceForMarket(
     }
   }
 
+  if (!matched) throw new Error(`Unsupported service plan: ${planName}`);
+
   const currency: 'GBP' = 'GBP';
-  let basePrice = matched ? matched.gbpBasePrice : 0.5;
+  let basePrice = matched.gbpBasePrice;
 
   if (serviceType === 'custom' && Array.isArray(customExercises)) {
     const extraCount = Math.max(0, customExercises.length - 3);
@@ -304,7 +266,11 @@ function calculateAuthoritativePriceForMarket(
 // server ke hisaab se controlled payment system
 app.post(['/api/create-order', '/api/create-razorpay-order', '/api/payments/create-intent'], async (req, res) => {
   try {
-    const { planName = 'BxStrength', serviceType = 'individual', customExercises = [], userEmail, userName, phone, country: reqCountry, idempotencyKey } = req.body;
+    const { planName = 'BxStrength', serviceType = 'individual', customExercises = [], phone, country: reqCountry, idempotencyKey } = req.body;
+    const authenticatedUser = (req as any).user;
+    const userEmail = String(authenticatedUser?.email || '').trim().toLowerCase();
+    const userName = authenticatedUser?.name || 'Client Athlete';
+    if (!userEmail) return res.status(401).json({ success: false, error: 'Sign in is required to pay.' });
 
     const country = determineMarketCountry(reqCountry, phone);
     const { amount, currency, amountInSubUnits } = calculateAuthoritativePriceForMarket(planName, country, serviceType, customExercises);
@@ -314,6 +280,9 @@ app.post(['/api/create-order', '/api/create-razorpay-order', '/api/payments/crea
 
     const existingTx = paymentTransactionsStore.find(t => t.idempotencyKey === effectiveIdempotencyKey && t.status !== 'failed');
     if (existingTx) {
+      if (existingTx.userEmail.toLowerCase() !== userEmail) {
+        return res.status(403).json({ success: false, error: 'Payment transaction belongs to another account.' });
+      }
       return res.status(200).json({
         success: true,
         transactionId: existingTx.id,
@@ -456,23 +425,7 @@ app.post(['/api/create-order', '/api/create-razorpay-order', '/api/payments/crea
         }
       }
 
-      const fallbackCashfreeUrl = `https://payments.cashfree.com/order/#plan=${encodeURIComponent(planName)}&amount=${amount}&tx=${transactionId}`;
-      txRecord.status = 'order_created';
-      txRecord.gatewayOrderId = transactionId;
-      txRecord.updatedAt = new Date().toISOString();
-
-      if (dbPool) {
-        dbPool.query(`UPDATE payment_transactions SET gateway = 'cashfree', gateway_order_id = $1, status = 'order_created', updated_at = NOW() WHERE id = $2`, [transactionId, transactionId]).catch(() => { });
-      }
-
-      return res.status(200).json({
-        success: true,
-        gateway: 'cashfree',
-        transactionId,
-        checkoutUrl: fallbackCashfreeUrl,
-        amount: amountInSubUnits,
-        currency
-      });
+      throw new Error('Cashfree order creation failed: provider credentials are missing or rejected');
     } catch (cfErr: any) {
       console.error('[PAYMENT FAILOVER ERROR] Cashfree failed:', cfErr?.message);
     }
@@ -515,7 +468,26 @@ app.post(['/api/verify-payment', '/api/verify-razorpay-payment', '/api/payments/
     }
 
     // Replay/Duplicate Protection: Check if already verified
-    const existingTx = paymentTransactionsStore.find(t => t.gatewayOrderId === razorpay_order_id || t.id === transactionId);
+    let existingTx = paymentTransactionsStore.find(t => t.gatewayOrderId === razorpay_order_id);
+    if (!existingTx && dbPool) {
+      const persisted = await dbPool.query('SELECT * FROM payment_transactions WHERE gateway_order_id = $1 LIMIT 1', [razorpay_order_id]);
+      const row = persisted.rows[0];
+      if (row) {
+        existingTx = {
+          id: row.id, idempotencyKey: row.idempotency_key, userEmail: row.user_email, userName: row.user_name,
+          planName: row.plan_name, serviceType: row.service_type, customExercises: row.custom_exercises ? JSON.parse(row.custom_exercises) : [],
+          amount: Number(row.amount), currency: row.currency, gateway: row.gateway, gatewayOrderId: row.gateway_order_id,
+          gatewayPaymentId: row.gateway_payment_id, status: row.status, createdAt: new Date(row.created_at).toISOString(), updatedAt: new Date(row.updated_at).toISOString()
+        };
+        paymentTransactionsStore.unshift(existingTx);
+      }
+    }
+    if (!existingTx || (transactionId && existingTx.id !== transactionId) || existingTx.gateway !== 'razorpay') {
+      return res.status(400).json({ success: false, error: 'Payment order is not associated with an active transaction.' });
+    }
+    if (existingTx.userEmail.toLowerCase() !== String((req as any).user?.email || '').toLowerCase()) {
+      return res.status(403).json({ success: false, error: 'Payment transaction belongs to another account.' });
+    }
     if (existingTx && existingTx.status === 'reconciled') {
       return res.status(200).json({
         success: true,
@@ -531,7 +503,13 @@ app.post(['/api/verify-payment', '/api/verify-razorpay-payment', '/api/payments/
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest('hex');
 
-    if (generatedSignature === razorpay_signature) {
+    const expectedSignature = Buffer.from(generatedSignature, 'hex');
+    const providedSignature = Buffer.from(String(razorpay_signature), 'hex');
+    if (expectedSignature.length === providedSignature.length && crypto.timingSafeEqual(expectedSignature, providedSignature)) {
+      const payment = await getRazorpayInstance()?.payments.fetch(razorpay_payment_id);
+      if (!payment || payment.order_id !== razorpay_order_id || payment.status !== 'captured' || payment.amount !== Math.round(existingTx.amount * 100)) {
+        return res.status(400).json({ success: false, error: 'Payment could not be confirmed with the payment provider.' });
+      }
       // Reconcile Status
       if (existingTx) {
         existingTx.status = 'reconciled';
@@ -588,6 +566,8 @@ export interface UkBookingJourneyRecord {
   id: string; 
   sessionId: string;
   transactionId?: string;
+  gatewayOrderId?: string;
+  gatewayPaymentId?: string;
   userEmail: string;
   userName: string;
   userPhone?: string;
@@ -622,6 +602,46 @@ export interface UkBookingJourneyRecord {
 }
 
 const ukJourneyStore: UkBookingJourneyRecord[] = [];
+const persistJourney = async (record: UkBookingJourneyRecord) => {
+  if (!dbPool) {
+    if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging') {
+      throw new Error('Booking database is unavailable');
+    }
+    return;
+  }
+  await dbPool.query(
+    `INSERT INTO uk_booking_journeys
+      (id, session_id, user_email, user_name, user_phone, service_title, service_category, service_type,
+       custom_exercises, amount_gbp, currency, payment_date, payment_status, journey_state, transaction_id,
+       gateway_order_id, gateway_payment_id, terms_consent_accepted, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+     ON CONFLICT (id) DO UPDATE SET session_id=EXCLUDED.session_id, payment_date=EXCLUDED.payment_date,
+       payment_status=EXCLUDED.payment_status, journey_state=EXCLUDED.journey_state,
+       transaction_id=EXCLUDED.transaction_id, gateway_order_id=EXCLUDED.gateway_order_id,
+       gateway_payment_id=EXCLUDED.gateway_payment_id, terms_consent_accepted=EXCLUDED.terms_consent_accepted,
+       amount_gbp=EXCLUDED.amount_gbp, updated_at=EXCLUDED.updated_at`,
+    [record.id, record.sessionId, record.userEmail, record.userName, record.userPhone || '', record.serviceTitle,
+      record.serviceCategory, record.serviceType, JSON.stringify(record.customExercises || []), record.amountGbp,
+      record.currency, record.paymentDate || null, record.paymentStatus, record.journeyState,
+      record.transactionId || null, record.gatewayOrderId || null, record.gatewayPaymentId || null,
+      record.termsConsentAccepted, record.createdAt, record.updatedAt]
+  );
+};
+
+const journeyFromDb = (row: any): UkBookingJourneyRecord => ({
+  id: row.id, sessionId: row.session_id || row.id, transactionId: row.transaction_id || undefined,
+  gatewayOrderId: row.gateway_order_id || undefined, gatewayPaymentId: row.gateway_payment_id || undefined,
+  userEmail: row.user_email, userName: row.user_name || '', userPhone: row.user_phone || '',
+  serviceTitle: row.service_title, serviceCategory: row.service_category || 'Core Package',
+  serviceType: row.service_type || 'individual',
+  customExercises: row.custom_exercises ? JSON.parse(row.custom_exercises) : [],
+  amountGbp: Number(row.amount_gbp) || 0, currency: row.currency || 'GBP', paymentDate: row.payment_date || undefined,
+  paymentStatus: row.payment_status || 'Pending', journeyState: row.journey_state || 'SERVICE_SELECTED',
+  is18PlusConfirmed: true, isVirtualCoachingConfirmed: true, isHealthDisclosureConfirmed: true,
+  isSafeSpaceConfirmed: true, termsConsentAccepted: row.terms_consent_accepted === true,
+  createdAt: new Date(row.created_at).toISOString(), updatedAt: new Date(row.updated_at).toISOString()
+});
+
 app.post('/api/journey/initiate', async (req, res) => {
   try {
     const {
@@ -629,11 +649,14 @@ app.post('/api/journey/initiate', async (req, res) => {
       serviceCategory = 'Core Package',
       serviceType = 'individual',
       customExercises = [],
-      userEmail = 'client@domain.com',
-      userName = 'Client Athlete',
       userPhone = '',
       disclosures = {}
     } = req.body;
+
+    const authenticatedUser = (req as any).user;
+    const userEmail = String(authenticatedUser?.email || '').trim().toLowerCase();
+    const userName = authenticatedUser?.name || 'Client Athlete';
+    if (!userEmail) return res.status(401).json({ success: false, error: 'Sign in is required to continue.' });
 
     const { amount } = calculateAuthoritativePriceForMarket(serviceTitle, 'GB', serviceType, customExercises);
     const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
@@ -663,6 +686,7 @@ app.post('/api/journey/initiate', async (req, res) => {
     };
 
     ukJourneyStore.unshift(record);
+    await persistJourney(record);
 
     return res.status(200).json({
       success: true,
@@ -689,10 +713,15 @@ app.post('/api/journey/create-checkout-intent', async (req, res) => {
       });
     }
 
-    const record = ukJourneyStore.find(r => r.sessionId === sessionId || r.id === sessionId);
+    let record = ukJourneyStore.find(r => r.sessionId === sessionId || r.id === sessionId);
+    if (!record && dbPool) {
+      const result = await dbPool.query('SELECT * FROM uk_booking_journeys WHERE session_id = $1 OR id = $1 LIMIT 1', [sessionId]);
+      if (result.rows[0]) { record = journeyFromDb(result.rows[0]); ukJourneyStore.unshift(record); }
+    }
     if (!record) {
       return res.status(404).json({ success: false, error: 'Journey session not found' });
     }
+    if (!journeyAccessAllowed((req as any).user, record)) return res.status(403).json({ success: false, error: 'This booking belongs to another account.' });
 
     record.termsConsentAccepted = true;
     record.termsConsentTimestamp = new Date().toISOString();
@@ -710,6 +739,7 @@ app.post('/api/journey/create-checkout-intent', async (req, res) => {
     record.transactionId = transactionId;
     record.journeyState = 'PAYMENT_PENDING';
     record.updatedAt = new Date().toISOString();
+    await persistJourney(record);
 
     const razorpay = getRazorpayInstance();
     const activeKeyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || '';
@@ -721,6 +751,8 @@ app.post('/api/journey/create-checkout-intent', async (req, res) => {
         receipt: `rcpt_${transactionId}`,
         notes: { bookingId: record.id, transactionId, planName: record.serviceTitle }
       });
+      record.gatewayOrderId = order.id;
+      await persistJourney(record);
 
       return res.status(200).json({
         success: true,
@@ -771,17 +803,7 @@ app.post('/api/journey/create-checkout-intent', async (req, res) => {
       });
     }
 
-    return res.status(200).json({
-      success: true,
-      gateway: 'sandbox',
-      journeyState: 'PAYMENT_PENDING',
-      bookingId: record.id,
-      transactionId,
-      order_id: `order_sandbox_${Date.now()}`,
-      amount: amountInSubUnits,
-      currency: 'GBP',
-      key_id: 'rzp_test_placeholder'
-    });
+    return res.status(503).json({ success: false, error: 'No payment provider is configured. Please try again later.' });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message || 'Failed to create checkout intent' });
   }
@@ -792,18 +814,32 @@ app.post('/api/journey/verify-payment', async (req, res) => {
     const { sessionId, bookingId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
     const activeKeySecret = process.env.RAZORPAY_KEY_SECRET || '';
 
-    const record = ukJourneyStore.find(r => r.id === bookingId || r.sessionId === sessionId || r.sessionId === bookingId);
+    let record = ukJourneyStore.find(r => r.id === bookingId || r.sessionId === sessionId || r.sessionId === bookingId);
+    if (!record && dbPool) {
+      const result = await dbPool.query('SELECT * FROM uk_booking_journeys WHERE id = $1 OR session_id = $1 LIMIT 1', [bookingId || sessionId]);
+      if (result.rows[0]) { record = journeyFromDb(result.rows[0]); ukJourneyStore.unshift(record); }
+    }
     if (!record) {
       return res.status(404).json({ success: false, error: 'Booking record not found' });
     }
+    if (!journeyAccessAllowed((req as any).user, record)) return res.status(403).json({ success: false, error: 'This booking belongs to another account.' });
 
+    if (!activeKeySecret || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !record.transactionId || record.journeyState !== 'PAYMENT_PENDING' || record.gatewayOrderId !== razorpay_order_id) {
+      return res.status(400).json({ success: false, error: 'A pending payment and valid Razorpay signature are required.' });
+    }
+    const paymentOrder = await getRazorpayInstance()?.payments.fetch(razorpay_payment_id);
+    if (!paymentOrder || paymentOrder.order_id !== razorpay_order_id || paymentOrder.status !== 'captured' || paymentOrder.amount !== Math.round(record.amountGbp * 100)) {
+      return res.status(400).json({ success: false, error: 'Payment could not be confirmed with the payment provider.' });
+    }
     if (activeKeySecret && razorpay_order_id && razorpay_payment_id && razorpay_signature) {
       const generatedSignature = crypto
         .createHmac('sha256', activeKeySecret)
         .update(`${razorpay_order_id}|${razorpay_payment_id}`)
         .digest('hex');
 
-      if (generatedSignature !== razorpay_signature) {
+      const expected = Buffer.from(generatedSignature, 'hex');
+      const provided = Buffer.from(razorpay_signature, 'hex');
+      if (expected.length !== provided.length || !crypto.timingSafeEqual(expected, provided)) {
         record.journeyState = 'PAYMENT_FAILED';
         record.paymentStatus = 'Failed';
         return res.status(400).json({
@@ -818,6 +854,8 @@ app.post('/api/journey/verify-payment', async (req, res) => {
     record.journeyState = 'SCHEDULING_PENDING';
     record.paymentDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     record.updatedAt = new Date().toISOString();
+    record.gatewayPaymentId = razorpay_payment_id;
+    await persistJourney(record);
 
     sendServerEmail({
       toEmail: record.userEmail,
@@ -882,12 +920,17 @@ app.post('/api/journey/verify-payment', async (req, res) => {
   }
 });
 
-app.get('/api/journey/booking/:id', (req, res) => {
+app.get('/api/journey/booking/:id', async (req, res) => {
   const { id } = req.params;
-  const record = ukJourneyStore.find(r => r.id === id || r.sessionId === id);
+  let record = ukJourneyStore.find(r => r.id === id || r.sessionId === id);
+  if (!record && dbPool) {
+    const result = await dbPool.query('SELECT * FROM uk_booking_journeys WHERE id = $1 OR session_id = $1 LIMIT 1', [id]);
+    if (result.rows[0]) record = journeyFromDb(result.rows[0]);
+  }
   if (!record) {
     return res.status(404).json({ success: false, error: 'Booking not found' });
   }
+  if (!journeyAccessAllowed((req as any).user, record)) return res.status(403).json({ success: false, error: 'Forbidden' });
   return res.status(200).json({ success: true, record });
 });
 
@@ -899,6 +942,11 @@ app.get('/api/journey/latest-by-email/:email', async (req, res) => {
     }
 
     const cleanEmail = decodeURIComponent(email).trim().toLowerCase();
+    const user = (req as any).user;
+    const role = String(user?.role || '').toLowerCase();
+    if (!['admin', 'headcoach', 'coach', 'customer_support', 'support'].includes(role) && String(user?.email || '').toLowerCase() !== cleanEmail) {
+      return res.status(403).json({ success: false, error: 'Forbidden' });
+    }
 
     // 1. Search in-memory store
     const userRecords = ukJourneyStore.filter(
@@ -1632,9 +1680,15 @@ if (dbPool) {
             duration VARCHAR(50),
             join_url TEXT,
             transaction_id VARCHAR(128),
+            gateway_order_id VARCHAR(128),
+            gateway_payment_id VARCHAR(128),
+            terms_consent_accepted BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
+          ALTER TABLE uk_booking_journeys ADD COLUMN IF NOT EXISTS gateway_order_id VARCHAR(128);
+          ALTER TABLE uk_booking_journeys ADD COLUMN IF NOT EXISTS gateway_payment_id VARCHAR(128);
+          ALTER TABLE uk_booking_journeys ADD COLUMN IF NOT EXISTS terms_consent_accepted BOOLEAN DEFAULT FALSE;
 
           CREATE TABLE IF NOT EXISTS trainers (
             id VARCHAR(64) PRIMARY KEY,
@@ -1754,6 +1808,12 @@ if (dbPool) {
   });
 } else {
   console.log('ℹ[DATABASE_URL] Running in BxStrength local sync fallback mode.');
+}
+
+function journeyAccessAllowed(user: any, record: UkBookingJourneyRecord): boolean {
+  const role = String(user?.role || '').toLowerCase();
+  return ['admin', 'headcoach', 'coach', 'customer_support', 'support'].includes(role) ||
+    String(user?.email || '').toLowerCase() === record.userEmail.toLowerCase();
 }
 
 // moved to Backend/src/middlewares/authMiddleware.ts (authenticate)

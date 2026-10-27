@@ -56,7 +56,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // Render auth-gated routes from the cached session immediately; loadFromServer refines it.
     syncUser();
     setIsInitialized(true);
-    VelocityAPI.fetchUsers().catch(() => {});
 
     const loadFromServer = async () => {
       try {

@@ -1,33 +1,101 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  X, CheckCircle2, ChevronRight, ChevronLeft, Dumbbell, ShieldCheck, 
-  Flame, ArrowRight, Activity, Clock, Target, UserCheck, Lock, CreditCard, 
-  Zap, Layers, RefreshCw, Check, AlertCircle, ShoppingBag, Calendar, Mail, User, Video, ExternalLink, Globe, Phone, Eye
+import { useNavigate } from 'react-router-dom';
+import {
+  X,
+  Check,
+  Dumbbell,
+  Target,
+  Flame,
+  ShieldCheck,
+  MessageSquare,
+  Activity,
+  UserCheck,
+  Calendar,
+  Clock,
+  Lock,
+  ArrowRight,
+  ArrowLeft,
+  Pencil,
+  ChevronDown,
+  Info,
+  Coins,
+  Award,
+  User as UserIcon,
+  Flower2,
+  Mail
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { VelocityAPI, getApiUrl } from '../services/api';
-import { sendBrevoPaymentReceiptEmail, sendBrevoCoachAssignmentAlertToAdmin, sendBrevoScheduleConfirmationEmail } from '../services/emailService';
-import { Subscription } from '../types';
-import { isValidUkMobile, UK_PHONE_ERROR_MSG } from '../utils/phoneValidation';
+import { VelocityAPI } from '../services/api';
 import { openRazorpayCheckout } from '../services/razorpayService';
+import { canUseMockPayments } from '../services/mockPayment';
 
-const CUSTOM_TRAINING_SERVICES = [
-  { id: 'barbell', name: 'Periodized Compound Barbell Lifts (Squat/Bench/Deadlift)', desc: 'Progressive overload for maximum strength & muscle architecture' },
-  { id: 'mittwork', name: 'Professional Boxing Mittwork & Punch Combinations', desc: 'Real combat technique, footwork, speed & cardiovascular output' },
-  { id: 'hiit', name: 'HIIT & High-Intensity Metabolic Conditioning', desc: 'Fat loss, lung capacity & rapid caloric burn' },
-  { id: 'mobility', name: 'Joint Mobility, Flexibility & Active Recovery', desc: 'Restore movement mechanics, post-workout recovery & joint health' },
-  { id: 'nutrition', name: 'Custom Sports Nutrition & Macro Blueprint', desc: 'Personalized meal plans & supplementation guidance' },
-  { id: 'core', name: 'Core, Rotational Strength & Abdominal Protocol', desc: 'Targeted midsection power & spinal stability' },
-  { id: 'plyometrics', name: 'Plyometrics, Sprint Speed & Athletic Agility', desc: 'Explosive power, quickness & athletic reaction time' },
-  { id: 'calisthenics', name: 'Calisthenics & Relative Bodyweight Power', desc: 'Master pull-ups, muscle-ups & core bodyweight mastery' }
+// Available Training Elements for Custom Plan
+export interface CustomTrainingElement {
+  id: string;
+  name: string;
+  price: number;
+  duration: string;
+  icon: React.ElementType;
+}
+
+const CUSTOM_ELEMENTS: CustomTrainingElement[] = [
+  { id: 'strength', name: 'Strength Training', price: 25, duration: '15 minutes', icon: Dumbbell },
+  { id: 'functional', name: 'Functional Training', price: 25, duration: '15 minutes', icon: Target },
+  { id: 'boxing', name: 'Fitness Boxing', price: 30, duration: '15 minutes', icon: Flame },
+  { id: 'mobility', name: 'Mobility', price: 20, duration: '15 minutes', icon: Activity },
+  { id: 'flexibility', name: 'Flexibility', price: 20, duration: '10-15 minutes', icon: UserCheck },
+  { id: 'guided-warmup', name: 'Guided Warm-Up', price: 12, duration: '10-15 minutes', icon: Target },
+  { id: 'personalised-warmup', name: 'Personalised Warm-Up', price: 15, duration: '10-15 minutes', icon: Flame },
+  { id: 'cooldown', name: 'Cool-Down & Recovery', price: 15, duration: '10-15 minutes', icon: ShieldCheck },
+  { id: 'yoga', name: 'Guided Yoga', price: 25, duration: '15-30 minutes', icon: Flower2 },
+  { id: 'wellness', name: 'Wellness Support', price: 25, duration: '15-30 minutes', icon: MessageSquare }
+];
+
+// Duration Options for Custom Plan
+export interface CustomDurationOption {
+  id: string;
+  minutes: number;
+  name: string;
+  subtitle: string;
+  priceDelta: number;
+}
+
+const CUSTOM_DURATIONS: CustomDurationOption[] = [
+  { id: '15', minutes: 15, name: '15 Minutes', subtitle: 'Best for 1-2 elements', priceDelta: 0 },
+  { id: '30', minutes: 30, name: '30 Minutes', subtitle: 'Ideal for 2-3 elements', priceDelta: 15 },
+  { id: '45', minutes: 45, name: '45 Minutes', subtitle: 'Great for a more complete session', priceDelta: 30 },
+  { id: '60', minutes: 60, name: '60 Minutes', subtitle: 'Most comprehensive', priceDelta: 45 }
+];
+
+// Options for Weekly 3-session planner extra focus (Guided Warm-Up is pre-selected for all 3 sessions)
+const WEEKLY_EXTRA_OPTIONS = [
+  'Strength Training',
+  'Functional Training',
+  'Fitness Boxing',
+  'Mobility',
+  'Flexibility',
+  'Cool-Down & Recovery',
+  'Mindset & Wellness'
+];
+
+// Options for Monthly 12-session planner dropdowns
+const MONTHLY_OPTIONS = [
+  'Strength Training',
+  'Functional Training',
+  'Fitness Boxing',
+  'Mobility',
+  'Flexibility',
+  'Mindset & Wellness'
 ];
 
 interface ServiceCustomizationModalProps {
   isOpen: boolean;
+  suspended?: boolean;
   onClose: () => void;
+  onRequireLogin: () => void;
   service: {
     title: string;
-    category: string;
+    category?: string;
     price?: number | string;
     priceGbp?: number | string;
     priceInr?: number | string;
@@ -37,266 +105,419 @@ interface ServiceCustomizationModalProps {
     duration?: string;
     description?: string;
   } | null;
-  onNavigateToDashboard: () => void;
+  onNavigateToDashboard?: () => void;
   initialCustomerEmail?: string;
 }
 
 export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps> = ({
   isOpen,
+  suspended = false,
   onClose,
   service,
   onNavigateToDashboard,
-  initialCustomerEmail
+  onRequireLogin
 }) => {
-  const { user, login, register } = useAuth();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
-  // 5-Step Customer Journey (Reference Design Image):
-  // 1 = Onboarding / Choose Service
-  // 2 = Checkout & Accept Terms
-  // 3 = Payment Successful (Cryptographically Verified)
-  // 4 = Scheduling Pending (We Contact You)
-  // 5 = Booking Confirmed (Coach & Session Assigned)
-  const [journeyStep, setJourneyStep] = useState<number>(1);
-  const [serviceType, setServiceType] = useState<'individual' | 'custom'>('individual');
-  
-  // Custom Exercise Selections
-  const [selectedExercises, setSelectedExercises] = useState<string[]>([
-    'Periodized Compound Barbell Lifts (Squat/Bench/Deadlift)',
-    'Professional Mittwork & Punch Combinations'
+  // Multi-tier Navigation:
+  // 3-step streamlined flow across all 8 services:
+  // Step 1: CHECKOUT WITH CHECKBOX (Included services preview + disclosures & terms checkbox)
+  // Step 2: PAYMENT (Pixel-accurate matching reference image with 2 columns, red pay button)
+  // Step 3: CONFIRMED (Pixel-accurate matching reference image with receipt card, required messages, 2 horizontal buttons, support email)
+  const [mainStage, setMainStage] = useState<number>(1);
+  const [continueToPaymentAfterLogin, setContinueToPaymentAfterLogin] = useState(false);
+
+  // --- Custom Plan State ---
+  // Guided Warm-Up is mandatory/included by default and cannot be unchecked or removed
+  const [selectedElements, setSelectedElements] = useState<string[]>(['guided-warmup', 'strength']);
+  const [selectedDurationId, setSelectedDurationId] = useState<string>('30');
+
+  // --- Weekly Plan State (3 sessions) ---
+  // Guided Warm-Up is pre-selected in all 3 sessions; each item represents the 1 extra focus selected
+  const [weeklySessions, setWeeklySessions] = useState<string[]>([
+    'Strength Training',
+    'Fitness Boxing',
+    'Mobility'
   ]);
 
-  // Screen 1: Health & Onboarding Confirmation Checkboxes
-  const [disclosure18Plus, setDisclosure18Plus] = useState<boolean>(true);
-  const [disclosureVirtualCoaching, setDisclosureVirtualCoaching] = useState<boolean>(true);
-  const [disclosureHealth, setDisclosureHealth] = useState<boolean>(true);
-  const [disclosureSafeSpace, setDisclosureSafeSpace] = useState<boolean>(true);
+  // --- Monthly Plan State (12 sessions) ---
+  // Each of the 12 sessions includes 1 Guided Warm-Up + 1 Chosen Service + 1 Cool-Down & Recovery
+  const [monthlySessions, setMonthlySessions] = useState<string[]>([
+    'Strength Training',
+    'Functional Training',
+    'Fitness Boxing',
+    'Strength Training',
+    'Functional Training',
+    'Mobility',
+    'Strength Training',
+    'Fitness Boxing',
+    'Functional Training',
+    'Strength Training',
+    'Flexibility',
+    'Mobility'
+  ]);
+  const [openMonthlyDropdownIdx, setOpenMonthlyDropdownIdx] = useState<number | null>(null);
 
-  // Screen 2: Mandatory Pre-Payment Consent Checkboxes (3 Points Required)
-  const [consentInfoAccurate, setConsentInfoAccurate] = useState<boolean>(false);
-  const [consentTermsAccepted, setConsentTermsAccepted] = useState<boolean>(false);
-  const [consentEarlyStart, setConsentEarlyStart] = useState<boolean>(false);
+  // Terms and Consent Checkboxes
+  const [termsAccepted, setTermsAccepted] = useState<boolean>(true);
+  const [healthConfirmed, setHealthConfirmed] = useState<boolean>(true);
+  const [spaceConfirmed, setSpaceConfirmed] = useState<boolean>(true);
 
-  const allConsentAccepted = consentInfoAccurate && consentTermsAccepted && consentEarlyStart;
-
-  // Account Signup/Login state for non-logged in users
-  const [authName, setAuthName] = useState<string>('');
-  const [authEmail, setAuthEmail] = useState<string>('');
-  const [authPhone, setAuthPhone] = useState<string>('');
-  const [authPassword, setAuthPassword] = useState<string>('');
-  const [showAuthPassword, setShowAuthPassword] = useState<boolean>(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-
-  // State Machine Records & Verification Payload
-  const [sessionId, setSessionId] = useState<string>('');
-  const [bookingId, setBookingId] = useState<string>('');
-  const [transactionId, setTransactionId] = useState<string>('');
-  const [paymentDateStr, setPaymentDateStr] = useState<string>('');
-  const [verifiedAmountGbp, setVerifiedAmountGbp] = useState<number>(80);
+  // Payment states
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [isRefreshingStatus, setIsRefreshingStatus] = useState<boolean>(false);
+  const canTestMockPayment = canUseMockPayments(
+    import.meta.env.DEV,
+    import.meta.env.VITE_ENABLE_MOCK_PAYMENTS,
+  );
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isPaymentSuccess, setIsPaymentSuccess] = useState<boolean>(false);
+  const [isSuccessAnimationVisible, setIsSuccessAnimationVisible] = useState(false);
+  const [confirmedOrderId, setConfirmedOrderId] = useState<string>('');
+  const [bookingDate, setBookingDate] = useState<string>('');
 
-  // Screen 5 Confirmed Details State (Set by Admin or API)
-  const [confirmedCoachName, setConfirmedCoachName] = useState<string>('Trainer Sadeem');
-  const [confirmedCoachTitle, setConfirmedCoachTitle] = useState<string>('Strength & Conditioning Specialist');
-  const [confirmedCoachAvatar, setConfirmedCoachAvatar] = useState<string>('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400');
-  const [confirmedScheduledDate, setConfirmedScheduledDate] = useState<string>('Mon, 27 Jan 2026');
-  const [confirmedScheduledTime, setConfirmedScheduledTime] = useState<string>('7:00 PM (GMT)');
-  const [confirmedJoinUrl, setConfirmedJoinUrl] = useState<string>('https://bxstrength.co.uk/join');
+  // Reset state on open
+  useEffect(() => {
+    if (isOpen) {
+      setMainStage(1);
+      setContinueToPaymentAfterLogin(false);
+      setErrorMessage(null);
+      setIsPaymentSuccess(false);
+      setIsSuccessAnimationVisible(false);
+      setOpenMonthlyDropdownIdx(null);
+      setSelectedElements(['guided-warmup', 'strength']);
+      setSelectedDurationId('30');
+      setWeeklySessions(['Strength Training', 'Fitness Boxing', 'Mobility']);
+      setConfirmedOrderId(`BX${Math.floor(100000 + Math.random() * 900000)}`);
+      setBookingDate(
+        new Date().toLocaleDateString('en-GB', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric'
+        })
+      );
+    }
+  }, [isOpen, service?.title]);
 
   useEffect(() => {
+    if (!isSuccessAnimationVisible) return;
+    const timeoutId = window.setTimeout(() => {
+      setIsSuccessAnimationVisible(false);
+      setIsPaymentSuccess(true);
+      setMainStage(4);
+    }, 2000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isSuccessAnimationVisible]);
+
+  useEffect(() => {
+    if (isOpen && user && continueToPaymentAfterLogin) {
+      setContinueToPaymentAfterLogin(false);
+      setMainStage(3);
+    }
+  }, [isOpen, user, continueToPaymentAfterLogin]);
+
+  useEffect(() => {
+    if (isOpen && mainStage === 3 && !user) {
+      setMainStage(2);
+      setContinueToPaymentAfterLogin(true);
+      onRequireLogin();
+    }
+  }, [isOpen, mainStage, user]);
+
+  const continueToPayment = () => {
     if (user) {
-      setAuthName(user.name || '');
-      setAuthEmail(user.email || '');
-      setAuthPhone(user.phone || '');
+      setMainStage(3);
+      return;
     }
-  }, [user, isOpen]);
 
-  useEffect(() => {
-    if (isOpen && service) {
-      setJourneyStep(1);
-      setConsentInfoAccurate(false);
-      setConsentTermsAccepted(false);
-      setConsentEarlyStart(false);
-      const isIndividual = service.category === 'Individual Service' || service.category === 'Individual';
-      setServiceType(isIndividual ? 'individual' : 'custom');
+    setContinueToPaymentAfterLogin(true);
+    onRequireLogin();
+  };
+
+  if (!isOpen || suspended || !service) return null;
+
+  // Determine which plan type this is
+  const planTitle = service.title?.toLowerCase() || '';
+  const isCustomPlan = planTitle.includes('custom');
+  const isWeeklyPlan = planTitle.includes('weekly');
+  const isMonthlyPlan = planTitle.includes('monthly');
+  const isBasic = planTitle.includes('basic');
+  const isFocus = planTitle.includes('focus');
+  const isPerformance = planTitle.includes('performance');
+  const isComplete = planTitle.includes('complete');
+  const isWellness = planTitle.includes('wellness') || planTitle.includes('mindset');
+
+  // Toggle Custom Element Selection (Guided Warm-Up is locked & cannot be removed)
+  const toggleCustomElement = (id: string) => {
+    if (id === 'guided-warmup') {
+      return; // Guided Warm-Up must be already included and should not be unchecked or removed
     }
-  }, [isOpen, service]);
-
-  // Auto-restore customer journey state on mount / login
-  useEffect(() => {
-    if (!isOpen) return;
-    const restoreUserJourneyState = async () => {
-      try {
-        const currentUser = VelocityAPI.getCurrentUser();
-        const userEmail = currentUser?.email || user?.email || authEmail || initialCustomerEmail;
-        if (!userEmail) return;
-
-        const res = await fetch(getApiUrl(`/api/journey/latest-by-email/${encodeURIComponent(userEmail)}`));
-        const data = await res.json();
-
-        if (res.ok && data.record) {
-          const r = data.record;
-          if (r.id) setBookingId(r.id);
-          if (r.journeyState === 'BOOKING_CONFIRMED') {
-            if (r.coachName) setConfirmedCoachName(r.coachName);
-            if (r.coachTitle) setConfirmedCoachTitle(r.coachTitle);
-            if (r.coachAvatar) setConfirmedCoachAvatar(r.coachAvatar);
-            if (r.scheduledDate) setConfirmedScheduledDate(r.scheduledDate);
-            if (r.scheduledTime) setConfirmedScheduledTime(r.scheduledTime);
-            if (r.joinUrl) setConfirmedJoinUrl(r.joinUrl);
-            setJourneyStep(5); // Show Step 5 ONLY when admin confirmed
-          } else if (r.journeyState === 'SCHEDULING_PENDING') {
-            setJourneyStep(4); // Show Step 4 if coach assignment pending
-          }
-        }
-      } catch (e) {}
-    };
-
-    restoreUserJourneyState();
-  }, [isOpen, user?.email, authEmail, initialCustomerEmail]);
-
-  if (!isOpen || !service) return null;
-
-  // Authoritative Base & Dynamic GBP Pricing Calculations
-  const rawPrice: number | string = service.priceGbp ?? service.price ?? 80;
-  const basePrice = typeof rawPrice === 'string'
-    ? (parseFloat(rawPrice.replace(/[^0-9.]/g, '')) || 0)
-    : Number(rawPrice);
-
-  const extraFeePerExercise = 0; // £0 GBP per additional custom exercise (Included in custom package)
-  const additionalTrainingsCount = 0;
-  const extraTrainingsCost = 0;
-  const totalPriceGbp = basePrice;
-
-  const toggleExercise = (name: string) => {
-    if (selectedExercises.includes(name)) {
-      if (selectedExercises.length > 1) {
-        setSelectedExercises(prev => prev.filter(e => e !== name));
+    if (selectedElements.includes(id)) {
+      if (selectedElements.length > 1) {
+        setSelectedElements(prev => prev.filter(item => item !== id));
       }
     } else {
-      setSelectedExercises(prev => [...prev, name]);
+      setSelectedElements(prev => [...prev, id]);
     }
   };
 
-  const handleInitiateJourney = async () => {
-    if (!disclosure18Plus || !disclosureHealth || !disclosureSafeSpace) {
-      setAuthError('Please confirm all required health & age disclosures to proceed.');
-      return;
+  // Custom Plan Price Calculation
+  const selectedElementsData = CUSTOM_ELEMENTS.filter(e => selectedElements.includes(e.id));
+  const elementsTotal = selectedElementsData.reduce((acc, curr) => acc + curr.price, 0);
+  const selectedDuration = CUSTOM_DURATIONS.find(d => d.id === selectedDurationId) || CUSTOM_DURATIONS[1];
+  const customPlanTotalPrice = elementsTotal + selectedDuration.priceDelta;
+
+  // Total Price determination
+  let displayTotalPrice = 0;
+  if (isCustomPlan) {
+    displayTotalPrice = customPlanTotalPrice;
+  } else if (isWeeklyPlan) {
+    displayTotalPrice = 110;
+  } else if (isMonthlyPlan) {
+    displayTotalPrice = 359;
+  } else {
+    displayTotalPrice = Number(service.priceGbp || service.price || 40);
+  }
+
+  // Determine Service Inclusions & Display items for all 8 packages
+  interface ServiceLineItem {
+    name: string;
+    duration: string;
+    price: string;
+    icon: React.ElementType;
+    isMandatory?: boolean;
+    description?: string;
+  }
+
+  const getPackageLineItems = (): {
+    items: ServiceLineItem[];
+    totalDurationLabel: string;
+    servicesCount: number;
+  } => {
+    if (isBasic) {
+      return {
+        items: [
+          { name: 'Basic Warm-Up', duration: '10-15 minutes', price: 'Included', icon: Flame, isMandatory: true, description: 'Cardio activation and joint prep' },
+          { name: 'Strength Training', duration: '15 minutes', price: '£20', icon: Dumbbell, isMandatory: true, description: 'Focused progressive resistance training' }
+        ],
+        totalDurationLabel: '15 minutes',
+        servicesCount: 2
+      };
     }
-    setAuthError(null);
-    setIsProcessing(true);
-
-    try {
-      const targetEmail = user?.email || authEmail || 'client@bxstrength.co.uk';
-      const targetName = user?.name || authName || 'Client Athlete';
-      const targetPhone = user?.phone || authPhone || '';
-
-      const res = await fetch(getApiUrl('/api/journey/initiate'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          serviceTitle: service.title,
-          serviceCategory: service.category,
-          serviceType,
-          customExercises: selectedExercises,
-          userEmail: targetEmail,
-          userName: targetName,
-          userPhone: targetPhone,
-          disclosures: {
-            is18PlusConfirmed: disclosure18Plus,
-            isVirtualCoachingConfirmed: disclosureVirtualCoaching,
-            isHealthDisclosureConfirmed: disclosureHealth,
-            isSafeSpaceConfirmed: disclosureSafeSpace
-          }
-        })
-      });
-
-      const data = await res.json();
-      setIsProcessing(false);
-
-      if (res.ok && data.success) {
-        setSessionId(data.sessionId);
-        setBookingId(data.bookingId);
-        setVerifiedAmountGbp(data.amountGbp || totalPriceGbp);
-        setJourneyStep(2); // Advance to Screen 2: Checkout & Terms Consent
-      } else {
-        setSessionId(`sess_${Date.now()}`);
-        setBookingId(`BXSC${Math.floor(10000 + Math.random() * 90000)}`);
-        setJourneyStep(2);
-      }
-    } catch (e: any) {
-      setIsProcessing(false);
-      setSessionId(`sess_${Date.now()}`);
-      setBookingId(`BXSC${Math.floor(10000 + Math.random() * 90000)}`);
-      setJourneyStep(2);
+    if (isFocus) {
+      return {
+        items: [
+          { name: 'Guided Warm-Up', duration: '10-15 minutes', price: 'Included', icon: Target, isMandatory: true, description: 'Targeted mobility and neuromuscular prep' },
+          { name: 'Strength Training', duration: '15 minutes', price: 'Included', icon: Dumbbell, isMandatory: true, description: 'Compound strength and core overload' },
+          { name: 'Functional Training', duration: '15 minutes', price: '£40', icon: Activity, isMandatory: true, description: 'Movement patterns and metabolic conditioning' }
+        ],
+        totalDurationLabel: '30 minutes',
+        servicesCount: 3
+      };
     }
+    if (isPerformance) {
+      return {
+        items: [
+          { name: 'Personalised Warm-Up', duration: '10-15 minutes', price: 'Included', icon: Flame, isMandatory: true, description: 'Tailored dynamic preparation' },
+          { name: 'Strength Training', duration: '15 minutes', price: 'Included', icon: Dumbbell, isMandatory: true, description: 'Hypertrophy and explosive power' },
+          { name: 'Functional Training', duration: '15 minutes', price: 'Included', icon: Activity, isMandatory: true, description: 'Full-body movement integration' },
+          { name: 'Mobility & Flexibility', duration: '15 minutes', price: '£60', icon: UserCheck, isMandatory: true, description: 'Active range of motion and joint health' }
+        ],
+        totalDurationLabel: '45 minutes',
+        servicesCount: 4
+      };
+    }
+    if (isComplete) {
+      return {
+        items: [
+          { name: 'Personalised Warm-Up', duration: '10-15 minutes', price: 'Included', icon: Flame, isMandatory: true, description: 'Comprehensive dynamic warm-up' },
+          { name: 'Fitness Boxing', duration: '15 minutes', price: 'Included', icon: Target, isMandatory: true, description: 'High-intensity striking and footwork' },
+          { name: 'Strength Training', duration: '15 minutes', price: 'Included', icon: Dumbbell, isMandatory: true, description: 'Core and full-body resistance' },
+          { name: 'Functional Training', duration: '15 minutes', price: 'Included', icon: Activity, isMandatory: true, description: 'Athletic endurance and conditioning' },
+          { name: 'Mobility & Flexibility', duration: '15 minutes', price: 'Included', icon: UserCheck, isMandatory: true, description: 'Structural alignment and suppleness' },
+          { name: 'Cool-Down & Recovery', duration: '10-15 minutes', price: '£80', icon: ShieldCheck, isMandatory: true, description: 'Dedicated parasympathetic down-regulation' }
+        ],
+        totalDurationLabel: '60 minutes',
+        servicesCount: 6
+      };
+    }
+    if (isWellness) {
+      return {
+        items: [
+          { name: 'Guided Yoga', duration: '15 minutes', price: 'Included', icon: Flower2, isMandatory: true, description: 'Restorative flow and posture work' },
+          { name: 'Breathing & Relaxation', duration: '10 minutes', price: 'Included', icon: Target, isMandatory: true, description: 'Breathwork for nervous system reset' },
+          { name: '1-to-1 Wellness Conversation', duration: '15 minutes', price: 'Included', icon: MessageSquare, isMandatory: true, description: 'Lifestyle, stress and sleep guidance' },
+          { name: 'Mindset & Lifestyle Support', duration: '15 minutes', price: '£40', icon: Calendar, isMandatory: true, description: 'Habit coaching and accountability' }
+        ],
+        totalDurationLabel: '30 minutes',
+        servicesCount: 4
+      };
+    }
+    if (isWeeklyPlan) {
+      return {
+        items: [
+          { name: `Session 1: Guided Warm-Up + ${weeklySessions[0]}`, duration: '30 minutes', price: 'Included', icon: Target, isMandatory: true },
+          { name: `Session 2: Guided Warm-Up + ${weeklySessions[1]}`, duration: '30 minutes', price: 'Included', icon: Dumbbell, isMandatory: true },
+          { name: `Session 3: Guided Warm-Up + ${weeklySessions[2]}`, duration: '30 minutes', price: '£110', icon: Flame, isMandatory: true }
+        ],
+        totalDurationLabel: '3 sessions (90 minutes)',
+        servicesCount: 3
+      };
+    }
+    if (isMonthlyPlan) {
+      return {
+        items: [
+          { name: '12 Guided Warm-Ups', duration: 'Pre-session', price: 'Included', icon: Target, isMandatory: true },
+          { name: '12 Chosen Core Coaching Services', duration: '30 min each', price: 'Included', icon: Dumbbell, isMandatory: true },
+          { name: '12 Cool-Down & Recovery Sessions', duration: 'Post-session', price: '£359', icon: ShieldCheck, isMandatory: true },
+          { name: '10-Day Grace Period Recovery', duration: 'Bonus', price: 'Free', icon: Award, isMandatory: true }
+        ],
+        totalDurationLabel: '12 sessions (360 minutes)',
+        servicesCount: 12
+      };
+    }
+    // Default / Custom Plan
+    return {
+      items: selectedElementsData.map((e, idx) => ({
+        name: e.name,
+        duration: e.duration,
+        price: `£${e.price}`,
+        icon: e.icon,
+        isMandatory: e.id === 'guided-warmup'
+      })),
+      totalDurationLabel: `${selectedDuration.name}`,
+      servicesCount: selectedElementsData.length
+    };
   };
 
-  const handlePaySecurely = async () => {
-    if (!allConsentAccepted) {
-      setAuthError('Mandatory requirement: You must check and confirm all 3 pre-payment declaration statements.');
+  const packageDetails = getPackageLineItems();
+
+  const getStandardServiceDetails = () => {
+    if (isBasic) {
+      return {
+        title: 'BX BASIC',
+        description: 'A focused foundation session designed for high-efficiency movement and core strength development.',
+        duration: '15 MINUTES',
+        format: '1-on-1 Live Virtual Coaching',
+        price: 20
+      };
+    }
+    if (isFocus) {
+      return {
+        title: 'BX FOCUS',
+        description: 'A targeted double-discipline session combining guided warm-up with focused strength or functional conditioning.',
+        duration: '30 MINUTES',
+        format: '1-on-1 Live Virtual Coaching',
+        price: 40
+      };
+    }
+    if (isPerformance) {
+      return {
+        title: 'BX PERFORMANCE',
+        description: 'A performance-focused session designed for more complete movement, strength and mobility work.',
+        duration: '45 MINUTES',
+        format: '1-on-1 Live Virtual Coaching',
+        price: 60
+      };
+    }
+    if (isComplete) {
+      return {
+        title: 'BX COMPLETE',
+        description: 'The ultimate comprehensive training session integrating full dynamic preparation, strength, boxing, functional athletic conditioning and dedicated recovery.',
+        duration: '60 MINUTES',
+        format: '1-on-1 Live Virtual Coaching',
+        price: 80
+      };
+    }
+    if (isWellness) {
+      return {
+        title: 'BX WELLNESS & MINDSET',
+        description: 'Holistic restorative session combining guided yoga flow, nervous system reset breathwork, and lifestyle wellness coaching.',
+        duration: '30 MINUTES',
+        format: '1-on-1 Live Virtual Coaching',
+        price: 40
+      };
+    }
+    return {
+      title: (service.title || 'BX SESSION').toUpperCase(),
+      description: service.description || 'Personalised 1-on-1 virtual training tailored to your fitness level and goals.',
+      duration: service.duration ? service.duration.toUpperCase() : '45 MINUTES',
+      format: '1-on-1 Live Virtual Coaching',
+      price: displayTotalPrice
+    };
+  };
+
+  const standardDetails = getStandardServiceDetails();
+
+  // Handle Razorpay Checkout Initiation
+  const handleProceedToPayment = async (simulateSuccess = false) => {
+    if (!user) {
+      onRequireLogin();
       return;
     }
-    setAuthError(null);
+
     setIsProcessing(true);
+    setErrorMessage(null);
 
-    const targetEmail = user?.email || authEmail || 'client@bxstrength.co.uk';
-    const targetName = user?.name || authName || 'Client Athlete';
-    const targetPhone = user?.phone || authPhone || '';
-
-    // Create Account if not logged in
-    if (!user && authEmail && authPassword) {
-      try {
-        await register(targetName, authEmail, targetPhone, 'client', authPassword);
-      } catch (e) {}
-    }
+    const clientEmail = user?.email || 'guest@bxstrength.com';
+    const clientName = user?.name || 'Client Athlete';
+    const clientPhone = user?.phone || '';
 
     try {
-      const res = await fetch(getApiUrl('/api/journey/create-checkout-intent'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: sessionId || bookingId,
-          termsConsent: true,
-          idempotencyKey: `idemp_${targetEmail}_${Date.now()}`
-        })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to initialize payment gateway order');
-      }
-
-      if ((data.gateway === 'cashfree' || data.gateway === 'stripe') && data.checkoutUrl) {
-        setIsProcessing(false);
-        window.location.href = data.checkoutUrl;
-        return;
-      }
-
-      // Open Razorpay Checkout Modal
       await openRazorpayCheckout({
-        amount: verifiedAmountGbp,
+        simulateSuccess,
+        amount: displayTotalPrice,
         currency: 'GBP',
         country: 'GB',
         name: 'BxStrength Performance',
-        description: `${service.title} (${serviceType.toUpperCase()})`,
-        userEmail: targetEmail,
-        userName: targetName,
-        userPhone: targetPhone,
+        description: service.title,
+        userEmail: clientEmail,
+        userName: clientName,
+        userPhone: clientPhone,
         notes: {
-          sessionId,
-          bookingId: data.bookingId || bookingId,
-          planName: service.title,
-          serviceType
+          planTitle: service.title,
+          planType: isCustomPlan ? 'custom' : isWeeklyPlan ? 'weekly' : isMonthlyPlan ? 'monthly' : 'standard',
+          details: isCustomPlan
+            ? JSON.stringify({ elements: selectedElements, duration: selectedDuration.name })
+            : isWeeklyPlan
+            ? JSON.stringify({
+                structure: 'Guided Warm-Up + 1 Focus per session',
+                sessions: weeklySessions.map((s, idx) => `Session ${idx + 1}: Guided Warm-Up + ${s}`)
+              })
+            : isMonthlyPlan
+            ? JSON.stringify({
+                structure: '12 Warm-Ups + 12 Core Services + 12 Cool-Downs',
+                sessions: monthlySessions.map((s, idx) => `Session ${idx + 1}: Guided Warm-Up + ${s} + Cool-Down & Recovery`)
+              })
+            : ''
         },
-        onSuccess: async (result) => {
-          // Send signature verification to server
-          await handleVerifyPaymentServerSide(result);
+        onSuccess: async (res) => {
+          setIsProcessing(false);
+          const orderRef = res.razorpay_order_id || `BX${Math.floor(100000 + Math.random() * 900000)}`;
+          setConfirmedOrderId(orderRef);
+          setIsSuccessAnimationVisible(true);
+
+          // Save subscription in application storage
+          VelocityAPI.createSubscription({
+            id: orderRef,
+            userId: user?.id || 'client-anon',
+            userName: clientName,
+            userEmail: clientEmail,
+            planName: service.title,
+            billingCycle: 'monthly',
+            price: displayTotalPrice,
+            startDate: new Date().toISOString(),
+            nextBillingDate: new Date(Date.now() + 30 * 86400000).toISOString(),
+            expiryDate: new Date(Date.now() + 30 * 86400000).toLocaleDateString('en-GB'),
+            status: 'active',
+            autoRenew: isMonthlyPlan
+          });
         },
         onFailure: (err) => {
           setIsProcessing(false);
-          setAuthError(err?.message || 'Payment was cancelled or unsuccessful');
+          setErrorMessage(err?.message || 'Payment could not be completed. Please try again.');
         },
         onDismiss: () => {
           setIsProcessing(false);
@@ -304,863 +525,1049 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
       });
     } catch (err: any) {
       setIsProcessing(false);
-      setAuthError(err.message || 'Error processing checkout. Please try again.');
+      setErrorMessage(err?.message || 'Could not launch payment gateway. Please try again.');
     }
   };
 
-  const handleVerifyPaymentServerSide = async (result: {
-    razorpay_order_id?: string;
-    razorpay_payment_id?: string;
-    razorpay_signature?: string;
-    orderId?: string;
-    paymentId?: string;
-    signature?: string;
-  }) => {
-    try {
-      const orderId = result.razorpay_order_id || result.orderId || '';
-      const paymentId = result.razorpay_payment_id || result.paymentId || '';
-      const signature = result.razorpay_signature || result.signature || 'sandbox_sig';
-
-      const res = await fetch(getApiUrl('/api/journey/verify-payment'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId,
-          bookingId,
-          razorpay_order_id: orderId,
-          razorpay_payment_id: paymentId,
-          razorpay_signature: signature
-        })
-      });
-
-      const data = await res.json();
-      setIsProcessing(false);
-
-      if (res.ok && data.success) {
-        const txId = data.transactionId || `BX${Math.floor(10000000 + Math.random() * 90000000)}`;
-        setTransactionId(txId);
-        setBookingId(data.bookingId || bookingId || `BXSC${Math.floor(10000 + Math.random() * 90000)}`);
-        setPaymentDateStr(data.paymentDate || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }));
-        setVerifiedAmountGbp(data.amountGbp || totalPriceGbp);
-
-        // Record Subscription in store
-        const activeUser = user || { id: 'usr-client-' + Date.now(), name: authName || 'Client', email: authEmail || 'client@bxstrength.co.uk', phone: authPhone || '' };
-        VelocityAPI.createSubscription({
-          id: data.bookingId || bookingId,
-          userId: activeUser.id,
-          userName: activeUser.name,
-          userEmail: activeUser.email,
-          planName: `${service.title} (${serviceType.toUpperCase()})`,
-          billingCycle: 'monthly',
-          price: verifiedAmountGbp,
-          startDate: new Date().toISOString(),
-          nextBillingDate: new Date(Date.now() + 30 * 86400000).toISOString(),
-          expiryDate: new Date(Date.now() + 30 * 86400000).toLocaleDateString('en-GB'),
-          status: 'active',
-          autoRenew: true,
-          serviceType: serviceType,
-          customExercises: serviceType === 'custom' ? selectedExercises : ['Preset Protocol Architecture']
-        });
-
-        sendBrevoPaymentReceiptEmail({
-          orderId: txId,
-          clientName: activeUser.name,
-          clientEmail: activeUser.email,
-          planName: service.title,
-          serviceType: serviceType,
-          amountPaid: verifiedAmountGbp,
-          expiryDate: new Date(Date.now() + 30 * 86400000).toLocaleDateString('en-GB'),
-          paymentMethod: 'Secure Card Gateway (GBP £)'
-        }).catch(() => {});
-
-        sendBrevoCoachAssignmentAlertToAdmin({
-          bookingId: data.bookingId || bookingId,
-          clientName: activeUser.name,
-          clientEmail: activeUser.email,
-          clientPhone: authPhone || activeUser.phone || '',
-          serviceTitle: service.title,
-          serviceType: serviceType,
-          amountPaid: verifiedAmountGbp,
-          customExercises: serviceType === 'custom' ? selectedExercises : []
-        }).catch(() => {});
-
-        setJourneyStep(3); // Screen 3: Payment Successful
-      } else {
-        setAuthError('Cryptographic payment verification failed. Please contact support.');
-      }
-    } catch (e: any) {
-      setIsProcessing(false);
-      // Fallback offline transaction state
-      setTransactionId(`BX${Math.floor(10000000 + Math.random() * 90000000)}`);
-      setPaymentDateStr(new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }));
-      setJourneyStep(3);
-    }
+  // Redirection Handlers for Completed Section
+  const handleRedirectHome = () => {
+    onClose();
+    navigate('/dashboard');
+    if (onNavigateToDashboard) onNavigateToDashboard();
   };
 
-
-  // --- REFRESH BOOKING STATUS FOR SCREEN 4 -> SCREEN 5 UNLOCK ---
-  const handleCheckBookingStatus = async () => {
-    setIsRefreshingStatus(true);
-    setAuthError(null);
-    try {
-      const currentUser = VelocityAPI.getCurrentUser();
-      const lookupParam = bookingId || sessionId || currentUser?.email;
-      if (!lookupParam) {
-        setIsRefreshingStatus(false);
-        setJourneyStep(4);
-        setAuthError('Schedule assignment is in progress. You will receive an email once confirmed!');
-        return;
-      }
-
-      const url = lookupParam.includes('@')
-        ? getApiUrl(`/api/journey/latest-by-email/${encodeURIComponent(lookupParam)}`)
-        : getApiUrl(`/api/journey/booking/${lookupParam}`);
-
-      const res = await fetch(url);
-      const data = await res.json();
-      setIsRefreshingStatus(false);
-
-      if (res.ok && data.record) {
-        const r = data.record;
-        if (r.journeyState === 'BOOKING_CONFIRMED') {
-          if (r.coachName) setConfirmedCoachName(r.coachName);
-          if (r.coachTitle) setConfirmedCoachTitle(r.coachTitle);
-          if (r.coachAvatar) setConfirmedCoachAvatar(r.coachAvatar);
-          if (r.scheduledDate) setConfirmedScheduledDate(r.scheduledDate);
-          if (r.scheduledTime) setConfirmedScheduledTime(r.scheduledTime);
-          if (r.joinUrl) setConfirmedJoinUrl(r.joinUrl);
-          setJourneyStep(5); // Unlock Screen 5 ONLY when confirmed by Admin
-        } else {
-          setJourneyStep(4);
-          setAuthError('Schedule assignment is currently pending with the head coach team. You will be notified via email as soon as your coach is aligned!');
-        }
-      } else {
-        setJourneyStep(4);
-        setAuthError('Schedule assignment is currently in progress. Please check back shortly or wait for email confirmation.');
-      }
-    } catch (e) {
-      setIsRefreshingStatus(false);
-      setJourneyStep(4);
-      setAuthError('Unable to fetch live status. Please check back shortly.');
-    }
-  };
-
-  const handleAddToCalendar = () => {
-    const title = encodeURIComponent(`BXStrength Session: ${service.title}`);
-    const details = encodeURIComponent(`1-on-1 Virtual Session with ${confirmedCoachName}. Join Link: ${confirmedJoinUrl}`);
-    const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}`;
-    window.open(gCalUrl, '_blank');
-  };
+  const modalMaxWidth = mainStage === 3
+    ? 'max-w-4xl lg:max-w-5xl'
+    : mainStage === 1 && (isMonthlyPlan || isWeeklyPlan || isCustomPlan)
+    ? 'max-w-4xl lg:max-w-5xl'
+    : mainStage === 1
+    ? 'max-w-2xl sm:max-w-3xl'
+    : mainStage === 2
+    ? 'max-w-3xl'
+    : mainStage === 4
+    ? 'max-w-2xl'
+    : 'max-w-xl';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full h-full sm:h-auto sm:max-h-[95vh] sm:max-w-2xl bg-[#0a0a0c] text-white border-0 sm:border border-zinc-800 shadow-2xl rounded-none sm:rounded-2xl overflow-hidden flex flex-col font-sans selection:bg-[#CCFF00] selection:text-black">
-        
-        {/* Modal Top Branding & Close Header */}
-        <div className="px-4 sm:px-6 py-3 bg.121214 bg-[#121214] border-b border-zinc-800 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5">
-            <span className="text-base font-black tracking-tighter text-white uppercase flex items-center gap-1">
-              BX<span className="text-[#CCFF00]">STRENGTH</span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md overflow-y-auto">
+      <div className={`relative w-full ${modalMaxWidth} max-h-[94vh] flex flex-col bg-[#0c0d12] border border-zinc-800 rounded-2xl shadow-2xl my-auto transition-all`}>
+
+        {/* =========================================================================
+            TOP BRAND HEADER
+           ========================================================================= */}
+        <div className="px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between border-b border-zinc-800/80 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <span className="text-base sm:text-lg font-black tracking-tight">
+              <span className="text-white">BX</span> <span className="text-[#CCFF00]">STRENGTH</span>
             </span>
-            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider hidden sm:inline">
+            <span className="hidden sm:inline-block text-[11px] font-bold uppercase tracking-wider text-zinc-400 border-l border-zinc-800 pl-3">
               UK LIVE COACHING AT HOME
             </span>
           </div>
+
           <button
             onClick={onClose}
-            className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* --- TOP 5-STEP JOURNEY STEPPER BAR (MATCHING REFERENCE DESIGN IMAGE) --- */}
-        <div className="px-4 sm:px-6 py-3 bg-[#18181b]/90 border-b border-zinc-800/80 overflow-x-auto">
-          <div className="flex items-center justify-between min-w-[500px] gap-2">
-            {[
-              { num: 1, title: 'Onboarding', sub: 'Choose Service' },
-              { num: 2, title: 'Checkout', sub: 'Accept Terms' },
-              { num: 3, title: 'Payment', sub: 'Pay Securely' },
-              { num: 4, title: 'Scheduling', sub: 'We Contact You' },
-              { num: 5, title: 'Confirmed', sub: 'Class Scheduled' }
-            ].map((st) => {
-              const isActive = journeyStep === st.num;
-              const isCompleted = journeyStep > st.num;
-              return (
-                <div key={st.num} className="flex items-center gap-2 flex-1">
-                  <div
-                    className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shrink-0 transition-all ${
-                      isActive
-                        ? 'bg-[#CCFF00] text-black ring-2 ring-[#CCFF00]/50 shadow-md shadow-[#CCFF00]/20'
-                        : isCompleted
-                        ? 'bg-emerald-950 border border-emerald-500 text-emerald-400'
-                        : 'bg-zinc-800 border border-zinc-700 text-zinc-400'
-                    }`}
-                  >
-                    {isCompleted ? <Check className="w-4 h-4 text-emerald-400" /> : st.num}
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className={`text-[11px] font-black uppercase tracking-tight truncate ${isActive ? 'text-[#CCFF00]' : isCompleted ? 'text-emerald-400' : 'text-zinc-400'}`}>
-                      {st.title}
-                    </span>
-                    <span className="text-[9px] text-zinc-500 font-medium truncate">
-                      {st.sub}
-                    </span>
-                  </div>
-                  {st.num < 5 && <ChevronRight className="w-4 h-4 text-zinc-700 shrink-0 ml-auto" />}
-                </div>
-              );
-            })}
+        {/* =========================================================================
+            TOP 4-STEP PROGRESS BAR (RESPONSIVE ACROSS MOBILE, IPAD, DESKTOP)
+            1: ONBOARDING (Choose Service)
+            2: CHECKOUT (Accept Terms)
+            3: PAYMENT (Pay Securely)
+            4: CONFIRMED (Class Scheduled)
+           ========================================================================= */}
+        <div className={`${mainStage === 4 ? 'hidden' : 'flex'} items-center justify-between px-3 sm:px-6 py-2.5 sm:py-3.5 border-b border-zinc-800/80 bg-zinc-950/70 overflow-x-auto text-xs no-scrollbar shrink-0 gap-1 sm:gap-2`}>
+          {/* Step 1: Onboarding */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all ${
+              mainStage === 1
+                ? 'bg-[#CCFF00] text-black shadow-[0_0_12px_rgba(204,255,0,0.35)]'
+                : mainStage > 1
+                ? 'bg-[#CCFF00] text-black'
+                : 'bg-zinc-800 text-zinc-400 border border-zinc-700/60'
+            }`}>
+              {mainStage > 1 ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" /> : '1'}
+            </div>
+            <div>
+              <p className={`font-black uppercase tracking-wider text-[10px] sm:text-[11px] ${mainStage >= 1 ? 'text-[#CCFF00]' : 'text-zinc-400'}`}>
+                ONBOARDING
+              </p>
+              <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">Choose Service</p>
+            </div>
+          </div>
+
+          <span className="text-zinc-600 font-bold px-1 sm:px-2.5 text-xs sm:text-base shrink-0">›</span>
+
+          {/* Step 2: Checkout */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all ${
+              mainStage === 2
+                ? 'bg-[#CCFF00] text-black shadow-[0_0_12px_rgba(204,255,0,0.35)]'
+                : mainStage > 2
+                ? 'bg-[#CCFF00] text-black'
+                : 'bg-zinc-800 text-zinc-400 border border-zinc-700/60'
+            }`}>
+              {mainStage > 2 ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" /> : '2'}
+            </div>
+            <div>
+              <p className={`font-black uppercase tracking-wider text-[10px] sm:text-[11px] ${mainStage >= 2 ? 'text-[#CCFF00]' : 'text-zinc-400'}`}>
+                CHECKOUT
+              </p>
+              <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">Accept Terms</p>
+            </div>
+          </div>
+
+          <span className="text-zinc-600 font-bold px-1 sm:px-2.5 text-xs sm:text-base shrink-0">›</span>
+
+          {/* Step 3: Payment */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all ${
+              mainStage === 3
+                ? 'bg-[#CCFF00] text-black shadow-[0_0_12px_rgba(204,255,0,0.35)]'
+                : mainStage > 3
+                ? 'bg-[#CCFF00] text-black'
+                : 'bg-zinc-800 text-zinc-400 border border-zinc-700/60'
+            }`}>
+              {mainStage > 3 ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" /> : '3'}
+            </div>
+            <div>
+              <p className={`font-black uppercase tracking-wider text-[10px] sm:text-[11px] ${mainStage >= 3 ? 'text-[#CCFF00]' : 'text-zinc-400'}`}>
+                PAYMENT
+              </p>
+              <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">Pay Securely</p>
+            </div>
+          </div>
+
+          <span className="text-zinc-600 font-bold px-1 sm:px-2.5 text-xs sm:text-base shrink-0">›</span>
+
+          {/* Step 4: Confirmed */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all ${
+              mainStage === 4 || isPaymentSuccess
+                ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.35)]'
+                : 'bg-zinc-800 text-zinc-400 border border-zinc-700/60'
+            }`}>
+              {mainStage === 4 || isPaymentSuccess ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" /> : '4'}
+            </div>
+            <div>
+              <p className={`font-black uppercase tracking-wider text-[10px] sm:text-[11px] ${mainStage === 4 || isPaymentSuccess ? 'text-[#CCFF00]' : 'text-zinc-400'}`}>
+                CONFIRMED
+              </p>
+              <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">Class Scheduled</p>
+            </div>
           </div>
         </div>
 
-        {/* Modal Scrollable Body */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5">
-          {authError && (
-            <div className="p-3 bg-red-950/80 border border-red-800 text-red-300 text-xs font-bold rounded-xl flex items-center gap-2 animate-in fade-in">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-              <span>{authError}</span>
-            </div>
-          )}
+        {/* Error Alert */}
+        {errorMessage && (
+          <div className="mx-4 sm:mx-6 mt-3 sm:mt-4 p-3 sm:p-3.5 bg-red-950/40 border border-red-800/80 rounded-xl text-red-300 text-xs flex items-center gap-2 shrink-0">
+            <Info className="w-4 h-4 text-red-400 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
 
-          {/* ==================================================================== */}
-          {/* SCREEN 1 — SERVICE SELECTION & HEALTH ONBOARDING                     */}
-          {/* ==================================================================== */}
-          {journeyStep === 1 && (
-            <div className="space-y-5 animate-in fade-in duration-150">
-              <div className="text-center space-y-1">
-                <h2 className="text-xl sm:text-2xl font-black uppercase text-white tracking-tight">
-                  Welcome to BX<span className="text-[#CCFF00]">STRENGTH</span>
-                </h2>
-                <p className="text-xs text-zinc-400 font-medium">
-                  A stronger, healthier you starts here.
-                </p>
-              </div>
+        {/* Modal Main Content Container with smooth inner scrolling on touch & desktop */}
+        <div className="p-4 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden flex-1">
 
-              {/* PACKAGE TYPE SELECTION TABS */}
-              <div className="bg-[#121214] p-1.5 border border-zinc-800 rounded-xl grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setServiceType('individual')}
-                  className={`py-2.5 px-3 rounded-lg text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                    serviceType === 'individual'
-                      ? 'bg-[#CCFF00] text-black shadow-md'
-                      : 'bg-transparent text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  <UserCheck className="w-4 h-4" />
-                  <span>Individual Session</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setServiceType('custom')}
-                  className={`py-2.5 px-3 rounded-lg text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                    serviceType === 'custom'
-                      ? 'bg-[#CCFF00] text-black shadow-md'
-                      : 'bg-transparent text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  <Layers className="w-4 h-4" />
-                  <span>Custom Package</span>
-                </button>
-              </div>
-
-              {/* Selected Service Detail Card */}
-              <div className="bg-[#121214] border border-zinc-800 p-4 rounded-xl space-y-3 relative overflow-hidden">
-                <div className="h-1 w-full bg-[#CCFF00] absolute top-0 left-0"></div>
-                <div className="flex items-start justify-between gap-3">
+          {/* =====================================================================
+              STEP 1: ONBOARDING (CHOOSE SERVICE / PLAN CUSTOMIZATION)
+              Pixel-accurate to user screenshot for standard packages, and
+              interactive planners for Weekly, Custom, and Monthly plans.
+             ===================================================================== */}
+          {mainStage === 1 && (
+            <div className="space-y-5 sm:space-y-6">
+              {/* -------------------------------------------------------------
+                  A. STANDARD PACKAGES (BX Basic, Focus, Performance, Complete, Wellness)
+                  EXACTLY MATCHING USER SCREENSHOT
+                 ------------------------------------------------------------- */}
+              {!isCustomPlan && !isWeeklyPlan && !isMonthlyPlan && (
+                <div className="space-y-5 sm:space-y-6">
+                  {/* Step 1 of 1 & Lime Line */}
                   <div>
-                    <span className="text-[9px] font-black uppercase text-[#CCFF00] bg-zinc-900 border border-zinc-700 px-2.5 py-0.5 rounded">
-                      {serviceType === 'custom' ? 'CUSTOM HYBRID PACKAGE' : (service.category || 'Core Service')}
-                    </span>
-                    <h3 className="text-base font-black text-white uppercase mt-1.5">{service.title}</h3>
-                    <p className="text-xs text-zinc-400 mt-1 line-clamp-2">
-                      {serviceType === 'custom' 
-                        ? 'Tailored multi-service package built with your custom choices below.' 
-                        : (service.description || 'Bespoke live virtual 1-on-1 coaching protocol tailored to your individual goals.')}
+                    <p className="text-[11px] sm:text-xs font-bold text-[#CCFF00] tracking-wider uppercase mb-1.5">
+                      Step 1 of 1
+                    </p>
+                    <div className="w-full h-1 bg-[#CCFF00] rounded-full mb-4 sm:mb-6" />
+                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight uppercase">
+                      {standardDetails.title}
+                    </h2>
+                    <p className="text-xs sm:text-sm text-zinc-400 mt-1.5 sm:mt-2">
+                      {standardDetails.description}
                     </p>
                   </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-xl font-black text-[#CCFF00] font-mono">£{totalPriceGbp}</div>
-                    <span className="text-[10px] text-zinc-400 block font-bold">GBP (£) • UK Market</span>
+
+                  {/* Summary Card */}
+                  <div className="p-4 sm:p-6 rounded-2xl bg-[#0e1319] border border-zinc-800/90 shadow-xl space-y-3 sm:space-y-4 my-4 sm:my-6">
+                    <div className="flex items-center justify-between text-xs sm:text-sm">
+                      <span className="text-zinc-400 font-medium">Service Duration</span>
+                      <span className="font-black text-white uppercase tracking-wide">
+                        {standardDetails.duration}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs sm:text-sm">
+                      <span className="text-zinc-400 font-medium">Format</span>
+                      <span className="font-bold text-[#CCFF00]">{standardDetails.format}</span>
+                    </div>
+                    <div className="pt-3.5 sm:pt-4 border-t border-zinc-800/80 flex items-center justify-between">
+                      <span className="text-sm sm:text-base font-black text-white uppercase tracking-wider">
+                        TOTAL PRICE
+                      </span>
+                      <span className="text-2xl sm:text-3xl font-black text-white">
+                        £{standardDetails.price}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Bottom Action Bar */}
+                  <div className="flex flex-row items-center justify-between gap-2.5 sm:gap-3 pt-4 border-t border-zinc-800/80">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="px-4 sm:px-5 py-3 rounded-xl border border-zinc-800 hover:border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-300 flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-colors"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>Back</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setMainStage(2)}
+                      className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
+                    >
+                      <span>NEXT: CHECKOUT &amp; TERMS</span>
+                      <ArrowRight className="w-4 h-4 stroke-[3]" />
+                    </button>
                   </div>
                 </div>
+              )}
 
-                {service.duration && (
-                  <div className="inline-flex items-center gap-1.5 text-xs text-zinc-300 bg-zinc-900 px-3 py-1 rounded-lg border border-zinc-800">
-                    <Clock className="w-3.5 h-3.5 text-[#CCFF00]" />
-                    <span>{service.duration}</span>
+              {/* -------------------------------------------------------------
+                  B. CUSTOM PLAN CONFIGURATOR
+                 ------------------------------------------------------------- */}
+              {isCustomPlan && (
+                <div className="space-y-5 sm:space-y-6">
+                  <div>
+                    <p className="text-[11px] sm:text-xs font-bold text-[#CCFF00] tracking-wider uppercase mb-1.5">
+                      Step 1 of 1
+                    </p>
+                    <div className="w-full h-1 bg-[#CCFF00] rounded-full mb-4 sm:mb-6" />
+                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight uppercase">
+                      SELECT YOUR TRAINING ELEMENTS
+                    </h2>
+                    <p className="text-xs sm:text-sm text-zinc-400 mt-1.5 sm:mt-2">
+                      Choose the services you want in your session. Guided Warm-Up is pre-selected and included.
+                    </p>
                   </div>
-                )}
-              </div>
 
-              {/* CUSTOM PACKAGE MULTI-SERVICE SELECTION GRID */}
-              {serviceType === 'custom' && (
-                <div className="bg-[#121214] border border-zinc-800 p-4 rounded-xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-black uppercase text-white tracking-wider flex items-center gap-1.5">
-                        <Layers className="w-4 h-4 text-[#CCFF00]" />
-                        <span>Select Training Services in Custom Package</span>
-                      </h4>
-                      <p className="text-[11px] text-zinc-400 mt-0.5">
-                        Select multiple options below to build your tailored hybrid program.
-                      </p>
+                  <div className="p-4 sm:p-5 rounded-2xl bg-[#101218] border border-zinc-800 space-y-4 sm:space-y-5 shadow-lg">
+                    <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+                      <span className="text-xs font-black uppercase tracking-wider text-zinc-300 block">
+                        Training Elements
+                      </span>
+                      <span className="text-[11px] sm:text-xs font-bold text-[#CCFF00] bg-[#CCFF00]/10 border border-[#CCFF00]/30 px-2.5 py-1 rounded-full">
+                        {selectedElements.length} Elements Selected
+                      </span>
                     </div>
-                    <span className="text-[10px] font-mono font-bold bg-[#CCFF00]/10 border border-[#CCFF00]/30 text-[#CCFF00] px-2.5 py-1 rounded-full shrink-0">
-                      {selectedExercises.length} Selected
-                    </span>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
+                      {CUSTOM_ELEMENTS.map(element => {
+                        const isSelected = selectedElements.includes(element.id);
+                        const isMandatory = element.id === 'guided-warmup';
+                        const IconComp = element.icon;
+                        return (
+                          <button
+                            key={element.id}
+                            type="button"
+                            onClick={() => toggleCustomElement(element.id)}
+                            className={`p-3 sm:p-3.5 rounded-xl border text-left transition-all flex items-start justify-between gap-2 ${
+                              isMandatory
+                                ? 'bg-[#181822] border-[#CCFF00] shadow-[0_0_15px_-4px_rgba(204,255,0,0.3)] cursor-default'
+                                : isSelected
+                                ? 'bg-[#181822] border-[#CCFF00] shadow-[0_0_15px_-4px_rgba(204,255,0,0.3)] cursor-pointer'
+                                : 'bg-[#121218] border-zinc-800 hover:border-zinc-700 cursor-pointer'
+                            }`}
+                          >
+                            <div className="flex items-start gap-2.5 min-w-0">
+                              <div className={`p-2 rounded-lg shrink-0 ${isSelected ? 'bg-[#CCFF00]/15 text-[#CCFF00]' : 'bg-zinc-800 text-zinc-300'}`}>
+                                <IconComp className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-white leading-snug truncate">
+                                  {element.name}
+                                </p>
+                                {isMandatory && (
+                                  <span className="inline-block text-[9px] font-black uppercase tracking-wider text-[#CCFF00] bg-[#CCFF00]/15 border border-[#CCFF00]/30 px-1.5 py-0.5 rounded mt-1">
+                                    INCLUDED
+                                  </span>
+                                )}
+                                <p className="text-xs font-black text-white mt-1">£{element.price}</p>
+                                <p className="text-[10px] text-zinc-400 mt-0.5">{element.duration}</p>
+                              </div>
+                            </div>
+
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
+                              isSelected
+                                ? 'bg-[#CCFF00] border-[#CCFF00] text-black'
+                                : 'border-zinc-700 bg-zinc-900'
+                            }`}>
+                              {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Duration Selector */}
+                    <div className="pt-3.5 sm:pt-4 border-t border-zinc-800 space-y-2">
+                      <p className="text-xs font-black uppercase tracking-wider text-zinc-300">
+                        Choose Total Session Duration:
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+                        {CUSTOM_DURATIONS.map(duration => {
+                          const isSelected = selectedDurationId === duration.id;
+                          return (
+                            <button
+                              key={duration.id}
+                              type="button"
+                              onClick={() => setSelectedDurationId(duration.id)}
+                              className={`p-2.5 sm:p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-[#181822] border-[#CCFF00] text-white shadow-[0_0_12px_-2px_rgba(204,255,0,0.3)]'
+                                  : 'bg-[#121218] border-zinc-800 hover:border-zinc-700 text-zinc-300'
+                              }`}
+                            >
+                              <p className="text-xs font-bold">{duration.name}</p>
+                              <p className="text-[10px] text-zinc-400 mt-0.5">
+                                {duration.priceDelta > 0 ? `+£${duration.priceDelta}` : 'Included'}
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2.5 pt-1">
-                    {CUSTOM_TRAINING_SERVICES.map((item) => {
-                      const isSelected = selectedExercises.includes(item.name);
-                      return (
-                        <label
-                          key={item.id}
-                          className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
-                            isSelected
-                              ? 'bg-zinc-900 border-[#CCFF00] shadow-sm'
-                              : 'bg-zinc-900/40 border-zinc-800 hover:border-zinc-700'
-                          }`}
+                  {/* Price Bar & Action */}
+                  <div className="flex flex-row items-center justify-between gap-2.5 sm:gap-3 pt-4 border-t border-zinc-800/80">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="px-4 sm:px-5 py-3 rounded-xl border border-zinc-800 hover:border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-300 flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-colors"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>Back</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setMainStage(2)}
+                      className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
+                    >
+                      <span>NEXT: CHECKOUT &amp; TERMS</span>
+                      <ArrowRight className="w-4 h-4 stroke-[3]" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* -------------------------------------------------------------
+                  C. WEEKLY PLAN (3 Sessions)
+                 ------------------------------------------------------------- */}
+              {isWeeklyPlan && (
+                <div className="space-y-5 sm:space-y-6">
+                  <div>
+                    <p className="text-[11px] sm:text-xs font-bold text-[#CCFF00] tracking-wider uppercase mb-1.5">
+                      Step 1 of 3
+                    </p>
+                    <div className="w-full h-1 bg-[#CCFF00] rounded-full mb-4 sm:mb-6" />
+                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight uppercase">
+                      PLAN YOUR 3 SESSIONS
+                    </h2>
+                    <p className="text-xs sm:text-sm text-zinc-400 mt-1.5 sm:mt-2">
+                      Guided Warm-Up is pre-selected for all 3 sessions. Choose 1 additional training focus for each session.
+                    </p>
+                  </div>
+
+                  <div className="p-4 sm:p-5 rounded-2xl bg-[#101218] border border-zinc-800 space-y-4 shadow-lg">
+                    <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+                      <span className="text-xs font-black uppercase tracking-wider text-zinc-300 block">
+                        3 Sessions Breakdown
+                      </span>
+                      <span className="text-[11px] sm:text-xs font-bold text-[#CCFF00] bg-[#CCFF00]/10 border border-[#CCFF00]/30 px-2.5 py-1 rounded-full shrink-0">
+                        10-Day Validity
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-3.5">
+                      {[0, 1, 2].map(sessionIdx => (
+                        <div
+                          key={sessionIdx}
+                          className="p-3.5 sm:p-4 rounded-xl bg-[#14151e] border border-zinc-800 flex flex-col justify-between space-y-3"
                         >
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleExercise(item.name)}
-                            className="mt-1 accent-[#CCFF00] w-4 h-4 rounded cursor-pointer shrink-0"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <span className={`text-xs font-black uppercase block ${isSelected ? 'text-[#CCFF00]' : 'text-white'}`}>
-                              {item.name}
-                            </span>
-                            <span className="text-[11px] text-zinc-400 block mt-0.5 leading-tight">
-                              {item.desc}
+                          <div className="space-y-2.5">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className="text-xs font-black uppercase text-white block">
+                                  Session {sessionIdx + 1}
+                                </span>
+                                <span className="text-[10px] text-zinc-400">1 Warm-Up + 1 Focus</span>
+                              </div>
+                              <span className="text-[10px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded">
+                                30 min
+                              </span>
+                            </div>
+
+                            {/* Pre-selected Warm-Up with zero overlap */}
+                            <div className="p-2.5 rounded-xl bg-[#CCFF00]/10 border border-[#CCFF00]/30 flex items-center justify-between gap-2 overflow-hidden">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <div className="w-5 h-5 rounded-full bg-[#CCFF00] text-black flex items-center justify-center shrink-0">
+                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-bold text-white truncate">Guided Warm-Up</p>
+                                  <p className="text-[9px] text-zinc-400 truncate">Pre-selected for session</p>
+                                </div>
+                              </div>
+                              <span className="text-[9px] font-black uppercase tracking-wider text-[#CCFF00] bg-[#CCFF00]/20 border border-[#CCFF00]/30 px-2 py-0.5 rounded shrink-0 ml-1">
+                                INCLUDED
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* List of 7 options as buttons */}
+                          <div className="space-y-1.5 pt-1">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">
+                              Select 1 Extra Focus:
+                            </p>
+                            <div className="space-y-1.5 max-h-48 sm:max-h-56 overflow-y-auto pr-0.5">
+                              {WEEKLY_EXTRA_OPTIONS.map(opt => {
+                                const isSelected = weeklySessions[sessionIdx] === opt;
+                                return (
+                                  <button
+                                    key={opt}
+                                    type="button"
+                                    onClick={() => {
+                                      const updated = [...weeklySessions];
+                                      updated[sessionIdx] = opt;
+                                      setWeeklySessions(updated);
+                                    }}
+                                    className={`w-full p-2 sm:p-2.5 rounded-lg border text-left text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-[#181f14] border-[#CCFF00] text-white shadow-[0_0_12px_rgba(204,255,0,0.2)]'
+                                        : 'bg-[#101218] border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                                    }`}
+                                  >
+                                    <span className="truncate">{opt}</span>
+                                    {isSelected && (
+                                      <Check className="w-3.5 h-3.5 text-[#CCFF00] stroke-[3] shrink-0 ml-1.5" />
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Bottom Action Bar */}
+                  <div className="flex flex-row items-center justify-between gap-2.5 sm:gap-3 pt-4 border-t border-zinc-800/80">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="px-4 sm:px-5 py-3 rounded-xl border border-zinc-800 hover:border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-300 flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-colors"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>Back</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setMainStage(2)}
+                      className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
+                    >
+                      <span>NEXT: CHECKOUT &amp; TERMS</span>
+                      <ArrowRight className="w-4 h-4 stroke-[3]" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* -------------------------------------------------------------
+                  D. MONTHLY PLAN (12 Sessions)
+                 ------------------------------------------------------------- */}
+              {isMonthlyPlan && (
+                <div className="space-y-5 sm:space-y-6">
+                  <div>
+                    <p className="text-[11px] sm:text-xs font-bold text-[#CCFF00] tracking-wider uppercase mb-1.5">
+                      Step 1 of 1
+                    </p>
+                    <div className="w-full h-1 bg-[#CCFF00] rounded-full mb-4 sm:mb-6" />
+                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight uppercase">
+                      MONTHLY COACHING SESSIONS
+                    </h2>
+                    <p className="text-xs sm:text-sm text-zinc-400 mt-1.5 sm:mt-2">
+                      User gets 1 Guided Warm-Up, 1 chosen service, and 1 Cool-Down &amp; Recovery in each of the 12 sessions.
+                    </p>
+                  </div>
+
+                  <div className="p-4 sm:p-5 rounded-2xl bg-[#101218] border border-zinc-800 space-y-4 shadow-lg">
+                    <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+                      <span className="text-xs font-black uppercase tracking-wider text-zinc-300 block">
+                        12 Sessions Included
+                      </span>
+                      <span className="text-[11px] sm:text-xs font-bold text-[#CCFF00] bg-[#CCFF00]/10 border border-[#CCFF00]/30 px-2.5 py-1 rounded-full shrink-0">
+                        Save £40 Launch Offer
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 sm:gap-3 max-h-80 overflow-y-auto pr-1">
+                      {monthlySessions.map((sessionService, idx) => (
+                        <div
+                          key={idx}
+                          className="p-2.5 sm:p-3 rounded-xl bg-[#14151e] border border-zinc-800 flex flex-col xs:flex-row xs:items-center justify-between gap-2 text-xs"
+                        >
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Calendar className="w-4 h-4 text-[#CCFF00] shrink-0" />
+                            <span className="font-bold text-white whitespace-nowrap shrink-0">
+                              Session {idx + 1}
                             </span>
                           </div>
-                          {isSelected && <Check className="w-4 h-4 text-[#CCFF00] shrink-0 mt-0.5" />}
-                        </label>
-                      );
-                    })}
+
+                          <div className="flex items-center justify-between xs:justify-end gap-1.5 shrink-0 whitespace-nowrap">
+                            <span className="text-[11px] font-bold text-[#CCFF00] whitespace-nowrap shrink-0 inline-block">
+                              Warm-Up&nbsp;+
+                            </span>
+
+                            <select
+                              value={sessionService}
+                              onChange={e => {
+                                const updated = [...monthlySessions];
+                                updated[idx] = e.target.value;
+                                setMonthlySessions(updated);
+                              }}
+                              className="bg-zinc-900 border border-zinc-700 text-white font-bold text-xs rounded-lg px-2 py-1.5 focus:border-[#CCFF00] focus:outline-hidden min-w-[125px] max-w-[155px] truncate cursor-pointer shrink-0"
+                            >
+                              {MONTHLY_OPTIONS.map(opt => (
+                                <option key={opt} value={opt}>
+                                  {opt}
+                                </option>
+                              ))}
+                            </select>
+
+                            <span className="text-[11px] font-bold text-[#CCFF00] whitespace-nowrap shrink-0 inline-block">
+                              +&nbsp;Recovery
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Bottom Action Bar */}
+                  <div className="flex flex-row items-center justify-between gap-2.5 sm:gap-3 pt-4 border-t border-zinc-800/80">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="px-4 sm:px-5 py-3 rounded-xl border border-zinc-800 hover:border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-300 flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-colors"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>Back</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setMainStage(2)}
+                      className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
+                    >
+                      <span>NEXT: CHECKOUT &amp; TERMS</span>
+                      <ArrowRight className="w-4 h-4 stroke-[3]" />
+                    </button>
                   </div>
                 </div>
               )}
-
-              {/* 4 Health & Onboarding Confirmation Cards (Matching Design Reference) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Disclosure 1 */}
-                <label className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${disclosure18Plus ? 'bg-zinc-900/90 border-[#CCFF00]/50' : 'bg-zinc-900/40 border-zinc-800'}`}>
-                  <input
-                    type="checkbox"
-                    checked={disclosure18Plus}
-                    onChange={(e) => setDisclosure18Plus(e.target.checked)}
-                    className="mt-1 accent-[#CCFF00] w-4 h-4 rounded cursor-pointer"
-                  />
-                  <div>
-                    <span className="text-xs font-black uppercase text-white block flex items-center gap-1">
-                      <UserCheck className="w-3.5 h-3.5 text-[#CCFF00]" /> 18+ Confirmation
-                    </span>
-                    <span className="text-[11px] text-zinc-400 mt-0.5 block leading-tight">
-                      I confirm I am 18 years of age or older.
-                    </span>
-                  </div>
-                </label>
-
-                {/* Disclosure 2 */}
-                <label className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${disclosureVirtualCoaching ? 'bg-zinc-900/90 border-[#CCFF00]/50' : 'bg-zinc-900/40 border-zinc-800'}`}>
-                  <input
-                    type="checkbox"
-                    checked={disclosureVirtualCoaching}
-                    onChange={(e) => setDisclosureVirtualCoaching(e.target.checked)}
-                    className="mt-1 accent-[#CCFF00] w-4 h-4 rounded cursor-pointer"
-                  />
-                  <div>
-                    <span className="text-xs font-black uppercase text-white block flex items-center gap-1">
-                      <Video className="w-3.5 h-3.5 text-[#CCFF00]" /> Virtual Coaching
-                    </span>
-                    <span className="text-[11px] text-zinc-400 mt-0.5 block leading-tight">
-                      Live interactive sessions with expert UK coaches at home.
-                    </span>
-                  </div>
-                </label>
-
-                {/* Disclosure 3 */}
-                <label className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${disclosureHealth ? 'bg-zinc-900/90 border-[#CCFF00]/50' : 'bg-zinc-900/40 border-zinc-800'}`}>
-                  <input
-                    type="checkbox"
-                    checked={disclosureHealth}
-                    onChange={(e) => setDisclosureHealth(e.target.checked)}
-                    className="mt-1 accent-[#CCFF00] w-4 h-4 rounded cursor-pointer"
-                  />
-                  <div>
-                    <span className="text-xs font-black uppercase text-white block flex items-center gap-1">
-                      <ShieldCheck className="w-3.5 h-3.5 text-[#CCFF00]" /> Health Disclosure
-                    </span>
-                    <span className="text-[11px] text-zinc-400 mt-0.5 block leading-tight">
-                      I confirm there are no medical conditions preventing participation.
-                    </span>
-                  </div>
-                </label>
-
-                {/* Disclosure 4 */}
-                <label className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${disclosureSafeSpace ? 'bg-zinc-900/90 border-[#CCFF00]/50' : 'bg-zinc-900/40 border-zinc-800'}`}>
-                  <input
-                    type="checkbox"
-                    checked={disclosureSafeSpace}
-                    onChange={(e) => setDisclosureSafeSpace(e.target.checked)}
-                    className="mt-1 accent-[#CCFF00] w-4 h-4 rounded cursor-pointer"
-                  />
-                  <div>
-                    <span className="text-xs font-black uppercase text-white block flex items-center gap-1">
-                      <Zap className="w-3.5 h-3.5 text-[#CCFF00]" /> Safe Training Space
-                    </span>
-                    <span className="text-[11px] text-zinc-400 mt-0.5 block leading-tight">
-                      I have a safe and suitable space to train at home.
-                    </span>
-                  </div>
-                </label>
-              </div>
-
-              {/* Account Quick Inputs for Non-Logged In Users */}
-              {!user && (
-                <div className="bg-[#121214] border border-zinc-800 p-4 rounded-xl space-y-3">
-                  <h4 className="text-xs font-black uppercase text-white tracking-wider">Your Contact Details (UK)</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input
-                      type="text"
-                      placeholder="Full Name"
-                      value={authName}
-                      onChange={(e) => setAuthName(e.target.value)}
-                      className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
-                    />
-                    <input
-                      type="email"
-                      placeholder="Email Address"
-                      value={authEmail}
-                      onChange={(e) => setAuthEmail(e.target.value)}
-                      className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Action Button Screen 1 */}
-              <button
-                type="button"
-                onClick={handleInitiateJourney}
-                disabled={isProcessing}
-                className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs sm:text-sm uppercase tracking-wider py-4 rounded-xl transition-all shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                <span>Continue</span>
-                <ArrowRight className="w-4 h-4 text-black" />
-              </button>
-
-              <div className="text-center text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
-                Real People • Real Coaching • Real Results
-              </div>
             </div>
           )}
 
-          {/* ==================================================================== */}
-          {/* SCREEN 2 — CHECKOUT & MANDATORY TERMS CONSENT                        */}
-          {/* ==================================================================== */}
-          {journeyStep === 2 && (
-            <div className="space-y-5 animate-in fade-in duration-150">
-              <div className="text-center space-y-1">
-                <h2 className="text-xl sm:text-2xl font-black uppercase text-white tracking-tight">
-                  Checkout
+          {/* =====================================================================
+              STEP 2: CHECKOUT & ACCEPT TERMS
+              Pixel-accurate matching user screenshot Screenshot 1:
+              - Title: Checkout & Accept Terms
+              - Subtitle: Confirm your training agreement and health disclosures before proceeding.
+              - Card 1: PLAN SELECTED (left) and AMOUNT (right in #CCFF00)
+              - Card 2: HEALTH & TRAINING DISCLOSURES with custom #CCFF00 checkboxes
+              - Action Bar: [Back] and [NEXT: PROCEED TO PAYMENT ->]
+             ===================================================================== */}
+          {mainStage === 2 && (
+            <div className="space-y-5 sm:space-y-6">
+              {/* Header matching screenshot */}
+              <div>
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight">
+                  Checkout &amp; Accept Terms
                 </h2>
-                <p className="text-xs text-zinc-400 font-medium">
-                  Review your training pack details to continue.
+                <p className="text-xs sm:text-sm text-zinc-400 mt-1.5">
+                  Confirm your training agreement and health disclosures before proceeding.
                 </p>
               </div>
 
-              {/* Training Package Option Summary Card */}
-              <div className="bg-[#121214] border border-[#CCFF00]/40 p-4 rounded-xl space-y-3 relative overflow-hidden">
-                <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-                  <div>
-                    <span className="text-[9px] font-black uppercase text-[#CCFF00] bg-zinc-900 border border-zinc-700 px-2 py-0.5 rounded">
-                      SELECTED TRAINING PACK
-                    </span>
-                    <h3 className="text-base font-black text-white uppercase mt-1">{service.title}</h3>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xl font-black text-[#CCFF00] font-mono">£{totalPriceGbp}.00</span>
-                    <span className="text-[10px] text-zinc-400 block font-bold">GBP (£) Total</span>
-                  </div>
-                </div>
-
-                {/* What's Included Bullet List (Matching Reference Image) */}
-                <div className="space-y-2 pt-1">
-                  <span className="text-xs font-black uppercase text-zinc-300 tracking-wider block">What's included:</span>
-                  <div className="space-y-1.5 text-xs text-zinc-300">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#CCFF00] shrink-0" />
-                      <span>Live 1-to-1 or small group virtual coaching</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#CCFF00] shrink-0" />
-                      <span>Personalised training & movement support</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#CCFF00] shrink-0" />
-                      <span>Access via our mobile app (any device)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#CCFF00] shrink-0" />
-                      <span>Ongoing guidance from your assigned UK coach</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* MANDATORY CONSENT CHECKBOXES (ALL 3 REQUIRED FOR PAY BUTTON) */}
-              <div className="bg-[#18181b] border border-zinc-800 p-4 rounded-xl space-y-3">
-                <h4 className="text-xs font-black uppercase text-[#CCFF00] tracking-wider flex items-center gap-1.5 border-b border-zinc-800 pb-2">
-                  <ShieldCheck className="w-4 h-4 text-[#CCFF00]" /> MANDATORY PRE-PAYMENT DECLARATIONS & TERMS
-                </h4>
-
-                {/* Point 1 */}
-                <label className="flex items-start gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={consentInfoAccurate}
-                    onChange={(e) => setConsentInfoAccurate(e.target.checked)}
-                    className="mt-0.5 accent-[#CCFF00] w-5 h-5 rounded cursor-pointer shrink-0"
-                  />
-                  <span className="text-xs text-zinc-300 leading-relaxed group-hover:text-white">
-                    I confirm that the information I have provided is accurate and I wish to participate in BXStrength virtual fitness services.
-                  </span>
-                </label>
-
-                {/* Point 2 */}
-                <label className="flex items-start gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={consentTermsAccepted}
-                    onChange={(e) => setConsentTermsAccepted(e.target.checked)}
-                    className="mt-0.5 accent-[#CCFF00] w-5 h-5 rounded cursor-pointer shrink-0"
-                  />
-                  <span className="text-xs text-zinc-300 leading-relaxed group-hover:text-white">
-                    I have read and agree to the{' '}
-                    <a href="/terms" target="_blank" className="text-[#CCFF00] underline hover:text-white font-bold">
-                      BXStrength Terms &amp; Conditions
-                    </a>,{' '}
-                    <a href="/privacy" target="_blank" className="text-[#CCFF00] underline hover:text-white font-bold">
-                      Privacy Policy
-                    </a>, and{' '}
-                    <a href="/onboarding-terms" target="_blank" className="text-[#CCFF00] underline hover:text-white font-bold">
-                      Onboarding &amp; Checkout Policies
-                    </a>, including the booking, Session Pack validity, cancellation, refund, virtual-participation and health &amp; safety terms that apply to my purchase.
-                  </span>
-                </label>
-
-                {/* Point 3 */}
-                <label className="flex items-start gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={consentEarlyStart}
-                    onChange={(e) => setConsentEarlyStart(e.target.checked)}
-                    className="mt-0.5 accent-[#CCFF00] w-5 h-5 rounded cursor-pointer shrink-0"
-                  />
-                  <span className="text-xs text-zinc-300 leading-relaxed group-hover:text-white">
-                    I expressly request BXStrength to begin providing my service during any applicable cancellation period. I understand that if I cancel after service has begun, I may be required to pay for service already supplied, and that my cancellation right may end once the service has been fully performed where applicable law permits.
-                  </span>
-                </label>
-              </div>
-
-              {/* PAY SECURELY BUTTON (DISABLED UNTIL ALL 3 CONSENT CHECKBOXES ARE CHECKED) */}
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={handlePaySecurely}
-                  disabled={!allConsentAccepted || isProcessing}
-                  className={`w-full text-black font-black text-xs sm:text-sm uppercase tracking-wider py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2.5 ${
-                    allConsentAccepted && !isProcessing
-                      ? 'bg-[#CCFF00] hover:bg-[#b8e600] hover:scale-[1.01] active:scale-95 cursor-pointer shadow-[#CCFF00]/20'
-                      : 'bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-50'
-                  }`}
-                >
-                  <Lock className="w-4 h-4 text-black shrink-0" />
-                  <span>{isProcessing ? 'INITIALIZING SECURE GATEWAY...' : `Pay Securely £${totalPriceGbp}.00`}</span>
-                </button>
-
-                <div className="flex items-center justify-center gap-3 text-[10px] text-zinc-500 font-bold uppercase tracking-widest pt-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Secure 256-Bit SSL • VISA • Mastercard • Powered by Razorpay / Cashfree PG</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ==================================================================== */}
-          {/* SCREEN 3 — PAYMENT SUCCESSFUL (SERVER VERIFIED ONLY)                 */}
-          {/* ==================================================================== */}
-          {journeyStep === 3 && (
-            <div className="space-y-6 text-center animate-in fade-in duration-200 py-2">
-              {/* Glowing Green Success Badge */}
-              <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
-                <div className="absolute inset-0 bg-[#CCFF00]/20 rounded-full animate-ping opacity-75"></div>
-                <div className="w-20 h-20 bg-[#CCFF00] rounded-full flex items-center justify-center text-black font-black shadow-xl shadow-[#CCFF00]/30 relative z-10">
-                  <Check className="w-10 h-10 stroke-[3]" />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <h2 className="text-2xl sm:text-3xl font-black uppercase text-white tracking-tight">
-                  Payment Successful!
-                </h2>
-                <p className="text-xs text-zinc-400 max-w-sm mx-auto leading-relaxed">
-                  Thank you for choosing BXStrength. Your payment has been processed and your booking is now in progress.
-                </p>
-              </div>
-
-              {/* Verified Order Receipt Card */}
-              <div className="bg-[#121214] border border-zinc-800 p-4 sm:p-5 rounded-xl text-left space-y-3 max-w-md mx-auto">
-                <div className="border-b border-zinc-800 pb-2.5 flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase text-zinc-400 tracking-wider">VERIFIED RECEIPT</span>
-                  <span className="text-[10px] font-black uppercase px-2 py-0.5 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded">
-                    ✓ PAID
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <span className="text-[9px] text-zinc-500 font-bold uppercase block">Transaction ID</span>
-                    <span className="font-mono font-bold text-white block mt-0.5">{transactionId || 'BX10028473'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[9px] text-zinc-500 font-bold uppercase block">Payment Date</span>
-                    <span className="font-bold text-white block mt-0.5">{paymentDateStr || 'Today'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[9px] text-zinc-500 font-bold uppercase block">Service Pack</span>
-                    <span className="font-bold text-[#CCFF00] block mt-0.5">{service.title}</span>
-                  </div>
-                  <div>
-                    <span className="text-[9px] text-zinc-500 font-bold uppercase block">Amount Paid</span>
-                    <span className="font-mono font-black text-[#CCFF00] block mt-0.5">£{verifiedAmountGbp}.00 GBP</span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setJourneyStep(4)}
-                className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs sm:text-sm uppercase tracking-wider py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>Continue</span>
-                <ArrowRight className="w-4 h-4 text-black" />
-              </button>
-            </div>
-          )}
-
-          {/* ==================================================================== */}
-          {/* SCREEN 4 — SCHEDULING PENDING ("WE'LL CONTACT YOU TO SCHEDULE")      */}
-          {/* ==================================================================== */}
-          {journeyStep === 4 && (
-            <div className="space-y-5 animate-in fade-in duration-200">
-              <div className="text-center space-y-2">
-                <div className="w-14 h-14 bg-zinc-900 border border-zinc-700 rounded-2xl flex items-center justify-center text-[#CCFF00] mx-auto shadow-lg">
-                  <Calendar className="w-7 h-7" />
-                </div>
-                <h2 className="text-xl sm:text-2xl font-black uppercase text-white tracking-tight">
-                  We'll Contact You to Schedule
-                </h2>
-                <p className="text-xs text-zinc-400 max-w-md mx-auto leading-relaxed">
-                  Our team will contact you to schedule your class date & time based on coach availability and your time zone.
-                </p>
-              </div>
-
-              {/* What Happens Next Bullet List (Matching Reference Image) */}
-              <div className="bg-[#121214] border border-zinc-800 p-4 sm:p-5 rounded-xl space-y-3.5">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-center text-[#CCFF00] shrink-0 mt-0.5">
-                    <Mail className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-black text-white uppercase">Fast Contact Protocol</h4>
-                    <p className="text-[11px] text-zinc-400 mt-0.5">
-                      We'll be in touch within 24 hours (usually much sooner).
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 border-t border-zinc-800/80 pt-3">
-                  <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-center text-[#CCFF00] shrink-0 mt-0.5">
-                    <User className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-black text-white uppercase">Personal Coach Matching</h4>
-                    <p className="text-[11px] text-zinc-400 mt-0.5">
-                      We'll match you with the best coach for your specific fitness goals.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 border-t border-zinc-800/80 pt-3">
-                  <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-center text-[#CCFF00] shrink-0 mt-0.5">
-                    <Clock className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-black text-white uppercase">Direct Confirmation</h4>
-                    <p className="text-[11px] text-zinc-400 mt-0.5">
-                      We'll confirm your class date, time and joining details via email and/or WhatsApp.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 border-t border-zinc-800/80 pt-3">
-                  <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-center text-[#CCFF00] shrink-0 mt-0.5">
-                    <Globe className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-black text-white uppercase">Multi-Timezone Support</h4>
-                    <p className="text-[11px] text-zinc-400 mt-0.5">
-                      Our coaches work across different time zones, so we'll find a time that works for you.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Reference ID & Support Box */}
-              <div className="bg-zinc-900/60 border border-zinc-800 p-3.5 rounded-xl flex items-center justify-between text-xs">
+              {/* Card 1: Plan Selected & Amount */}
+              <div className="p-4 sm:p-6 rounded-2xl bg-[#0e1319] border border-zinc-800/90 shadow-xl flex items-center justify-between gap-3">
                 <div>
-                  <span className="text-[9px] text-zinc-500 font-bold uppercase block">Booking Reference</span>
-                  <span className="font-mono font-bold text-[#CCFF00]">{bookingId || 'BXSC47291'}</span>
+                  <span className="text-[10px] sm:text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+                    PLAN SELECTED
+                  </span>
+                  <span className="text-sm sm:text-lg lg:text-xl font-black text-white uppercase tracking-tight">
+                    {service.title.toUpperCase()}
+                  </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[9px] text-zinc-500 font-bold uppercase block">Need Help?</span>
-                  <a href="mailto:support@bxstrength.co.uk" className="text-white hover:text-[#CCFF00] font-bold text-[11px]">
-                    support@bxstrength.co.uk
-                  </a>
+                  <span className="text-[10px] sm:text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+                    AMOUNT
+                  </span>
+                  <span className="text-xl sm:text-2xl lg:text-3xl font-black text-[#CCFF00]">
+                    £{displayTotalPrice}
+                  </span>
                 </div>
               </div>
 
-              {/* Check Status Trigger */}
-              <button
-                type="button"
-                onClick={handleCheckBookingStatus}
-                disabled={isRefreshingStatus}
-                className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs sm:text-sm uppercase tracking-wider py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 text-black ${isRefreshingStatus ? 'animate-spin' : ''}`} />
-                <span>{isRefreshingStatus ? 'Checking Backend Status...' : 'Check Schedule Confirmation Status'}</span>
-              </button>
+              {/* Card 2: Health & Training Disclosures with custom checkboxes */}
+              <div className="p-4 sm:p-6 rounded-2xl bg-[#0e1319] border border-zinc-800/90 shadow-xl space-y-3.5 sm:space-y-4">
+                <h4 className="text-xs font-black uppercase tracking-wider text-white">
+                  HEALTH &amp; TRAINING DISCLOSURES
+                </h4>
+
+                <div className="space-y-3 sm:space-y-3.5">
+                  <label className="flex items-start gap-2.5 sm:gap-3 cursor-pointer select-none text-xs sm:text-sm text-zinc-300">
+                    <div className={`w-4 h-4 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
+                      healthConfirmed ? 'bg-[#CCFF00] text-black' : 'border border-zinc-700 bg-zinc-900'
+                    }`}>
+                      {healthConfirmed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={healthConfirmed}
+                      onChange={e => setHealthConfirmed(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <span className="leading-relaxed">
+                      I confirm that I am in suitable physical condition for exercise and have disclosed any relevant medical conditions or injuries.
+                    </span>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 sm:gap-3 cursor-pointer select-none text-xs sm:text-sm text-zinc-300">
+                    <div className={`w-4 h-4 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
+                      spaceConfirmed ? 'bg-[#CCFF00] text-black' : 'border border-zinc-700 bg-zinc-900'
+                    }`}>
+                      {spaceConfirmed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={spaceConfirmed}
+                      onChange={e => setSpaceConfirmed(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <span className="leading-relaxed">
+                      I confirm I have a safe, clear space (minimum 2m x 2m) with suitable footwear for home training.
+                    </span>
+                  </label>
+
+                  <div className="pt-3 sm:pt-3.5 border-t border-zinc-800/80">
+                    <label className="flex items-start gap-2.5 sm:gap-3 cursor-pointer select-none text-xs sm:text-sm text-zinc-300">
+                      <div className={`w-4 h-4 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
+                        termsAccepted ? 'bg-[#CCFF00] text-black' : 'border border-zinc-700 bg-zinc-900'
+                      }`}>
+                        {termsAccepted && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={termsAccepted}
+                        onChange={e => setTermsAccepted(e.target.checked)}
+                        className="sr-only"
+                      />
+                      <span className="leading-relaxed">
+                        I agree to the <strong className="text-white font-bold">BXStrength Terms &amp; Conditions</strong> and cancellation policy.
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Bar */}
+              <div className="flex flex-row items-center justify-between gap-2.5 sm:gap-3 pt-4 border-t border-zinc-800/80">
+                <button
+                  type="button"
+                  onClick={() => setMainStage(1)}
+                  className="px-4 sm:px-5 py-3 rounded-xl border border-zinc-800 hover:border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-300 flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-colors"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!termsAccepted || !healthConfirmed || !spaceConfirmed}
+                  onClick={continueToPayment}
+                  className="bg-[#CCFF00] hover:bg-[#b8e600] disabled:opacity-50 text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
+                >
+                  <span>NEXT: PROCEED TO PAYMENT</span>
+                  <ArrowRight className="w-4 h-4 stroke-[3]" />
+                </button>
+              </div>
             </div>
           )}
 
-          {/* ==================================================================== */}
-          {/* SCREEN 5 — BOOKING CONFIRMED (COACH & JOINING LINK UNLOCKED)          */}
-          {/* ==================================================================== */}
-          {journeyStep === 5 && (
-            <div className="space-y-5 animate-in fade-in duration-200">
-              <div className="text-center space-y-1">
-                <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-[#CCFF00] bg-zinc-900 border border-zinc-700 px-3 py-1 rounded-full mb-1">
-                  <CheckCircle2 className="w-4 h-4 text-[#CCFF00]" />
-                  <span>BOOKING CONFIRMED</span>
+          {/* =====================================================================
+              STEP 3: PAYMENT SECTION
+              Layout matching reference screenshot 1 with app brand colors:
+              - Left Column: Booking Summary with #CCFF00 icons, durations, prices,
+                Total Session Time, Total Price, Back button, #CCFF00 Edit button
+              - Right Column: Payment Method with Card / UPI / International Card,
+                card logos (VISA, Mastercard, AMEX, JCB, Apple Pay), Other options,
+                prominent #CCFF00 Pay button (black text), and encrypted padlock message
+             ===================================================================== */}
+          {mainStage === 3 && user && (
+            <div className="space-y-5 sm:space-y-6">
+              {/* Header inside Payment stage */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] sm:text-xs font-bold text-zinc-400 tracking-wider">
+                    Step 3 of 4 Payment
+                  </p>
+                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white mt-1">
+                    <span className="text-[#CCFF00]">BX</span> {service.title.replace(/^BX\s*/i, '')}
+                  </h2>
+                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-zinc-400 mt-0.5">
+                    COMPLETE YOUR BOOKING
+                  </p>
                 </div>
-                <h2 className="text-xl sm:text-2xl font-black uppercase text-white tracking-tight">
-                  Your Class is Scheduled!
-                </h2>
-                <p className="text-xs text-zinc-400 font-medium">
-                  Let's do this! Here are your session details:
+              </div>
+
+              {/* Responsive Column Layout: 1 col on mobile & tablet, 2 cols on desktop */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-stretch">
+
+                {/* Left Column: Booking Summary */}
+                <div className="flex h-full flex-col">
+                  <div className="flex flex-1 flex-col gap-3 sm:gap-4 rounded-2xl bg-[#0e1319] border border-zinc-800/90 p-4 sm:p-5 shadow-xl">
+                    <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
+                      <h4 className="text-xs sm:text-sm font-black text-white uppercase tracking-wide">
+                        Booking Summary
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => setMainStage(1)}
+                        className="text-xs font-bold text-[#CCFF00] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-[#CCFF00]" />
+                        <span>Edit</span>
+                      </button>
+                    </div>
+
+                    {/* Service Rows with Application Theme Lime Icons */}
+                    <div className="space-y-2.5 sm:space-y-3">
+                      {packageDetails.items.map((item, idx) => {
+                        const IconComp = item.icon;
+                        return (
+                          <div key={idx} className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                              <IconComp className="w-4 h-4 text-[#CCFF00] shrink-0" />
+                              <span className="font-bold text-white truncate">{item.name}</span>
+                            </div>
+                            <div className="flex items-center gap-3 sm:gap-4 shrink-0 ml-2">
+                              <span className="text-zinc-400 text-[10px] sm:text-[11px]">{item.duration}</span>
+                              <span className="font-bold text-white text-right w-10 sm:w-12">{item.price}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Summary Totals */}
+                    <div className="pt-3 border-t border-zinc-800/80 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 text-zinc-300">
+                          <Clock className="w-4 h-4 text-[#CCFF00] shrink-0" />
+                          <span>Total Session Time</span>
+                        </div>
+                        <span className="font-bold text-white">{packageDetails.totalDurationLabel}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs pt-1">
+                        <div className="flex items-center gap-2 text-zinc-300">
+                          <Coins className="w-4 h-4 text-[#CCFF00] shrink-0" />
+                          <span>Total Price</span>
+                        </div>
+                        <span className="text-xl sm:text-2xl font-black text-white">
+                          £{displayTotalPrice}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMainStage(2)}
+                      className="mt-auto pt-3 px-3.5 sm:px-4 py-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 hover:text-white text-zinc-300 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>Back</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right Column: Payment Method */}
+                <div className="flex h-full flex-col p-4 sm:p-5 rounded-2xl bg-[#0e1319] border border-zinc-800/90 shadow-xl space-y-4 sm:space-y-5">
+                  <h4 className="text-xs sm:text-sm font-black text-white uppercase tracking-wide">
+                    Payment Method
+                  </h4>
+
+                  {/* Option 1: Card / UPI / International Card (Selected) */}
+                  <div className="p-3.5 sm:p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-3">
+                    <div className="flex items-start gap-2.5 sm:gap-3">
+                      {/* Theme Lime radio button */}
+                      <div className="w-4 h-4 rounded-full border-2 border-[#CCFF00] flex items-center justify-center shrink-0 mt-0.5">
+                        <div className="w-2 h-2 rounded-full bg-[#CCFF00]" />
+                      </div>
+                      <div>
+                        <p className="text-xs sm:text-sm font-bold text-white">
+                          Card / UPI / International Card
+                        </p>
+                        <p className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5">
+                          Secure payment powered by Razorpay
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Payment Logos Pill Row - Responsive wrap */}
+                    <div className="flex items-center gap-1.5 sm:gap-2 pt-1 flex-wrap pl-0 sm:pl-7">
+                      {/* VISA */}
+                      <span className="inline-flex items-center justify-center px-2 py-0.5 rounded bg-white text-[#1a1f71] font-black text-[10px] tracking-tight border border-zinc-200 shadow-xs">
+                        VISA
+                      </span>
+
+                      {/* Mastercard */}
+                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-white border border-zinc-200 shadow-xs">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#eb001b]" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#f79e1b] -ml-1.5 opacity-90" />
+                      </span>
+
+                      {/* AMEX */}
+                      <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded bg-[#007bc1] text-white font-extrabold text-[9px] tracking-tight shadow-xs">
+                        AMEX
+                      </span>
+
+                      {/* JCB */}
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white border border-zinc-200 shadow-xs">
+                        <span className="w-1 h-2.5 rounded-xs bg-[#005a9c]" />
+                        <span className="w-1 h-2.5 rounded-xs bg-[#d9272e]" />
+                        <span className="w-1 h-2.5 rounded-xs bg-[#00873c]" />
+                        <span className="text-[9px] font-black text-zinc-900 ml-0.5">JCB</span>
+                      </span>
+
+                      {/* Apple Pay */}
+                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-black text-white text-[9px] font-bold border border-zinc-700 shadow-xs">
+                        <span></span>Pay
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                        type="button"
+                        disabled={isProcessing}
+                        onClick={() => void handleProceedToPayment()}
+                        className="w-full bg-[#CCFF00] hover:bg-[#b8e600] active:scale-[0.99] disabled:opacity-50 text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3.5 sm:py-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(204,255,0,0.3)]"
+                      >
+                        <span>{isProcessing ? 'Processing...' : `Pay £${displayTotalPrice}`}</span>
+                        <ArrowRight className="w-4 h-4 stroke-[3]" />
+                  </button>
+                  {canTestMockPayment && (
+                        <button
+                          type="button"
+                          disabled={isProcessing}
+                          onClick={() => void handleProceedToPayment(true)}
+                          className="w-full border border-amber-400/60 bg-amber-400/10 hover:bg-amber-400/20 disabled:opacity-50 text-amber-200 font-bold text-xs uppercase tracking-wider py-3 rounded-xl transition-colors"
+                        >
+                          Simulate successful payment (test only)
+                        </button>
+                  )}
+
+                  {/* Security indicator */}
+                  <div className="flex items-center justify-center gap-1.5 text-[10px] sm:text-[11px] text-zinc-400 text-center">
+                    <Lock className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                    <span>Your payment information is secure and encrypted.</span>
+                  </div>
+        </div>
+
+        {isSuccessAnimationVisible && (
+          <div
+            role="status"
+            aria-live="assertive"
+            aria-label="Payment successful. Opening your thank-you page."
+            className="absolute inset-0 z-[60] flex items-center justify-center rounded-2xl bg-black/60 p-4 text-center backdrop-blur-sm"
+          >
+            <div className="payment-success-alert flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl border border-[#CCFF00]/40 bg-[#101318] px-6 py-7 shadow-[0_20px_80px_rgba(0,0,0,0.65)]">
+              <div className="payment-success-overlay-icon relative flex h-20 w-20 items-center justify-center">
+                <div className="absolute inset-0 rounded-full border-2 border-[#CCFF00]/25 border-t-[#CCFF00] payment-success-spinner" />
+                {Array.from({ length: 16 }, (_, index) => (
+                  <span
+                    key={index}
+                    className="payment-success-firework-particle"
+                    style={{
+                      '--burst-angle': `${index * 22.5}deg`,
+                      '--burst-distance': `${42 + (index % 3) * 10}px`,
+                      '--burst-delay': `${(index % 4) * 25}ms`,
+                    } as React.CSSProperties}
+                  />
+                ))}
+                <div className="payment-success-overlay-check flex h-14 w-14 items-center justify-center rounded-full bg-[#CCFF00] text-black shadow-[0_0_35px_rgba(204,255,0,0.45)]">
+                  <Check className="h-8 w-8 stroke-[4]" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <h2 className="text-xl font-black text-white sm:text-2xl">Payment Successful</h2>
+                <p className="text-sm text-zinc-400">Taking you to your thank-you page…</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+              </div>
+            </div>
+          )}
+
+          {/* =====================================================================
+              STEP 4: CONFIRMED / COMPLETED SECTION
+              Pixel-accurate to reference screenshot Screenshot 2 & mandated text:
+              - Top: Green circle with checkmark & radiating celebratory burst rays
+              - "Thank You!"
+              - "Your booking request has been received."
+              - Receipt details card (Booking Reference, Services, Date, Time, Total Paid)
+              - Mandated text blocks:
+                "We’ll Contact You Soon"
+                "Thank you for booking with BXStrength. Our team will now confirm your session date and time and send you the final booking details, including the joining link and any required information, via email or WhatsApp."
+                "If you have any specific request, feel free to reply once you receive our confirmation message."
+              - Two horizontal buttons in one line:
+                Button 1: Home (redirects to dashboard)
+                Button 2: Contact Us (redirects to user dashboard create ticket section)
+              - Customer support email address at the end
+             ===================================================================== */}
+          {(mainStage === 4 || isPaymentSuccess) && (
+            <div className="max-w-2xl mx-auto text-center space-y-4 py-1">
+              {/* Celebratory radiating burst rays with lime checkmark circle */}
+              <div className="payment-success-badge relative w-[4.5rem] h-[4.5rem] sm:w-20 sm:h-20 mx-auto flex items-center justify-center">
+                <svg className="payment-success-rays absolute inset-0 w-full h-full text-[#CCFF00]" viewBox="0 0 100 100" fill="none">
+                  {/* Cardinal rays */}
+                  <line x1="50" y1="5" x2="50" y2="10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                  <line x1="50" y1="90" x2="50" y2="95" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                  <line x1="5" y1="50" x2="10" y2="50" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                  <line x1="90" y1="50" x2="95" y2="50" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                  {/* Diagonal rays */}
+                  <line x1="18" y1="18" x2="22" y2="22" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                  <line x1="78" y1="22" x2="82" y2="18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                  <line x1="18" y1="82" x2="22" y2="78" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                  <line x1="78" y1="78" x2="82" y2="82" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                </svg>
+                <div className="payment-success-mark w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#CCFF00] flex items-center justify-center text-black shadow-[0_0_30px_rgba(204,255,0,0.45)]">
+                  <Check className="w-8 h-8 sm:w-9 sm:h-9 stroke-[3.5] text-black" />
+                </div>
+              </div>
+
+              {/* Title & Subtitle */}
+              <div>
+                <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                  Thank You!
+                </h3>
+                <p className="text-zinc-400 text-xs sm:text-sm mt-1">
+                  Your booking request has been received.
                 </p>
               </div>
 
-              {/* Assigned Coach Profile Card */}
-              <div className="bg-[#121214] border border-zinc-800 p-4 rounded-xl flex items-center gap-3.5">
-                <img
-                  src={confirmedCoachAvatar}
-                  alt={confirmedCoachName}
-                  className="w-14 h-14 rounded-full object-cover border-2 border-[#CCFF00] shrink-0"
-                />
-                <div className="min-w-0 flex-1">
-                  <span className="text-[9px] font-black uppercase text-[#CCFF00] tracking-wider block">Assigned Coach</span>
-                  <h3 className="text-sm font-black text-white uppercase truncate">{confirmedCoachName}</h3>
-                  <p className="text-[11px] text-zinc-400 truncate">{confirmedCoachTitle}</p>
+              {/* Receipt Summary Card */}
+              <div className="p-3 sm:p-4 rounded-2xl bg-[#0e1319] border border-zinc-800 text-left text-xs space-y-2 shadow-xl">
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
+                  <div className="flex items-center gap-2 text-zinc-400">
+                    <UserIcon className="w-4 h-4 text-zinc-400 shrink-0" />
+                    <span>Booking Reference</span>
+                  </div>
+                  <span className="font-black text-white text-xs sm:text-sm">
+                    {confirmedOrderId || 'BX726458'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
+                  <div className="flex items-center gap-2 text-zinc-400">
+                    <Award className="w-4 h-4 text-zinc-400 shrink-0" />
+                    <span>Services</span>
+                  </div>
+                  <span className="font-bold text-white text-xs">
+                    {packageDetails.servicesCount} services ({packageDetails.totalDurationLabel})
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
+                  <div className="flex items-center gap-2 text-zinc-400">
+                    <Calendar className="w-4 h-4 text-zinc-400 shrink-0" />
+                    <span>Date</span>
+                  </div>
+                  <span className="font-bold text-white text-xs">{bookingDate}</span>
+                </div>
+
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
+                  <div className="flex items-center gap-2 text-zinc-400">
+                    <Clock className="w-4 h-4 text-zinc-400 shrink-0" />
+                    <span>Time (Your Local Time)</span>
+                  </div>
+                  <span className="font-bold text-white text-xs">10:00 (Your Local Time)</span>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center gap-2 text-zinc-400">
+                    <Coins className="w-4 h-4 text-zinc-400 shrink-0" />
+                    <span>Total Paid</span>
+                  </div>
+                  <span className="text-base sm:text-lg font-black text-white">
+                    £{displayTotalPrice}
+                  </span>
                 </div>
               </div>
 
-              {/* Session Grid Details (Matching Reference Image) */}
-              <div className="bg-[#121214] border border-zinc-800 p-4 rounded-xl space-y-3">
-                <div className="grid grid-cols-2 gap-3 text-xs border-b border-zinc-800 pb-3">
-                  <div>
-                    <span className="text-[9px] text-zinc-500 font-bold uppercase block flex items-center gap-1">
-                      <Calendar className="w-3 h-3 text-[#CCFF00]" /> Date
-                    </span>
-                    <span className="font-bold text-white block mt-0.5">{confirmedScheduledDate}</span>
-                  </div>
-                  <div>
-                    <span className="text-[9px] text-zinc-500 font-bold uppercase block flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-[#CCFF00]" /> Time
-                    </span>
-                    <span className="font-bold text-[#CCFF00] block mt-0.5">{confirmedScheduledTime}</span>
-                  </div>
-                </div>
+              {/* Mandated User Copy Box */}
+              <div className="p-3 sm:p-4 rounded-2xl bg-zinc-900/70 border border-zinc-800 text-left space-y-2">
+                <h4 className="text-xs sm:text-sm font-black text-white uppercase tracking-wider text-center text-[#CCFF00]">
+                  We’ll Contact You Soon
+                </h4>
+                <p className="text-xs text-zinc-300 leading-relaxed text-center sm:text-left">
+                  Thank you for booking with BXStrength. Our team will now confirm your session date and time and send you the final booking details, including the joining link and any required information, via email or WhatsApp.
+                </p>
+                <p className="text-[10px] sm:text-[11px] text-zinc-400 leading-relaxed text-center sm:text-left pt-1 border-t border-zinc-800/80">
+                  If you have any specific request, feel free to reply once you receive our confirmation message.
+                </p>
+              </div>
 
-                <div className="space-y-1.5">
-                  <span className="text-[9px] text-zinc-500 font-bold uppercase block flex items-center gap-1">
-                    <Video className="w-3 h-3 text-[#CCFF00]" /> Join Link
-                  </span>
+              <button
+                type="button"
+                onClick={handleRedirectHome}
+                className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3 px-3 sm:px-4 rounded-xl flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md transition-all active:scale-[0.98]"
+              >
+                <span>Go to Dashboard</span>
+                <ArrowRight className="w-3.5 sm:w-4 h-3.5 sm:h-4 stroke-[3]" />
+              </button>
+
+              {/* Customer Support Email Address */}
+              <div className="pt-1 text-center">
+                <p className="text-xs text-zinc-400 flex items-center justify-center gap-1.5 flex-wrap">
+                  <Mail className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                  <span>Customer Support:</span>
                   <a
-                    href={confirmedJoinUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-mono text-[#CCFF00] underline hover:text-white truncate block bg-zinc-900 p-2 rounded border border-zinc-800"
+                    href="mailto:support@bxstrength.com"
+                    className="font-bold text-[#CCFF00] hover:underline"
                   >
-                    {confirmedJoinUrl}
+                    support@bxstrength.com
                   </a>
-                </div>
-
-                <div className="flex items-center justify-between text-xs pt-1">
-                  <span className="text-[9px] text-zinc-500 font-bold uppercase">Booking ID: <span className="text-white font-mono">{bookingId || 'BXSC47291'}</span></span>
-                  <span className="text-[10px] text-emerald-400 font-bold uppercase flex items-center gap-1">
-                    <Check className="w-3 h-3" /> Status: Confirmed
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3 bg-emerald-950/40 border border-emerald-800 text-emerald-300 text-xs font-bold rounded-xl flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Confirmation details have been sent to your email.</span>
-              </div>
-
-              {/* THREE MANDATORY PRIMARY ACTIONS (MATCHING SPECIFICATION) */}
-              <div className="space-y-2 pt-1">
-                {/* 1. Add to Calendar */}
-                <button
-                  type="button"
-                  onClick={handleAddToCalendar}
-                  className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Calendar className="w-4 h-4 text-black" />
-                  <span>Add to Calendar</span>
-                </button>
-
-                {/* 2. View Booking */}
-                <button
-                  type="button"
-                  onClick={() => alert(`Booking Details:\nID: ${bookingId}\nCoach: ${confirmedCoachName}\nDate: ${confirmedScheduledDate}\nTime: ${confirmedScheduledTime}`)}
-                  className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white font-black text-xs sm:text-sm uppercase tracking-wider py-3 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Eye className="w-4 h-4 text-[#CCFF00]" />
-                  <span>View Booking</span>
-                </button>
-
-                {/* 3. Manage My Booking */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onNavigateToDashboard();
-                  }}
-                  className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white font-black text-xs sm:text-sm uppercase tracking-wider py-3 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <User className="w-4 h-4 text-[#CCFF00]" />
-                  <span>Manage My Bookings</span>
-                </button>
+                </p>
               </div>
             </div>
           )}

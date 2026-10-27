@@ -61,6 +61,7 @@ function AppContent() {
   const [searchModalOpen, setSearchModalOpen] = useState<boolean>(false);
   const [isChatbotOpen, setIsChatbotOpen] = useState<boolean>(false);
   const [serviceCustomizationModalOpen, setServiceCustomizationModalOpen] = useState<boolean>(false);
+  const [serviceModalSuspended, setServiceModalSuspended] = useState<boolean>(false);
   const [selectedServiceForCustomization, setSelectedServiceForCustomization] = useState<any>(null);
   
   const showToast = (msg: string) => {
@@ -116,6 +117,11 @@ function AppContent() {
   };
 
   const handleAuthSuccessNavigate = (role: UserRole) => {
+    if (serviceCustomizationModalOpen) {
+      setServiceModalSuspended(false);
+      showToast('You are signed in. Continue with your service checkout.');
+      return;
+    }
     if (pendingBooking) {
       const run = pendingBooking;
       setPendingBooking(null);
@@ -357,7 +363,10 @@ function AppContent() {
       {/* Auth Modals */}
       <LoginModal
         isOpen={loginModalOpen}
-        onClose={() => setLoginModalOpen(false)}
+        onClose={() => {
+          setLoginModalOpen(false);
+          setServiceModalSuspended(false);
+        }}
         onOpenRegister={() => {
           setLoginModalOpen(false);
           setRegisterModalOpen(true);
@@ -376,7 +385,10 @@ function AppContent() {
 
       <RegisterModal
         isOpen={registerModalOpen}
-        onClose={() => setRegisterModalOpen(false)}
+        onClose={() => {
+          setRegisterModalOpen(false);
+          setServiceModalSuspended(false);
+        }}
         onOpenLogin={() => {
           setRegisterModalOpen(false);
           setLoginModalOpen(true);
@@ -392,7 +404,10 @@ function AppContent() {
       <OtpVerificationModal
         isOpen={otpModalOpen}
         email={otpEmail}
-        onClose={() => setOtpModalOpen(false)}
+        onClose={() => {
+          setOtpModalOpen(false);
+          setServiceModalSuspended(false);
+        }}
         onOpenLogin={() => {
           setOtpModalOpen(false);
           setLoginModalOpen(true);
@@ -402,7 +417,10 @@ function AppContent() {
 
       <ForgotPasswordModal
         isOpen={forgotPassModalOpen}
-        onClose={() => setForgotPassModalOpen(false)}
+        onClose={() => {
+          setForgotPassModalOpen(false);
+          setServiceModalSuspended(false);
+        }}
         onOpenLogin={() => {
           setForgotPassModalOpen(false);
           setLoginModalOpen(true);
@@ -411,9 +429,18 @@ function AppContent() {
 
       <ServiceCustomizationModal
         isOpen={serviceCustomizationModalOpen}
-        onClose={() => setServiceCustomizationModalOpen(false)}
+        suspended={serviceModalSuspended}
+        onClose={() => {
+          setServiceCustomizationModalOpen(false);
+          setServiceModalSuspended(false);
+        }}
         service={selectedServiceForCustomization}
         onNavigateToDashboard={() => setCurrentPage('dashboard')}
+        onRequireLogin={() => {
+          setServiceModalSuspended(true);
+          setRegisterModalOpen(false);
+          setLoginModalOpen(true);
+        }}
       />
 
       {/* Floating Action Suite: AI Chatbot, WhatsApp, Email, Go-To-Top */}

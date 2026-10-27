@@ -40,14 +40,6 @@ guard.get(['/trainers', '/classes', '/reviews', '/announcements'], open);
 
 guard.post(['/assessments', '/consultations', '/enquiries', '/reviews', '/tickets', '/send-email'], open);
 
-guard.post([
-  '/create-cashfree-order', '/create-cashfree-checkout-session',
-  '/create-order', '/create-razorpay-order', '/payments/create-intent',
-  '/verify-payment', '/verify-razorpay-payment', '/payments/verify',
-  '/journey/initiate', '/journey/create-checkout-intent', '/journey/verify-payment'
-], open);
-guard.get(['/journey/booking/:id', '/journey/latest-by-email/:email'], open);
-
 guard.post(['/webhooks/razorpay', '/webhooks/cashfree', '/payments/cashfree-webhook'], open);
 
 guard.use((req: Request, res: Response, next: NextFunction) => {

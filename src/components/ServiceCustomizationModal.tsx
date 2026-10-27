@@ -557,9 +557,11 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
            ========================================================================= */}
         <div className="px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between border-b border-zinc-800/80 shrink-0">
           <div className="flex items-center gap-2.5 sm:gap-3">
-            <span className="text-base sm:text-lg font-black tracking-tight">
-              <span className="text-white">BX</span> <span className="text-[#CCFF00]">STRENGTH</span>
-            </span>
+            <img
+              src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1789566029/WhatsApp_Image_2026-09-08_at_10.50.41_AM.png"
+              alt="BX Strength"
+              className="h-9 sm:h-10 w-auto max-w-[185px] object-contain"
+            />
             <span className="hidden sm:inline-block text-[11px] font-bold uppercase tracking-wider text-zinc-400 border-l border-zinc-800 pl-3">
               UK LIVE COACHING AT HOME
             </span>

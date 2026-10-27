@@ -13,7 +13,7 @@ export const Hero: React.FC<HeroProps> = () => {
   return (
     <section
       id="main-content"
-      className="relative w-full h-[420px] sm:h-[540px] md:h-[640px] lg:h-[720px] bg-black overflow-hidden border-b border-zinc-800/80 font-sans select-none flex items-center justify-center shrink-0"
+      className="relative w-full min-h-[420px] h-[83svh] bg-black overflow-hidden border-b border-zinc-800/80 font-sans select-none flex items-center justify-center shrink-0"
     >
       {/* Hidden H1 for SEO & Screen Reader Accessibility */}
       <h1 className="sr-only">

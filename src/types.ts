@@ -341,6 +341,7 @@ export interface Enquiry {
   name: string;
   email: string;
   phone?: string;
+  preferredContactMethod?: 'whatsapp' | 'email' | 'call';
   subject: string;
   message: string;
   category?: string;
@@ -529,6 +530,7 @@ export interface SelfAssessmentData {
   name: string;
   email: string;
   phone: string;
+  preferredContactMethod: 'whatsapp' | 'email' | 'call' | '';
   submittedAt: string;
 }
 

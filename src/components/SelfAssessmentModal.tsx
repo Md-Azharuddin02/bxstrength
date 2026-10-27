@@ -5,6 +5,7 @@ import { VelocityAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { isValidUkMobile, UK_PHONE_ERROR_MSG } from '../utils/phoneValidation';
 import { PhoneInput } from './PhoneInput';
+import { apiFetch, getApiUrl } from '../services/core/http';
 
 interface SelfAssessmentModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
     name: user?.name || '',
     email: user?.email || '',
     phone: user?.phone || '',
+    preferredContactMethod: '',
     submittedAt: '',
   });
 
@@ -49,6 +51,8 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
   }, [user, isOpen]);
 
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   if (!isOpen) return null;
 
@@ -90,49 +94,60 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.phone && !isValidUkMobile(formData.phone)) {
       alert(UK_PHONE_ERROR_MSG);
       return;
     }
-    const finalAssessment = {
-      ...formData,
-      submittedAt: new Date().toISOString(),
-    };
+    setIsSubmitting(true);
+    setSubmitError('');
 
-    // Store in Local Enquiries & DB
     try {
-      VelocityAPI.createEnquiry({
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        subject: `Diagnostic Assessment: ${formData.goal}`,
-        message: `[SELF ASSESSMENT DIAGNOSTIC]\n1. Main Goal: ${formData.goal}\n2. Fitness Level: ${formData.fitnessLevel || 'N/A'}\n3. Training Days/Wk: ${formData.trainingDays || 'N/A'}\n4. Training Location: ${formData.trainingLocation || 'N/A'}\n5. Equipment: ${formData.equipment || 'N/A'}\n6. Injury/Medical Restriction: ${formData.hasInjury || 'N/A'}`
+      const response = await apiFetch(getApiUrl('/api/assessments'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          preferredContactMethod: formData.preferredContactMethod,
+          primaryGoal: formData.goal,
+          mainObstacle: formData.obstacle,
+          experienceLevel: formData.fitnessLevel,
+          weeklyCommitment: formData.trainingDays,
+          trainingLocation: formData.trainingLocation,
+          equipment: formData.equipment,
+          trainingInterest: formData.trainingInterest,
+          hasInjury: formData.hasInjury,
+        }),
       });
-    } catch (err) {
-      console.error('Diagnostic enquiry save error:', err);
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || 'Could not save your assessment. Please try again.');
+      }
+
+      const finalAssessment = { ...formData, submittedAt: new Date().toISOString() };
+      try {
+        VelocityAPI.createEnquiry({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          preferredContactMethod: formData.preferredContactMethod || undefined,
+          subject: `Diagnostic Assessment: ${formData.goal}`,
+          message: `[SELF ASSESSMENT DIAGNOSTIC]\n1. Main Goal: ${formData.goal}\n2. Fitness Level: ${formData.fitnessLevel || 'N/A'}\n3. Training Days/Wk: ${formData.trainingDays || 'N/A'}\n4. Training Location: ${formData.trainingLocation || 'N/A'}\n5. Equipment: ${formData.equipment || 'N/A'}\n6. Injury/Medical Restriction: ${formData.hasInjury || 'N/A'}\n7. Preferred Contact Method: ${formData.preferredContactMethod}`,
+        });
+      } catch (error) {
+        console.error('Diagnostic enquiry local sync error:', error);
+      }
+      setFormData(finalAssessment);
+      setIsCompleted(true);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Could not save your assessment. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // POST to backend API server
-    fetch('/api/assessments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        primaryGoal: formData.goal,
-        fitnessLevel: formData.fitnessLevel,
-        trainingDays: formData.trainingDays,
-        trainingLocation: formData.trainingLocation,
-        equipment: formData.equipment,
-        trainingInterest: formData.trainingInterest,
-        hasInjury: formData.hasInjury
-      })
-    }).catch(err => console.error('Failed to sync assessment with server:', err.message));
-
-    setIsCompleted(true);
   };
 
   const handleFinalBooking = () => {
@@ -490,15 +505,45 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                           required
                         />
                     </div>
+
+                    <fieldset className="space-y-2">
+                      <legend className="block text-xs font-bold uppercase tracking-wider text-zinc-300">
+                        Preferred Mode of Contact <span className="text-[#CCFF00]">*</span>
+                      </legend>
+                      <div className="flex flex-wrap gap-3 sm:gap-5">
+                        {[
+                          { value: 'whatsapp', label: 'WhatsApp' },
+                          { value: 'email', label: 'Email' },
+                          { value: 'call', label: 'Call' },
+                        ].map((method) => (
+                          <label key={method.value} className="inline-flex items-center gap-2 text-sm text-zinc-200 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="preferredContactMethod"
+                              value={method.value}
+                              checked={formData.preferredContactMethod === method.value}
+                              onChange={() => setFormData({ ...formData, preferredContactMethod: method.value as 'whatsapp' | 'email' | 'call' })}
+                              required
+                              className="h-4 w-4 accent-[#CCFF00]"
+                            />
+                            {method.label}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
                   </div>
 
                   <div className="pt-2">
+                    {submitError && (
+                      <p role="alert" className="mb-3 text-sm text-red-400">{submitError}</p>
+                    )}
                     <button
                       type="submit"
-                      className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs tracking-widest uppercase py-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-xl cursor-pointer active:scale-[0.99]"
+                      disabled={isSubmitting}
+                      className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs tracking-widest uppercase py-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-xl cursor-pointer active:scale-[0.99] disabled:opacity-60 disabled:cursor-wait"
                     >
                       <Activity className="w-4 h-4" />
-                      <span>SUBMIT &amp; VIEW DIAGNOSTIC RESULT</span>
+                      <span>{isSubmitting ? 'SAVING YOUR ASSESSMENT…' : 'SUBMIT & VIEW DIAGNOSTIC RESULT'}</span>
                     </button>
                   </div>
                 </form>
@@ -544,6 +589,10 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                 <div>
                   <span className="text-[10px] text-zinc-500 font-bold uppercase block">Equipment</span>
                   <span className="font-bold text-white truncate block">{formData.equipment || 'None'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-zinc-500 font-bold uppercase block">Contact Method</span>
+                  <span className="font-bold text-white truncate block capitalize">{formData.preferredContactMethod === 'whatsapp' ? 'WhatsApp' : formData.preferredContactMethod || 'Not selected'}</span>
                 </div>
                 <div className="col-span-2">
                   <span className="text-[10px] text-zinc-500 font-bold uppercase block">Injury / Medical</span>

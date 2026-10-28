@@ -306,7 +306,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             </div>
             <div>
               <h1 className="text-sm sm:text-base font-black uppercase tracking-wider text-white leading-tight">
-                FREE CONSULTATION &amp; SLOT BOOKING
+                
+                15-MIN FREE DEMO SESSION
               </h1>
               <p className="text-[11px] text-zinc-400 font-medium hidden sm:block">
                 Select your exercise protocol, session duration &amp; 1-hour buffer time slot
@@ -402,9 +403,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
                   Schedule Your Strategy &amp; Assessment Session
                 </h2>
-                <p className="text-xs text-zinc-400 max-w-xl">
-                  Choose your primary goal from our 15 specialized training protocols, customize your session duration, and select your slot.
-                </p>
               </div>
 
               <div className="flex items-center gap-3 shrink-0 bg-zinc-900/90 p-3 rounded-2xl border border-zinc-800">
@@ -477,7 +475,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             </section>
 
             {/* Section 2: Primary Goal Selection (15 Services) */}
-            <section className="bg-[#121214] p-6 sm:p-8 rounded-3xl border border-zinc-800/80 space-y-6 shadow-xl">
+            {/* <section className="bg-[#121214] p-6 sm:p-8 rounded-3xl border border-zinc-800/80 space-y-6 shadow-xl">
               <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-7 h-7 rounded-lg bg-zinc-800 text-[#CCFF00] flex items-center justify-center font-bold text-xs">
@@ -525,7 +523,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   </div>
                 </div>
               )}
-            </section>
+            </section> */}
+
+            <div>
+              Add box for the user input
+            </div>
 
 
             {/* Submission CTA Bar */}

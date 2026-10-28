@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dumbbell, Flame, Target, ShieldCheck, Clock, Calendar, ArrowRight, Sparkles, Wind, MessageSquare, Activity, UserCheck, Star, Check, Move } from 'lucide-react';
+import { Dumbbell, Flame, Target, ShieldCheck, Clock, Calendar, ArrowRight, Sparkles, Wind, MessageSquare, Activity, UserCheck, Star, Check, Move, Zap } from 'lucide-react';
 import type { ServiceItem } from './types';
 
 interface SectionProps {
@@ -24,48 +24,92 @@ export const CommitAndSaveSection: React.FC<SectionProps> = ({ symbol, onChoose 
           {/* 2 Cards Grid */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 items-stretch">
 
-            {/* Card 1: BX WEEKLY FLEX */}
-            <div style={{ animationDelay: '540ms' }} className="service-card-enter service-card-hover bg-[#121215] border border-zinc-800 rounded-2xl p-5 sm:p-6 lg:p-7 flex flex-col justify-between transition-all duration-300 hover:border-zinc-700 hover:-translate-y-1 shadow-lg">
-              <div>
-                <h3 className="text-xl sm:text-2xl font-black uppercase tracking-wide text-white">
-                  BX WEEKLY FLEX
-                </h3>
-                <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-zinc-400 mt-1 mb-4 sm:mb-6">
-                  SHORT COMMITMENT. REAL PROGRESS.
-                </p>
-
-                {/* Price */}
-                <div className="mb-5 sm:mb-6 pb-5 sm:pb-6 border-b border-zinc-800/80">
-                  <span className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-none">
-                    {symbol}110
+            {/* Card 1: BX WEEKLY FLEX - Enhanced Attractive Design */}
+            <div style={{ animationDelay: '540ms' }} className="service-card-enter service-card-hover relative bg-gradient-to-b from-[#181822] via-[#121217] to-[#0e0f13] border border-zinc-700/80 hover:border-[#CCFF00]/60 rounded-2xl p-5 sm:p-6 lg:p-7 flex flex-col justify-between transition-all duration-300 hover:shadow-[0_0_35px_-10px_rgba(204,255,0,0.22)] hover:-translate-y-1 shadow-xl group">
+              <div className="flex flex-col flex-1">
+                {/* Top Badge */}
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <span className="inline-flex items-center gap-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-zinc-900/90 border border-zinc-700/80 text-zinc-300">
+                    <Zap className="w-3 h-3 text-[#CCFF00]" />
+                    STARTER MOMENTUM
+                  </span>
+                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                    3 SESSIONS PACK
                   </span>
                 </div>
 
-                {/* Internal Layout */}
+                <h3 className="text-xl sm:text-2xl font-black uppercase tracking-wide text-white">
+                  BX WEEKLY FLEX
+                </h3>
+                <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-zinc-400 mt-1 mb-4 sm:mb-5">
+                  SHORT COMMITMENT. REAL PROGRESS.
+                </p>
+
+                {/* Price - Amount and session inline with best alignment */}
+                <div className="mb-5 sm:mb-6 pb-4 sm:pb-5 border-b border-zinc-800/80 flex items-center justify-between gap-3">
+                  <div className="flex items-baseline gap-2.5">
+                    <span className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-none tracking-tight">
+                      {symbol}110
+                    </span>
+                    <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-zinc-400">
+                      / 3 Sessions
+                    </span>
+                  </div>
+                  <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-[#CCFF00] shadow-sm shrink-0">
+                    ~{symbol}{Math.round(110 / 3)} / SESSION
+                  </span>
+                </div>
+
+                {/* 2-column plan details & description matching target layout */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 items-start mb-6">
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2.5 text-xs font-medium text-zinc-200">
-                      <Calendar className="w-4 h-4 text-[#CCFF00] shrink-0" />
+                    <div className="flex items-center gap-3 text-xs font-semibold text-zinc-200">
+                      <div className="w-7 h-7 rounded-lg bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center shrink-0">
+                        <Calendar className="w-3.5 h-3.5 text-[#CCFF00]" />
+                      </div>
                       <span>3 Sessions</span>
                     </div>
-                    <div className="flex items-center gap-2.5 text-xs font-medium text-zinc-200">
-                      <Clock className="w-4 h-4 text-[#CCFF00] shrink-0" />
+                    <div className="flex items-center gap-3 text-xs font-semibold text-zinc-200">
+                      <div className="w-7 h-7 rounded-lg bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center shrink-0">
+                        <Clock className="w-3.5 h-3.5 text-[#CCFF00]" />
+                      </div>
                       <span>30 Minutes Each</span>
                     </div>
-                    <div className="flex items-center gap-2.5 text-xs font-medium text-zinc-200">
-                      <Calendar className="w-4 h-4 text-[#CCFF00] shrink-0" />
+                    <div className="flex items-center gap-3 text-xs font-semibold text-zinc-200">
+                      <div className="w-7 h-7 rounded-lg bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center shrink-0">
+                        <Calendar className="w-3.5 h-3.5 text-[#CCFF00]" />
+                      </div>
                       <span>10-Day Validity</span>
                     </div>
                   </div>
 
-                  <div className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                  <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
                     Stay consistent without committing to a full month. Choose your training focus across three flexible BXStrength sessions.
+                  </p>
+                </div>
+
+                {/* Inclusions panel matching Monthly Flex - moved lower down flush above policy strip */}
+                <div className="mt-auto mb-4 rounded-xl border border-[#CCFF00]/50 bg-gradient-to-r from-[#CCFF00]/[0.10] via-[#CCFF00]/[0.05] to-transparent px-3.5 py-3 sm:px-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="w-7 h-7 rounded-lg bg-[#CCFF00]/15 border border-[#CCFF00]/30 flex items-center justify-center shrink-0 mt-0.5">
+                      <ShieldCheck className="h-4 w-4 text-[#CCFF00]" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-[#CCFF00]">
+                        Included in Every Session
+                      </p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm font-bold text-white">
+                        <span>Guided Warm-Up</span>
+                        <span className="text-[#CCFF00] font-black" aria-hidden="true">+</span>
+                        <span>Selected Service</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
               </div>
 
-              <div className="mt-5 mb-2">
+              <div className="mt-2 mb-2">
                 {/* Policy strip - Responsive badge items */}
                 <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-3 text-center mb-3">
                   <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[11px] sm:text-xs font-bold text-zinc-200 tracking-wide">
@@ -88,7 +132,7 @@ export const CommitAndSaveSection: React.FC<SectionProps> = ({ symbol, onChoose 
                     price: 110,
                     totalSessions: '3 Sessions',
                     validity: '10-Day Validity',
-                    description: 'Choose your training focus for each session. Flexible choice, short commitment, real progress.',
+                    description: 'Guided Warm-Up included in every session. Choose your training focus for each session. Flexible choice, short commitment, real progress.',
                     ctaLabel: 'CHOOSE WEEKLY'
                   })}
                   className="group w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase tracking-wider py-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] shadow-md"
@@ -101,12 +145,17 @@ export const CommitAndSaveSection: React.FC<SectionProps> = ({ symbol, onChoose 
 
             {/* Card 2: BX MONTHLY FLEX (Featured Card) */}
             <div style={{ animationDelay: '630ms, 650ms' }} className="service-card-enter service-card-hover service-monthly-feature relative bg-gradient-to-b from-[#18181f] to-[#101013] border-2 border-[#CCFF00]/80 rounded-2xl p-5 sm:p-6 lg:p-7 flex flex-col justify-between transition-all duration-300 hover:border-[#CCFF00] hover:-translate-y-1 shadow-[0_0_40px_-10px_rgba(204,255,0,0.3)]">
-              <div>
-                {/* Top Badges */}
-                <div className="flex flex-wrap items-center justify-start gap-2 mb-3">
-                  <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest px-3 py-1 rounded bg-[#CCFF00] text-black shadow-sm">
-                    BEST VALUE
-                  </span>
+              {/* Floating BEST VALUE badge: square with animation, half outside and half inside from the right top */}
+              <div className="absolute -top-3.5 right-6 sm:right-8 z-20 pointer-events-none">
+                <span className="best-value-badge-anim inline-flex items-center gap-1.5 text-[10px] sm:text-xs font-black uppercase tracking-widest px-3 py-1 rounded-none bg-[#CCFF00] text-black border-2 border-[#101013]">
+                  <Sparkles className="w-3 h-3 text-black fill-black" />
+                  BEST VALUE
+                </span>
+              </div>
+
+              <div className="flex flex-col flex-1">
+                {/* Top Badge */}
+                <div className="flex items-center justify-start gap-2 mb-3">
                   <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-zinc-900 border border-zinc-700 text-zinc-300">
                     INTRODUCTORY LAUNCH OFFER
                   </span>
@@ -165,7 +214,7 @@ export const CommitAndSaveSection: React.FC<SectionProps> = ({ symbol, onChoose 
                 </p>
 
                 {/* Inclusions and grace period grouped into one highlighted panel */}
-                <div className="mb-5 rounded-xl border border-[#CCFF00]/50 bg-[#CCFF00]/[0.07] px-3.5 py-3 sm:px-4">
+                <div className="mt-auto mb-5 rounded-xl border border-[#CCFF00]/50 bg-[#CCFF00]/[0.07] px-3.5 py-3 sm:px-4">
                   <div className="flex items-start gap-3">
                     <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#CCFF00]" />
                     <div className="min-w-0">

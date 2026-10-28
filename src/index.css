@@ -214,6 +214,21 @@
   animation: payment-success-pulse 1.8s ease-in-out infinite;
 }
 
+@keyframes best-value-pulse {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    box-shadow: 0 0 12px rgba(204, 255, 0, 0.4), 0 0 24px rgba(204, 255, 0, 0.2);
+  }
+  50% {
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 0 22px rgba(204, 255, 0, 0.85), 0 0 38px rgba(204, 255, 0, 0.5);
+  }
+}
+
+.best-value-badge-anim {
+  animation: best-value-pulse 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .service-card-enter,
   .service-monthly-feature.service-card-enter,
@@ -224,7 +239,8 @@
   .payment-success-firework-particle,
   .payment-success-overlay-check,
   .payment-success-rays,
-  .payment-success-mark {
+  .payment-success-mark,
+  .best-value-badge-anim {
     animation: none !important;
   }
 }

@@ -22,7 +22,13 @@ import {
   Award,
   User as UserIcon,
   Flower2,
-  Mail
+  Mail,
+  Plus,
+  Minus,
+  Lightbulb,
+  Video,
+  Phone,
+  Zap
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { VelocityAPI } from '../services/api';
@@ -33,22 +39,104 @@ import { canUseMockPayments } from '../services/mockPayment';
 export interface CustomTrainingElement {
   id: string;
   name: string;
+  description: string;
   price: number;
-  duration: string;
+  durationMin: number;
+  durationLabel: string;
   icon: React.ElementType;
 }
 
 const CUSTOM_ELEMENTS: CustomTrainingElement[] = [
-  { id: 'strength', name: 'Strength Training', price: 25, duration: '15 minutes', icon: Dumbbell },
-  { id: 'functional', name: 'Functional Training', price: 25, duration: '15 minutes', icon: Target },
-  { id: 'boxing', name: 'Fitness Boxing', price: 30, duration: '15 minutes', icon: Flame },
-  { id: 'mobility', name: 'Mobility', price: 20, duration: '15 minutes', icon: Activity },
-  { id: 'flexibility', name: 'Flexibility', price: 20, duration: '10-15 minutes', icon: UserCheck },
-  { id: 'guided-warmup', name: 'Guided Warm-Up', price: 12, duration: '10-15 minutes', icon: Target },
-  { id: 'personalised-warmup', name: 'Personalised Warm-Up', price: 15, duration: '10-15 minutes', icon: Flame },
-  { id: 'cooldown', name: 'Cool-Down & Recovery', price: 15, duration: '10-15 minutes', icon: ShieldCheck },
-  { id: 'yoga', name: 'Guided Yoga', price: 25, duration: '15-30 minutes', icon: Flower2 },
-  { id: 'wellness', name: 'Wellness Support', price: 25, duration: '15-30 minutes', icon: MessageSquare }
+  {
+    id: 'strength',
+    name: 'Strength Training',
+    description: 'Build strength, improve endurance and move better.',
+    price: 25,
+    durationMin: 15,
+    durationLabel: '15 min',
+    icon: Dumbbell
+  },
+  {
+    id: 'functional',
+    name: 'Functional Training',
+    description: 'Improve overall fitness with real-world movements.',
+    price: 25,
+    durationMin: 15,
+    durationLabel: '15 min',
+    icon: Target
+  },
+  {
+    id: 'boxing',
+    name: 'Fitness Boxing',
+    description: 'Develop fitness, coordination and boxing skills.',
+    price: 30,
+    durationMin: 15,
+    durationLabel: '15 min',
+    icon: Flame
+  },
+  {
+    id: 'mobility',
+    name: 'Mobility',
+    description: 'Improve movement, reduce stiffness and prevent injury.',
+    price: 20,
+    durationMin: 15,
+    durationLabel: '15 min',
+    icon: Activity
+  },
+  {
+    id: 'flexibility',
+    name: 'Flexibility',
+    description: 'Increase flexibility and support better movement.',
+    price: 20,
+    durationMin: 15,
+    durationLabel: '15 min',
+    icon: UserCheck
+  },
+  {
+    id: 'guided-warmup',
+    name: 'Guided Warm-Up',
+    description: 'Get ready for your session with a structured warm-up.',
+    price: 12,
+    durationMin: 10,
+    durationLabel: '10 min',
+    icon: Target
+  },
+  {
+    id: 'personalised-warmup',
+    name: 'Personalised Warm-Up',
+    description: 'A customised warm-up based on your goals and needs.',
+    price: 15,
+    durationMin: 10,
+    durationLabel: '10 min',
+    icon: Flame
+  },
+  {
+    id: 'cooldown',
+    name: 'Dedicated Cool-Down',
+    description: 'Guided cool-down and recovery exercises.',
+    price: 15,
+    durationMin: 10,
+    durationLabel: '10 min',
+    icon: ShieldCheck
+  },
+  {
+    id: 'yoga',
+    name: 'Guided Yoga',
+    description: 'Relax, restore and improve mind-body balance.',
+    price: 40,
+    durationMin: 30,
+    durationLabel: '30 min',
+    icon: Flower2
+  },
+  {
+    id: 'wellness',
+    name: 'Wellness Support',
+    description: 'One-to-one conversation and lifestyle support.',
+    price: 40,
+    durationMin: 30,
+    durationLabel: '30 min',
+    icon: MessageSquare
+  }
 ];
 
 // Duration Options for Custom Plan
@@ -117,7 +205,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
   onNavigateToDashboard,
   onRequireLogin
 }) => {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
 
   // Multi-tier Navigation:
@@ -129,9 +217,18 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
   const [continueToPaymentAfterLogin, setContinueToPaymentAfterLogin] = useState(false);
 
   // --- Custom Plan State ---
-  // Guided Warm-Up is mandatory/included by default and cannot be unchecked or removed
-  const [selectedElements, setSelectedElements] = useState<string[]>(['guided-warmup', 'strength']);
-  const [selectedDurationId, setSelectedDurationId] = useState<string>('30');
+  const [elementQuantities, setElementQuantities] = useState<Record<string, number>>({
+    'guided-warmup': 1,
+    'strength': 1
+  });
+
+  const updateElementQuantity = (id: string, delta: number) => {
+    setElementQuantities(prev => {
+      const current = prev[id] || 0;
+      const next = Math.max(0, current + delta);
+      return { ...prev, [id]: next };
+    });
+  };
 
   // --- Weekly Plan State (3 sessions) ---
   // Guided Warm-Up is pre-selected in all 3 sessions; each item represents the 1 extra focus selected
@@ -159,10 +256,26 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
   ]);
   const [openMonthlyDropdownIdx, setOpenMonthlyDropdownIdx] = useState<number | null>(null);
 
-  // Terms and Consent Checkboxes
-  const [termsAccepted, setTermsAccepted] = useState<boolean>(true);
+  // Checkbox disclosures matching user screenshot in a 2x2 grid
+  const [ageConfirmed, setAgeConfirmed] = useState<boolean>(true);
+  const [virtualCoachingConfirmed, setVirtualCoachingConfirmed] = useState<boolean>(true);
   const [healthConfirmed, setHealthConfirmed] = useState<boolean>(true);
   const [spaceConfirmed, setSpaceConfirmed] = useState<boolean>(true);
+  const [termsAccepted, setTermsAccepted] = useState<boolean>(true);
+
+  // Mode of Contact state (auto-populated if user already has it on profile)
+  const [selectedContactMode, setSelectedContactMode] = useState<string>(user?.preferredContactMethod || '');
+  const [contactPhoneInput, setContactPhoneInput] = useState<string>(user?.phone || '');
+
+  // Keep contact mode synced when user logs in
+  useEffect(() => {
+    if (user?.preferredContactMethod) {
+      setSelectedContactMode(user.preferredContactMethod);
+    }
+    if (user?.phone) {
+      setContactPhoneInput(user.phone);
+    }
+  }, [user]);
 
   // Payment states
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -185,8 +298,10 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
       setIsPaymentSuccess(false);
       setIsSuccessAnimationVisible(false);
       setOpenMonthlyDropdownIdx(null);
-      setSelectedElements(['guided-warmup', 'strength']);
-      setSelectedDurationId('30');
+      setElementQuantities({
+        'guided-warmup': 1,
+        'strength': 1
+      });
       setWeeklySessions(['Strength Training', 'Fitness Boxing', 'Mobility']);
       setConfirmedOrderId(`BX${Math.floor(100000 + Math.random() * 900000)}`);
       setBookingDate(
@@ -197,8 +312,14 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
           year: 'numeric'
         })
       );
+      if (user?.preferredContactMethod) {
+        setSelectedContactMode(user.preferredContactMethod);
+      }
+      if (user?.phone) {
+        setContactPhoneInput(user.phone);
+      }
     }
-  }, [isOpen, service?.title]);
+  }, [isOpen, service?.title, user]);
 
   useEffect(() => {
     if (!isSuccessAnimationVisible) return;
@@ -226,8 +347,19 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
     }
   }, [isOpen, mainStage, user]);
 
-  const continueToPayment = () => {
+  const continueToPayment = async () => {
     if (user) {
+      // If contact mode selected and different from user profile, persist it
+      if (selectedContactMode && (!user.preferredContactMethod || selectedContactMode !== user.preferredContactMethod || (contactPhoneInput && contactPhoneInput !== user.phone))) {
+        try {
+          await updateProfile({
+            preferredContactMethod: selectedContactMode,
+            ...(contactPhoneInput ? { phone: contactPhoneInput } : {})
+          });
+        } catch (err) {
+          console.warn('Failed to update contact method on profile:', err);
+        }
+      }
       setMainStage(3);
       return;
     }
@@ -249,25 +381,19 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
   const isComplete = planTitle.includes('complete');
   const isWellness = planTitle.includes('wellness') || planTitle.includes('mindset');
 
-  // Toggle Custom Element Selection (Guided Warm-Up is locked & cannot be removed)
-  const toggleCustomElement = (id: string) => {
-    if (id === 'guided-warmup') {
-      return; // Guided Warm-Up must be already included and should not be unchecked or removed
-    }
-    if (selectedElements.includes(id)) {
-      if (selectedElements.length > 1) {
-        setSelectedElements(prev => prev.filter(item => item !== id));
-      }
-    } else {
-      setSelectedElements(prev => [...prev, id]);
-    }
-  };
+  // Custom Plan Selected Elements & Calculation
+  const selectedElements = Object.keys(elementQuantities).filter(id => (elementQuantities[id] || 0) > 0);
+  const totalSelectedCount = Object.values(elementQuantities).reduce((acc, q) => acc + q, 0);
 
-  // Custom Plan Price Calculation
-  const selectedElementsData = CUSTOM_ELEMENTS.filter(e => selectedElements.includes(e.id));
-  const elementsTotal = selectedElementsData.reduce((acc, curr) => acc + curr.price, 0);
-  const selectedDuration = CUSTOM_DURATIONS.find(d => d.id === selectedDurationId) || CUSTOM_DURATIONS[1];
-  const customPlanTotalPrice = elementsTotal + selectedDuration.priceDelta;
+  const customPlanTotalMinutes = CUSTOM_ELEMENTS.reduce((acc, el) => {
+    const qty = elementQuantities[el.id] || 0;
+    return acc + (el.durationMin * qty);
+  }, 0);
+
+  const customPlanTotalPrice = CUSTOM_ELEMENTS.reduce((acc, el) => {
+    const qty = elementQuantities[el.id] || 0;
+    return acc + (el.price * qty);
+  }, 0);
 
   // Total Price determination
   let displayTotalPrice = 0;
@@ -380,15 +506,19 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
     }
     // Default / Custom Plan
     return {
-      items: selectedElementsData.map((e, idx) => ({
-        name: e.name,
-        duration: e.duration,
-        price: `£${e.price}`,
-        icon: e.icon,
-        isMandatory: e.id === 'guided-warmup'
-      })),
-      totalDurationLabel: `${selectedDuration.name}`,
-      servicesCount: selectedElementsData.length
+      items: CUSTOM_ELEMENTS.filter(e => (elementQuantities[e.id] || 0) > 0).map(e => {
+        const qty = elementQuantities[e.id] || 1;
+        return {
+          name: qty > 1 ? `${e.name} (x${qty})` : e.name,
+          duration: `${e.durationMin * qty} minutes`,
+          price: `£${e.price * qty}`,
+          icon: e.icon,
+          isMandatory: e.id === 'guided-warmup',
+          description: e.description
+        };
+      }),
+      totalDurationLabel: `${customPlanTotalMinutes} minutes`,
+      servicesCount: totalSelectedCount
     };
   };
 
@@ -480,7 +610,11 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
           planTitle: service.title,
           planType: isCustomPlan ? 'custom' : isWeeklyPlan ? 'weekly' : isMonthlyPlan ? 'monthly' : 'standard',
           details: isCustomPlan
-            ? JSON.stringify({ elements: selectedElements, duration: selectedDuration.name })
+            ? JSON.stringify({
+                elements: CUSTOM_ELEMENTS.filter(e => (elementQuantities[e.id] || 0) > 0).map(e => `${e.name} (x${elementQuantities[e.id]})`),
+                duration: `${customPlanTotalMinutes} minutes`,
+                quantities: elementQuantities
+              })
             : isWeeklyPlan
             ? JSON.stringify({
                 structure: 'Guided Warm-Up + 1 Focus per session',
@@ -538,7 +672,9 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
 
   const modalMaxWidth = mainStage === 3
     ? 'max-w-4xl lg:max-w-5xl'
-    : mainStage === 1 && (isMonthlyPlan || isWeeklyPlan || isCustomPlan)
+    : mainStage === 1 && isCustomPlan
+    ? 'max-w-5xl xl:max-w-6xl'
+    : mainStage === 1 && (isMonthlyPlan || isWeeklyPlan)
     ? 'max-w-4xl lg:max-w-5xl'
     : mainStage === 1
     ? 'max-w-2xl sm:max-w-3xl'
@@ -749,126 +885,189 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
               )}
 
               {/* -------------------------------------------------------------
-                  B. CUSTOM PLAN CONFIGURATOR
+                  B. CUSTOM PLAN CONFIGURATOR (ALIGNED & FORMATTED PER TARGET DESIGN)
                  ------------------------------------------------------------- */}
               {isCustomPlan && (
                 <div className="space-y-5 sm:space-y-6">
-                  <div>
-                    <p className="text-[11px] sm:text-xs font-bold text-[#CCFF00] tracking-wider uppercase mb-1.5">
-                      Step 1 of 1
-                    </p>
-                    <div className="w-full h-1 bg-[#CCFF00] rounded-full mb-4 sm:mb-6" />
-                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight uppercase">
-                      SELECT YOUR TRAINING ELEMENTS
-                    </h2>
-                    <p className="text-xs sm:text-sm text-zinc-400 mt-1.5 sm:mt-2">
-                      Choose the services you want in your session. Guided Warm-Up is pre-selected and included.
-                    </p>
+                  {/* Top Header Section: Left Title & Right "How it works?" box */}
+                  <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 pb-2 border-b border-zinc-800/80">
+                    {/* Left: BX Custom Title & Subtitle */}
+                    <div className="space-y-1.5 max-w-xl">
+                      <div className="flex items-center gap-2.5">
+                        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight uppercase">
+                          BX <span className="text-[#CCFF00]">CUSTOM</span>
+                        </h2>
+                        <span className="text-[10px] sm:text-xs font-bold text-[#CCFF00] bg-[#CCFF00]/10 border border-[#CCFF00]/30 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                          Tailored Plan
+                        </span>
+                      </div>
+                      <h3 className="text-xs sm:text-sm font-black text-zinc-200 uppercase tracking-wider">
+                        BUILD YOUR OWN BX PLAN
+                      </h3>
+                      <p className="text-xs text-zinc-400 leading-relaxed">
+                        Choose only the training elements you need. Each element has a fixed time and price.
+                      </p>
+                    </div>
+
+                    {/* Right: "How it works?" Reference Card */}
+                    <div className="bg-[#101218] border border-zinc-800 rounded-2xl p-3 sm:p-4 shrink-0 lg:max-w-md w-full lg:w-auto shadow-md">
+                      <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-zinc-800/80">
+                        <div className="w-5 h-5 rounded-md bg-[#CCFF00]/15 flex items-center justify-center text-[#CCFF00]">
+                          <Lightbulb className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="text-xs font-black uppercase tracking-wider text-white">
+                          How it works?
+                        </span>
+                      </div>
+                      <ol className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-[11px] text-zinc-400">
+                        <li className="flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-300 font-bold text-[9px] flex items-center justify-center shrink-0">1</span>
+                          <span className="truncate">Select the services you want</span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-300 font-bold text-[9px] flex items-center justify-center shrink-0">2</span>
+                          <span className="truncate">Set the quantity for each service</span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-300 font-bold text-[9px] flex items-center justify-center shrink-0">3</span>
+                          <span className="truncate">Review your plan and total time</span>
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-300 font-bold text-[9px] flex items-center justify-center shrink-0">4</span>
+                          <span className="truncate">Proceed to booking and payment</span>
+                        </li>
+                      </ol>
+                    </div>
                   </div>
 
-                  <div className="p-4 sm:p-5 rounded-2xl bg-[#101218] border border-zinc-800 space-y-4 sm:space-y-5 shadow-lg">
-                    <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-                      <span className="text-xs font-black uppercase tracking-wider text-zinc-300 block">
-                        Training Elements
-                      </span>
-                      <span className="text-[11px] sm:text-xs font-bold text-[#CCFF00] bg-[#CCFF00]/10 border border-[#CCFF00]/30 px-2.5 py-1 rounded-full">
-                        {selectedElements.length} Elements Selected
-                      </span>
-                    </div>
+                  {/* 3-Column Elements Grid matching Target Screenshot format */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                    {CUSTOM_ELEMENTS.map(element => {
+                      const qty = elementQuantities[element.id] || 0;
+                      const isSelected = qty > 0;
+                      const IconComp = element.icon;
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
-                      {CUSTOM_ELEMENTS.map(element => {
-                        const isSelected = selectedElements.includes(element.id);
-                        const isMandatory = element.id === 'guided-warmup';
-                        const IconComp = element.icon;
-                        return (
-                          <button
-                            key={element.id}
-                            type="button"
-                            onClick={() => toggleCustomElement(element.id)}
-                            className={`p-3 sm:p-3.5 rounded-xl border text-left transition-all flex items-start justify-between gap-2 ${
-                              isMandatory
-                                ? 'bg-[#181822] border-[#CCFF00] shadow-[0_0_15px_-4px_rgba(204,255,0,0.3)] cursor-default'
-                                : isSelected
-                                ? 'bg-[#181822] border-[#CCFF00] shadow-[0_0_15px_-4px_rgba(204,255,0,0.3)] cursor-pointer'
-                                : 'bg-[#121218] border-zinc-800 hover:border-zinc-700 cursor-pointer'
-                            }`}
-                          >
-                            <div className="flex items-start gap-2.5 min-w-0">
-                              <div className={`p-2 rounded-lg shrink-0 ${isSelected ? 'bg-[#CCFF00]/15 text-[#CCFF00]' : 'bg-zinc-800 text-zinc-300'}`}>
-                                <IconComp className="w-4 h-4" />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-xs font-bold text-white leading-snug truncate">
-                                  {element.name}
-                                </p>
-                                {isMandatory && (
-                                  <span className="inline-block text-[9px] font-black uppercase tracking-wider text-[#CCFF00] bg-[#CCFF00]/15 border border-[#CCFF00]/30 px-1.5 py-0.5 rounded mt-1">
-                                    INCLUDED
-                                  </span>
-                                )}
-                                <p className="text-xs font-black text-white mt-1">£{element.price}</p>
-                                <p className="text-[10px] text-zinc-400 mt-0.5">{element.duration}</p>
-                              </div>
-                            </div>
-
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                              isSelected
-                                ? 'bg-[#CCFF00] border-[#CCFF00] text-black'
-                                : 'border-zinc-700 bg-zinc-900'
-                            }`}>
-                              {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Duration Selector */}
-                    <div className="pt-3.5 sm:pt-4 border-t border-zinc-800 space-y-2">
-                      <p className="text-xs font-black uppercase tracking-wider text-zinc-300">
-                        Choose Total Session Duration:
-                      </p>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
-                        {CUSTOM_DURATIONS.map(duration => {
-                          const isSelected = selectedDurationId === duration.id;
-                          return (
-                            <button
-                              key={duration.id}
-                              type="button"
-                              onClick={() => setSelectedDurationId(duration.id)}
-                              className={`p-2.5 sm:p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                      return (
+                        <div
+                          key={element.id}
+                          className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
+                            isSelected
+                              ? 'bg-[#181822] border-[#CCFF00] shadow-[0_0_18px_-4px_rgba(204,255,0,0.28)]'
+                              : 'bg-[#101218] border-zinc-800/90 hover:border-zinc-700/80'
+                          }`}
+                        >
+                          {/* Top: Icon + Title + Description */}
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={`p-2.5 rounded-xl shrink-0 transition-colors ${
                                 isSelected
-                                  ? 'bg-[#181822] border-[#CCFF00] text-white shadow-[0_0_12px_-2px_rgba(204,255,0,0.3)]'
-                                  : 'bg-[#121218] border-zinc-800 hover:border-zinc-700 text-zinc-300'
+                                  ? 'bg-[#CCFF00]/15 text-[#CCFF00]'
+                                  : 'bg-zinc-800/80 text-zinc-400'
                               }`}
                             >
-                              <p className="text-xs font-bold">{duration.name}</p>
-                              <p className="text-[10px] text-zinc-400 mt-0.5">
-                                {duration.priceDelta > 0 ? `+£${duration.priceDelta}` : 'Included'}
+                              <IconComp className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-sm font-bold text-white tracking-tight leading-snug">
+                                {element.name}
+                              </h4>
+                              <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
+                                {element.description}
                               </p>
-                            </button>
-                          );
-                        })}
+                            </div>
+                          </div>
+
+                          {/* Bottom Bar: Duration | Price and Quantity Controls */}
+                          <div className="pt-3 border-t border-zinc-800/80 flex items-center justify-between gap-2 mt-auto">
+                            {/* Left: Duration | Price */}
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-zinc-400 font-semibold">{element.durationLabel}</span>
+                              <span className="text-zinc-700 font-bold">|</span>
+                              <span className="font-black text-white text-sm">£{element.price}</span>
+                            </div>
+
+                            {/* Right: Quantity Stepper (- 0 +) */}
+                            <div className="flex items-center bg-[#0a0a0f] border border-zinc-800 rounded-lg p-0.5">
+                              <button
+                                type="button"
+                                onClick={() => updateElementQuantity(element.id, -1)}
+                                disabled={qty === 0}
+                                className={`w-7 h-7 rounded flex items-center justify-center transition-colors cursor-pointer ${
+                                  qty === 0
+                                    ? 'text-zinc-600 cursor-not-allowed'
+                                    : 'text-zinc-300 hover:text-white hover:bg-zinc-800'
+                                }`}
+                                aria-label={`Decrease ${element.name} quantity`}
+                              >
+                                <Minus className="w-3.5 h-3.5" />
+                              </button>
+
+                              <span className={`w-8 text-center text-xs font-black select-none ${isSelected ? 'text-[#CCFF00]' : 'text-zinc-400'}`}>
+                                {qty}
+                              </span>
+
+                              <button
+                                type="button"
+                                onClick={() => updateElementQuantity(element.id, 1)}
+                                className="w-7 h-7 rounded flex items-center justify-center text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                                aria-label={`Increase ${element.name} quantity`}
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Info Card spanning remaining 2 columns in the bottom row on desktop */}
+                    <div className="col-span-1 md:col-span-2 lg:col-span-2 p-4 sm:p-5 rounded-2xl bg-[#101218] border border-zinc-800/90 flex items-center gap-3.5 shadow-md">
+                      <div className="w-9 h-9 rounded-full bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center text-[#CCFF00] shrink-0">
+                        <Info className="w-4 h-4" />
+                      </div>
+                      <div className="text-xs text-zinc-300 leading-relaxed">
+                        <p className="font-semibold text-white">
+                          Your total session time will be the sum of all selected services.
+                        </p>
+                        <p className="text-zinc-400 text-[11px] mt-0.5">
+                          There is no fixed duration — we'll create a session that fits your plan.
+                        </p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Price Bar & Action */}
-                  <div className="flex flex-row items-center justify-between gap-2.5 sm:gap-3 pt-4 border-t border-zinc-800/80">
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="px-4 sm:px-5 py-3 rounded-xl border border-zinc-800 hover:border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-300 flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-colors"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>Back</span>
-                    </button>
+                  {/* Bottom Action Bar */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-zinc-800/80">
+                    <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+                      <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-4 sm:px-5 py-3 rounded-xl border border-zinc-800 hover:border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-300 flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-colors"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>Back</span>
+                      </button>
+
+                      <div className="flex items-center gap-3 text-xs pl-2">
+                        <span className="text-zinc-400">
+                          Total Time: <strong className="text-white">{customPlanTotalMinutes} min</strong>
+                        </span>
+                        <span className="text-zinc-700">•</span>
+                        <span className="text-zinc-400">
+                          Price: <strong className="text-xl sm:text-2xl font-black text-white">£{customPlanTotalPrice}</strong>
+                        </span>
+                      </div>
+                    </div>
 
                     <button
                       type="button"
                       onClick={() => setMainStage(2)}
-                      className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
+                      disabled={totalSelectedCount === 0}
+                      className={`w-full sm:w-auto font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-5 sm:px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md ${
+                        totalSelectedCount > 0
+                          ? 'bg-[#CCFF00] hover:bg-[#b8e600] text-black cursor-pointer'
+                          : 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-zinc-700/50'
+                      }`}
                     >
                       <span>NEXT: CHECKOUT &amp; TERMS</span>
                       <ArrowRight className="w-4 h-4 stroke-[3]" />
@@ -1138,65 +1337,248 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                 </div>
               </div>
 
-              {/* Card 2: Health & Training Disclosures with custom checkboxes */}
-              <div className="p-4 sm:p-6 rounded-2xl bg-[#0e1319] border border-zinc-800/90 shadow-xl space-y-3.5 sm:space-y-4">
-                <h4 className="text-xs font-black uppercase tracking-wider text-white">
-                  HEALTH &amp; TRAINING DISCLOSURES
-                </h4>
+              {/* Card 2: Mode of Contact - Shown when logged in */}
+              {user && (
+                <div className="p-4 sm:p-6 rounded-2xl bg-[#0e1319] border border-zinc-800/90 shadow-xl space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-[#CCFF00]" />
+                      <span className="text-xs font-black uppercase tracking-wider text-white">
+                        CHOOSE MODE OF CONTACT
+                      </span>
+                    </div>
+                    {!user.preferredContactMethod && !selectedContactMode ? (
+                      <span className="text-[10px] sm:text-[11px] font-bold text-[#CCFF00] bg-[#CCFF00]/10 border border-[#CCFF00]/30 px-2 py-0.5 rounded">
+                        Required For Coach Onboarding
+                      </span>
+                    ) : (
+                      <span className="text-[10px] sm:text-[11px] font-bold text-zinc-300 bg-zinc-900 border border-zinc-800 px-2.5 py-0.5 rounded">
+                        Selected: <strong className="text-[#CCFF00]">{selectedContactMode || user.preferredContactMethod}</strong>
+                      </span>
+                    )}
+                  </div>
 
-                <div className="space-y-3 sm:space-y-3.5">
-                  <label className="flex items-start gap-2.5 sm:gap-3 cursor-pointer select-none text-xs sm:text-sm text-zinc-300">
-                    <div className={`w-4 h-4 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
-                      healthConfirmed ? 'bg-[#CCFF00] text-black' : 'border border-zinc-700 bg-zinc-900'
+                  {(!user.preferredContactMethod || !selectedContactMode) ? (
+                    <div className="space-y-3">
+                      <p className="text-xs text-zinc-400">
+                        Please choose how your assigned UK coach should connect with you for session onboarding, prep drills, and live video links:
+                      </p>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        {[
+                          { id: 'WhatsApp', label: 'WhatsApp', icon: MessageSquare, desc: 'Instant chat & link' },
+                          { id: 'Phone Call', label: 'Phone Call', icon: Phone, desc: 'Voice check-in' },
+                          { id: 'Email', label: 'Email', icon: Mail, desc: 'Class link by email' },
+                          { id: 'SMS', label: 'SMS / Text', icon: MessageSquare, desc: 'Mobile text alerts' }
+                        ].map(mode => {
+                          const isSelected = selectedContactMode === mode.id;
+                          const IconComp = mode.icon;
+                          return (
+                            <button
+                              key={mode.id}
+                              type="button"
+                              onClick={() => setSelectedContactMode(mode.id)}
+                              className={`p-3 sm:p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
+                                isSelected
+                                  ? 'bg-[#151922] border-[#CCFF00] shadow-[0_0_15px_-3px_rgba(204,255,0,0.3)] ring-1 ring-[#CCFF00]'
+                                  : 'bg-[#12141c] border-zinc-800 hover:border-zinc-700'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <IconComp className={`w-4 h-4 ${isSelected ? 'text-[#CCFF00]' : 'text-zinc-400'}`} />
+                                <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                                  isSelected ? 'border-[#CCFF00] bg-[#CCFF00]' : 'border-zinc-600'
+                                }`}>
+                                  {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
+                                </div>
+                              </div>
+                              <div>
+                                <p className={`text-xs font-black uppercase tracking-wide ${isSelected ? 'text-white' : 'text-zinc-300'}`}>
+                                  {mode.label}
+                                </p>
+                                <p className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">
+                                  {mode.desc}
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* If WhatsApp, Phone Call, or SMS is chosen and user has no phone */}
+                      {['WhatsApp', 'Phone Call', 'SMS'].includes(selectedContactMode) && (!user.phone || contactPhoneInput !== user.phone) && (
+                        <div className="pt-2">
+                          <label className="text-[11px] font-bold text-zinc-300 uppercase tracking-wider block mb-1.5">
+                            Mobile Phone Number for {selectedContactMode}:
+                          </label>
+                          <input
+                            type="tel"
+                            value={contactPhoneInput}
+                            onChange={e => setContactPhoneInput(e.target.value)}
+                            placeholder="e.g. +44 7123 456789"
+                            className="w-full bg-[#12141c] border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-hidden focus:border-[#CCFF00]"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-[#12141c] border border-zinc-800">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center shrink-0">
+                          <MessageSquare className="w-3.5 h-3.5 text-[#CCFF00]" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-white">
+                            Preferred Contact: {selectedContactMode || user.preferredContactMethod}
+                          </p>
+                          <p className="text-[10px] text-zinc-400">
+                            {user.phone ? `Mobile: ${user.phone}` : `Email: ${user.email}`}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedContactMode('')}
+                        className="text-[11px] font-bold text-[#CCFF00] hover:underline cursor-pointer"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Card 3: 4 Checkbox Disclosures matching user screenshot in a 2x2 grid */}
+              <div className="space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-white">
+                    HEALTH &amp; TRAINING DISCLOSURES
+                  </h4>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#CCFF00]">
+                    Required To Proceed
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
+                  {/* 1. 18+ CONFIRMATION */}
+                  <div
+                    onClick={() => setAgeConfirmed(!ageConfirmed)}
+                    className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
+                      ageConfirmed
+                        ? 'bg-[#12141c] border-[#CCFF00]/40 shadow-sm'
+                        : 'bg-[#0f1015] border-zinc-800/80 opacity-75'
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
+                      ageConfirmed ? 'bg-[#CCFF00] text-black shadow-xs' : 'border border-zinc-700 bg-zinc-900'
+                    }`}>
+                      {ageConfirmed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+                        <UserCheck className="w-4 h-4 text-[#CCFF00] shrink-0" />
+                        <span>18+ CONFIRMATION</span>
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                        I confirm I am 18 years of age or older.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 2. VIRTUAL COACHING */}
+                  <div
+                    onClick={() => setVirtualCoachingConfirmed(!virtualCoachingConfirmed)}
+                    className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
+                      virtualCoachingConfirmed
+                        ? 'bg-[#12141c] border-[#CCFF00]/40 shadow-sm'
+                        : 'bg-[#0f1015] border-zinc-800/80 opacity-75'
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
+                      virtualCoachingConfirmed ? 'bg-[#CCFF00] text-black shadow-xs' : 'border border-zinc-700 bg-zinc-900'
+                    }`}>
+                      {virtualCoachingConfirmed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+                        <Video className="w-4 h-4 text-[#CCFF00] shrink-0" />
+                        <span>VIRTUAL COACHING</span>
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                        Live interactive sessions with expert UK coaches at home.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 3. HEALTH DISCLOSURE */}
+                  <div
+                    onClick={() => setHealthConfirmed(!healthConfirmed)}
+                    className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
+                      healthConfirmed
+                        ? 'bg-[#12141c] border-[#CCFF00]/40 shadow-sm'
+                        : 'bg-[#0f1015] border-zinc-800/80 opacity-75'
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
+                      healthConfirmed ? 'bg-[#CCFF00] text-black shadow-xs' : 'border border-zinc-700 bg-zinc-900'
                     }`}>
                       {healthConfirmed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={healthConfirmed}
-                      onChange={e => setHealthConfirmed(e.target.checked)}
-                      className="sr-only"
-                    />
-                    <span className="leading-relaxed">
-                      I confirm that I am in suitable physical condition for exercise and have disclosed any relevant medical conditions or injuries.
-                    </span>
-                  </label>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+                        <ShieldCheck className="w-4 h-4 text-[#CCFF00] shrink-0" />
+                        <span>HEALTH DISCLOSURE</span>
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                        I confirm there are no medical conditions preventing participation.
+                      </p>
+                    </div>
+                  </div>
 
-                  <label className="flex items-start gap-2.5 sm:gap-3 cursor-pointer select-none text-xs sm:text-sm text-zinc-300">
-                    <div className={`w-4 h-4 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
-                      spaceConfirmed ? 'bg-[#CCFF00] text-black' : 'border border-zinc-700 bg-zinc-900'
+                  {/* 4. SAFE TRAINING SPACE */}
+                  <div
+                    onClick={() => setSpaceConfirmed(!spaceConfirmed)}
+                    className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
+                      spaceConfirmed
+                        ? 'bg-[#12141c] border-[#CCFF00]/40 shadow-sm'
+                        : 'bg-[#0f1015] border-zinc-800/80 opacity-75'
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
+                      spaceConfirmed ? 'bg-[#CCFF00] text-black shadow-xs' : 'border border-zinc-700 bg-zinc-900'
                     }`}>
                       {spaceConfirmed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+                        <Zap className="w-4 h-4 text-[#CCFF00] shrink-0" />
+                        <span>SAFE TRAINING SPACE</span>
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                        I have a safe and suitable space to train at home.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Terms agreement */}
+                <div className="p-3.5 rounded-xl bg-[#0e1319] border border-zinc-800/80">
+                  <label className="flex items-start gap-2.5 sm:gap-3 cursor-pointer select-none text-xs sm:text-sm text-zinc-300">
+                    <div className={`w-4 h-4 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
+                      termsAccepted ? 'bg-[#CCFF00] text-black' : 'border border-zinc-700 bg-zinc-900'
+                    }`}>
+                      {termsAccepted && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    </div>
                     <input
                       type="checkbox"
-                      checked={spaceConfirmed}
-                      onChange={e => setSpaceConfirmed(e.target.checked)}
+                      checked={termsAccepted}
+                      onChange={e => setTermsAccepted(e.target.checked)}
                       className="sr-only"
                     />
                     <span className="leading-relaxed">
-                      I confirm I have a safe, clear space (minimum 2m x 2m) with suitable footwear for home training.
+                      I agree to the <strong className="text-white font-bold">BXStrength Terms &amp; Conditions</strong> and cancellation policy.
                     </span>
                   </label>
-
-                  <div className="pt-3 sm:pt-3.5 border-t border-zinc-800/80">
-                    <label className="flex items-start gap-2.5 sm:gap-3 cursor-pointer select-none text-xs sm:text-sm text-zinc-300">
-                      <div className={`w-4 h-4 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
-                        termsAccepted ? 'bg-[#CCFF00] text-black' : 'border border-zinc-700 bg-zinc-900'
-                      }`}>
-                        {termsAccepted && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={termsAccepted}
-                        onChange={e => setTermsAccepted(e.target.checked)}
-                        className="sr-only"
-                      />
-                      <span className="leading-relaxed">
-                        I agree to the <strong className="text-white font-bold">BXStrength Terms &amp; Conditions</strong> and cancellation policy.
-                      </span>
-                    </label>
-                  </div>
                 </div>
               </div>
 
@@ -1213,11 +1595,11 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
 
                 <button
                   type="button"
-                  disabled={!termsAccepted || !healthConfirmed || !spaceConfirmed}
+                  disabled={!termsAccepted || !ageConfirmed || !virtualCoachingConfirmed || !healthConfirmed || !spaceConfirmed || Boolean(user && !user.preferredContactMethod && !selectedContactMode)}
                   onClick={continueToPayment}
                   className="bg-[#CCFF00] hover:bg-[#b8e600] disabled:opacity-50 text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
                 >
-                  <span>NEXT: PROCEED TO PAYMENT</span>
+                  <span>PROCEED TO CHECKOUT</span>
                   <ArrowRight className="w-4 h-4 stroke-[3]" />
                 </button>
               </div>

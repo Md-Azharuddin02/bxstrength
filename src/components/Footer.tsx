@@ -1,6 +1,7 @@
 import React from 'react';
 import { ViewPage } from '../types';
 import { MapPin, Mail, ArrowRight, Instagram, Facebook, Youtube, X, Phone, MessageSquare } from 'lucide-react';
+import { cloudinaryImage } from '../utils/image';
 
 interface FooterProps {
   onNavigate: (page: ViewPage) => void;
@@ -23,7 +24,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           <div className="space-y-4">
             <div className="flex items-center gap-2.5">
               <img 
-                src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1789566029/WhatsApp_Image_2026-09-08_at_10.50.41_AM.png" 
+                src={cloudinaryImage("https://res.cloudinary.com/yuyxn5b0/image/upload/v1789566029/WhatsApp_Image_2026-09-08_at_10.50.41_AM.png", 480)} 
                 alt="BxStrength Logo" 
                 className="h-12 sm:h-14 md:h-16 w-auto max-w-[240px] object-contain rounded-lg shadow-md hover:opacity-90 transition-opacity cursor-pointer"
                 onClick={() => handleNav('home')}
@@ -31,7 +32,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             </div>
             
             <p className="text-xs text-zinc-400 leading-relaxed">
-              UK &amp; India Direct Boxing, Strength &amp; Conditioning Coaching Platform. Engineered by our Head Coach &amp; Team for elite physical transformation.
+              UK Direct Boxing, Strength &amp; Conditioning Coaching Platform. Engineered by our Head Coach &amp; Team for elite physical transformation.
             </p>
 
             <div className="space-y-3.5 text-xs pt-1">

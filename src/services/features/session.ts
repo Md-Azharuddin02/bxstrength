@@ -85,34 +85,34 @@ export const sessionApi = {
   async fetchMe(): Promise<User | null> {
     const token = getToken();
     if (!token) return this.getCurrentUser();
-    try {
-      const res = await apiFetch(getApiUrl("/api/auth/me"));
-      if (!res.ok) {
-        if (res.status === 401) {
-          this.clearSession();
-          return null;
-        }
-        return this.getCurrentUser();
+    // Errors propagate instead of returning the cached user: its role can be edited in the browser.
+    // AuthContext decides what to do when the server can't confirm the session.
+    const res = await apiFetch(getApiUrl("/api/auth/me"));
+    if (!res.ok) {
+      if (res.status === 401) {
+        this.clearSession();
+        return null;
       }
-      const { user: raw } = await res.json();
-      if (!raw || !raw.id) return this.getCurrentUser();
-      const cached = this.getCurrentUser();
-      const merged: User = {
-        ...(cached ?? ({} as User)),
-        id: raw.id,
-        email: raw.email,
-        role: String(raw.role || cached?.role || "client") as UserRole,
-        name: raw.name || cached?.name || raw.email,
-        isVerified: true,
-        status: cached?.status || "active",
-        avatarUrl: cached?.avatarUrl || dicebearAvatar(raw.name || raw.email),
-        createdAt: cached?.createdAt || new Date().toISOString(),
-      };
-      setItem(STORAGE_KEYS.CURRENT_USER, merged);
-      return merged;
-    } catch {
-      return this.getCurrentUser();
+      throw new Error(`Session check failed (${res.status})`);
     }
+    const { user: raw } = await res.json();
+    if (!raw || !raw.id) throw new Error("Session check returned no user");
+    // Reuse cached profile details only when they belong to this same user
+    const stored = this.getCurrentUser();
+    const cached = stored?.id === raw.id ? stored : null;
+    const merged: User = {
+      ...(cached ?? ({} as User)),
+      id: raw.id,
+      email: raw.email,
+      role: String(raw.role || "client") as UserRole,
+      name: raw.name || cached?.name || raw.email,
+      isVerified: true,
+      status: cached?.status || "active",
+      avatarUrl: cached?.avatarUrl || dicebearAvatar(raw.name || raw.email),
+      createdAt: cached?.createdAt || new Date().toISOString(),
+    };
+    setItem(STORAGE_KEYS.CURRENT_USER, merged);
+    return merged;
   },
 
   getAccessToken(): string {
@@ -120,8 +120,14 @@ export const sessionApi = {
   },
 
   clearSession(): void {
-    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-    localStorage.removeItem('bx_current_page');
+    // Wipe every cached record (health data, other users, tickets) so the next person on this device sees nothing.
+    // Keeps only the market preference, which is not personal data.
+    const isAppKey = (key: string) =>
+      (key.startsWith("bxstrength_") || key.startsWith("bx_")) &&
+      key !== "bxstrength_market_country";
+    for (const store of [localStorage, sessionStorage]) {
+      Object.keys(store).filter(isAppKey).forEach((key) => store.removeItem(key));
+    }
     setToken("");
   },
 

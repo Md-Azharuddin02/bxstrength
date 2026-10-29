@@ -3,6 +3,7 @@ import { ArrowRight, Clock, Trophy } from 'lucide-react';
 import { ViewPage } from '../types';
 import { BxTrainer, TRAINERS_DATA } from '../data/gymData';
 import { TrainersSection } from './TrainersSection';
+import { cloudinaryImage } from '../utils/image';
 
 interface TrainersCompactProps {
   onNavigate: (page: ViewPage) => void;
@@ -68,7 +69,9 @@ export const TrainerCompact: React.FC<TrainersCompactProps> = ({
               className={`group relative min-w-[78%] sm:min-w-[46%] md:min-w-0 snap-center h-[360px] sm:h-[400px] rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 hover:border-[#CCFF00]/60 transition-all duration-500 ease-out cursor-pointer shadow-xl will-change-transform ${cardsInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
             >
               <img
-                src={trainer.image}
+                src={cloudinaryImage(trainer.image, 640)}
+                loading="lazy"
+                decoding="async"
                 alt={trainer.name}
                 className={`absolute inset-0 w-full h-full object-cover ${trainer.imagePosition || 'object-top'} group-hover:scale-105 transition-transform duration-500`}
               />

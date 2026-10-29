@@ -7,6 +7,34 @@ import { isValidUkMobile, UK_PHONE_ERROR_MSG } from '../utils/phoneValidation';
 import { PhoneInput } from './PhoneInput';
 import { apiFetch, getApiUrl } from '../services/core/http';
 
+// Equipment options depend on where the client trains
+const EQUIPMENT_BY_LOCATION: Record<string, { title: string; desc: string }[]> = {
+  Home: [
+    { title: 'No Equipment', desc: 'Bodyweight & functional exercises' },
+    { title: 'Dumbbells', desc: 'Fixed or adjustable dumbbells' },
+    { title: 'Resistance Bands', desc: 'Resistance & mobility bands' },
+    { title: 'Exercise Mat', desc: 'Floor, core & mobility work' },
+    { title: 'Bench', desc: 'Flat or adjustable bench' },
+    { title: 'Boxing Equipment', desc: 'Heavy bag, gloves & wraps' },
+  ],
+  Gym: [
+    { title: 'Full Gym Access', desc: 'Barbells, machines & cardio equipment' },
+    { title: 'Free Weights', desc: 'Dumbbells, barbells & kettlebells' },
+    { title: 'Resistance Machines', desc: 'Cable & plate-loaded machines' },
+    { title: 'Functional Training Area', desc: 'Open space, sleds, boxes & turf' },
+    { title: 'Boxing Equipment', desc: 'Bags, gloves & pads' },
+    { title: 'Limited / Basic Gym', desc: 'A few machines & light weights' },
+  ],
+  Hybrid: [
+    { title: 'Dumbbells at Home', desc: 'Free weights for home sessions' },
+    { title: 'Resistance Bands', desc: 'Resistance & mobility bands' },
+    { title: 'Exercise Mat', desc: 'Floor, core & mobility work' },
+    { title: 'Bench', desc: 'Flat or adjustable bench' },
+    { title: 'Boxing Equipment', desc: 'Heavy bag, gloves & wraps' },
+    { title: 'Full Gym Access', desc: 'Barbells, machines & cardio on gym days' },
+  ],
+};
+
 interface SelfAssessmentModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -74,7 +102,12 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
   };
 
   const handleSelectTrainingLocation = (trainingLocation: string) => {
-    setFormData((prev) => ({ ...prev, trainingLocation }));
+    // A new location has different equipment, so an earlier pick no longer applies
+    setFormData((prev) => ({
+      ...prev,
+      trainingLocation,
+      equipment: prev.trainingLocation === trainingLocation ? prev.equipment : '',
+    }));
     setStep(5);
   };
 
@@ -171,7 +204,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
             </div>
             <div>
               <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white">BxStrength Self-Assessment</h3>
-              <p className="text-[10px] sm:text-[11px] text-zinc-400 font-medium">Personalised Fitness &amp; Training Diagnostic</p>
+              <p className="text-[10px] sm:text-[11px] text-zinc-400 font-medium">Personalised Fitness &amp; Training Assessment</p>
             </div>
           </div>
           <button
@@ -388,16 +421,12 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                     <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white mb-1.5">
                       What equipment do you have?
                     </h2>
-                    <p className="text-xs text-zinc-400">Select the equipment available during your training sessions.</p>
+                    <p className="text-xs text-zinc-400">
+                      Select the equipment available for your {(formData.trainingLocation || 'Home').toLowerCase()} training.
+                    </p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {[
-                      { title: 'None', desc: 'Bodyweight & functional exercises' },
-                      { title: 'Dumbbells', desc: 'Free weights / adjustable dumbbells' },
-                      { title: 'Bands', desc: 'Resistance & mobility bands' },
-                      { title: 'Full gym', desc: 'Barbells, machines & cardio equipment' },
-                      { title: 'Boxing equipment', desc: 'Heavy bag, gloves & wraps' },
-                    ].map((item) => (
+                    {(EQUIPMENT_BY_LOCATION[formData.trainingLocation] ?? EQUIPMENT_BY_LOCATION.Home).map((item) => (
                       <button
                         key={item.title}
                         type="button"
@@ -551,9 +580,11 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
             </div>
           ) : (
             /* COMPLETED ASSESSMENT RESULT */
-            <div className="text-center py-4 space-y-6 animate-in zoom-in-95 duration-200">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[#CCFF00] flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-8 h-8 text-[#CCFF00]" />
+            <div aria-live="polite" className="text-center py-4 space-y-6 animate-in zoom-in-95 duration-200">
+              <div className="assessment-success-stage relative h-20 w-20 flex items-center justify-center mx-auto">
+                <div className="assessment-success-icon relative w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[#CCFF00] flex items-center justify-center">
+                  <CheckCircle2 className="assessment-success-mark w-8 h-8 text-[#CCFF00]" />
+                </div>
               </div>
 
               <div>
@@ -564,8 +595,28 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                   Assessment Complete, {formData.name.split(' ')[0]}!
                 </h2>
                 <p className="text-xs sm:text-sm text-zinc-300 max-w-lg mx-auto mt-2 leading-relaxed">
-                  Based on your primary goal of <strong className="text-[#CCFF00] font-bold">{formData.goal}</strong> and training preferences, you have successfully qualified for an exclusive 15-minute 1-on-1 strategy consultation with our Head Coach.
+                  Based on your primary goal of <strong className="text-[#CCFF00] font-bold">{formData.goal}</strong> and training preferences, you qualify for a complimentary 15-minute 1-on-1 session with our Head Coach.
                 </p>
+              </div>
+
+              <div className="assessment-offer-reveal relative overflow-hidden rounded-2xl border border-[#CCFF00]/35 bg-gradient-to-br from-[#1a2011] via-[#11150d] to-[#101013] p-5 sm:p-6 text-left shadow-[0_12px_36px_rgba(0,0,0,0.35)]">
+                <div className="absolute -right-10 -top-12 h-36 w-36 rounded-full bg-[#CCFF00]/10 blur-3xl" />
+                <div className="relative flex items-start gap-3.5">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#CCFF00]/30 bg-[#CCFF00]/10 text-[#CCFF00]">
+                    <Clock className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <span className="inline-flex rounded-full border border-[#CCFF00]/30 bg-[#CCFF00]/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-[#CCFF00]">
+                      Your complimentary session
+                    </span>
+                    <h3 className="mt-2 text-lg sm:text-xl font-black tracking-tight text-white">
+                      Claim your free 15-minute session
+                    </h3>
+                    <p className="mt-1.5 text-xs sm:text-sm leading-relaxed text-zinc-300">
+                      Meet your coach, talk through your goal, and get a clear first step for your training.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* Assessment summary pill cards */}
@@ -606,7 +657,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                   onClick={handleFinalBooking}
                   className="w-full sm:w-auto bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs tracking-widest uppercase px-8 py-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-xl cursor-pointer"
                 >
-                  BOOK 15-MIN SESSION NOW
+                 REQUEST MY FREE 15-MIN DEMO
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 <button

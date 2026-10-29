@@ -510,7 +510,7 @@ export const TermsView: React.FC = () => {
             </div>
             <div>
               <span className="text-zinc-500 font-bold uppercase block text-[10px]">Primary Regions</span>
-              <span className="text-[#CCFF00] font-bold">United Kingdom &amp; India</span>
+              <span className="text-[#CCFF00] font-bold">United Kingdom</span>
             </div>
             <div className="sm:col-span-2">
               <span className="text-zinc-500 font-bold uppercase block text-[10px]">Headquarters Address</span>

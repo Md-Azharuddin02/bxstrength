@@ -3,6 +3,7 @@ import {
   Dumbbell, Trophy, ArrowRight, ShieldCheck, CheckCircle2, 
   ChevronLeft, ChevronRight, User, Activity, Maximize2, X 
 } from 'lucide-react';
+import { cloudinaryImage } from '../utils/image';
 
 interface TransformationSlide {
   id: number;
@@ -176,7 +177,7 @@ export const BeforeAfterShowcase: React.FC<BeforeAfterShowcaseProps> = ({
                       <div className="relative w-full h-[280px] sm:h-[380px] lg:h-[440px] rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-800 shadow-2xl group/full flex items-center justify-center p-2">
                         {/* Ambient Glow Backdrop */}
                         <img 
-                          src={slide.image} 
+                          src={cloudinaryImage(slide.image, 160)} 
                           alt="" 
                           aria-hidden="true" 
                           className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-25 scale-110 pointer-events-none"
@@ -184,10 +185,10 @@ export const BeforeAfterShowcase: React.FC<BeforeAfterShowcaseProps> = ({
                         
                         {/* Complete Uncut Foreground Image */}
                         <img 
-                          src={slide.image} 
+                          src={cloudinaryImage(slide.image, 1080)} 
                           alt={`${slide.clientName} Complete Transformation`} 
                           title={`${slide.clientName} Complete Transformation`}
-                          loading="eager"
+                          loading="lazy"
                           className="relative z-10 max-w-full max-h-full w-auto h-auto object-contain rounded-xl drop-shadow-[0_10px_25px_rgba(0,0,0,0.85)] transition-transform duration-500 group-hover/full:scale-[1.01]" 
                         />
 
@@ -226,10 +227,10 @@ export const BeforeAfterShowcase: React.FC<BeforeAfterShowcaseProps> = ({
                           {/* Image Frame */}
                           <div className="w-full h-full overflow-hidden relative flex items-center justify-center bg-black">
                             <img 
-                              src={slide.beforeImage || slide.image} 
+                              src={cloudinaryImage(slide.beforeImage || slide.image, 1080)} 
                               alt={`${slide.clientName} Before`} 
                               title={`${slide.clientName} Before`}
-                              loading="eager"
+                              loading="lazy"
                               className={`w-full h-full block brightness-105 contrast-105 transition-transform duration-500 group-hover/before:scale-105 ${
                                 slide.beforeImage ? 'object-cover object-top' : 'w-[200%] max-w-none object-cover object-left'
                               }`}
@@ -256,10 +257,10 @@ export const BeforeAfterShowcase: React.FC<BeforeAfterShowcaseProps> = ({
                           {/* Image Frame */}
                           <div className="w-full h-full overflow-hidden relative flex items-center justify-center bg-black">
                             <img 
-                              src={slide.afterImage || slide.image} 
+                              src={cloudinaryImage(slide.afterImage || slide.image, 1080)} 
                               alt={`${slide.clientName} After`} 
                               title={`${slide.clientName} After`}
-                              loading="eager"
+                              loading="lazy"
                               className={`w-full h-full block brightness-105 contrast-105 transition-transform duration-500 group-hover/after:scale-105 ${
                                 slide.afterImage ? 'object-cover object-top' : 'w-[200%] max-w-none object-cover object-right'
                               }`}
@@ -423,7 +424,7 @@ export const BeforeAfterShowcase: React.FC<BeforeAfterShowcaseProps> = ({
               <X className="w-5 h-5" />
             </button>
             <img
-              src={zoomImage}
+              src={cloudinaryImage(zoomImage, 1600)}
               alt="Transformation Zoom Preview"
               className="w-full max-h-[85vh] object-contain rounded-xl"
             />

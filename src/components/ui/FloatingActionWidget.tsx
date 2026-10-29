@@ -28,8 +28,9 @@ export const FloatingActionWidget: React.FC<FloatingActionWidgetProps> = ({
     setIsExpanded(prev => !prev);
   };
 
+  // z-40 keeps these buttons under every modal (z-50), so they never cover checkout or sign-in
   return (
-    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end gap-2.5 sm:gap-3 pointer-events-auto select-none">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 flex flex-col items-end gap-2.5 sm:gap-3 pointer-events-auto select-none">
       {/* Collapsible Action Buttons: Chatbot, WhatsApp, Call */}
       <div
         className={`flex flex-col items-end gap-2.5 sm:gap-3 transition-all duration-300 origin-bottom ${

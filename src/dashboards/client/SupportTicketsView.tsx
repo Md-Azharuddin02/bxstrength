@@ -61,7 +61,8 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
 
   useEffect(() => {
     fetchUserTickets(true);
-    const interval = setInterval(() => fetchUserTickets(false), 5000);
+    // Every client runs this, so keep it gentle and pause it in background tabs
+    const interval = setInterval(() => { if (!document.hidden) fetchUserTickets(false); }, 30000);
     return () => clearInterval(interval);
   }, [user.id, user.email]);
 

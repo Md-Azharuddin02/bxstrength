@@ -60,6 +60,7 @@ export interface User {
   coachPosition?: CoachPosition | string;
   avatarUrl?: string;
   phone?: string;
+  preferredContactMethod?: 'whatsapp' | 'email' | 'call' | 'all';
   age?: number;
   heightCm?: number;
   gender?: 'Male' | 'Female' | 'Other' | 'Prefer not to say';

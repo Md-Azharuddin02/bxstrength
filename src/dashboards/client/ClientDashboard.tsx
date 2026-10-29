@@ -91,7 +91,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     const annData = VelocityAPI.getAnnouncements();
     setAnnouncements(annData);
 
-    const subData = VelocityAPI.getSubscriptions();
+    const subData = await VelocityAPI.fetchSubscriptions();
     setSubscriptions(subData);
 
     const enqData = VelocityAPI.getEnquiries(user.email);

@@ -15,6 +15,8 @@ import { CORS_ORIGINS } from './Backend/src/config/env.ts';
 import { dbPool } from './Backend/src/config/db.ts';
 import { sanitizeInput } from './Backend/src/utils/sanitize.ts';
 import { sendServerEmail } from './Backend/src/services/emailService.ts';
+import { calculateCustomExercisePrice, getConfiguredServicePlanPrice } from './src/services/servicePricing.ts';
+import { ensureSubscriptionForPayment } from './Backend/src/services/subscriptionService.ts';
 import authRoutes from './Backend/src/routes/authRoutes.ts';
 import subscriptionRoutes from './Backend/src/routes/subscriptionRoutes.ts';
 import workoutProgramRoutes from './Backend/src/routes/workoutProgramRoutes.ts';
@@ -232,8 +234,15 @@ function calculateAuthoritativePriceForMarket(
 ): { amount: number; currency: 'GBP'; amountInSubUnits: number } {
   const normKey = (planName || '').toLowerCase().replace(/[^a-z0-9]/g, '-');
   let matched: MarketPrice | undefined;
+  const configuredPrice = getConfiguredServicePlanPrice(planName);
 
-  if (/monthly.*flex|bx.*monthly.*flex/i.test(planName)) matched = { gbpBasePrice: 359, inrBasePrice: 35900, name: 'BX Monthly Flex' };
+  if (serviceType === 'custom') {
+    const amount = calculateCustomExercisePrice(customExercises || []);
+    return { amount, currency: 'GBP', amountInSubUnits: Math.round(amount * 100) };
+  }
+
+  if (configuredPrice !== undefined) matched = { gbpBasePrice: configuredPrice, inrBasePrice: configuredPrice * 100, name: planName };
+  else if (/monthly.*flex|bx.*monthly.*flex/i.test(planName)) matched = { gbpBasePrice: 359, inrBasePrice: 35900, name: 'BX Monthly Flex' };
   else if (/weekly/i.test(planName)) matched = { gbpBasePrice: 110, inrBasePrice: 11000, name: 'Weekly Plan' };
 
   for (const [key, val] of Object.entries(AUTHORITATIVE_PRICING_CATALOG)) {
@@ -247,12 +256,6 @@ function calculateAuthoritativePriceForMarket(
 
   const currency: 'GBP' = 'GBP';
   let basePrice = matched.gbpBasePrice;
-
-  if (serviceType === 'custom' && Array.isArray(customExercises)) {
-    const extraCount = Math.max(0, customExercises.length - 3);
-    const extraFeePerUnit = 0; // £0 GBP per additional custom exercise
-    basePrice += extraCount * extraFeePerUnit;
-  }
 
   const amountInSubUnits = Math.round(basePrice * 100);
 
@@ -489,6 +492,8 @@ app.post(['/api/verify-payment', '/api/verify-razorpay-payment', '/api/payments/
       return res.status(403).json({ success: false, error: 'Payment transaction belongs to another account.' });
     }
     if (existingTx && existingTx.status === 'reconciled') {
+      // A retry after a failed subscription insert lands here, so make sure the plan exists
+      if (dbPool) await ensureSubscriptionForPayment(dbPool, razorpay_order_id).catch((err: any) => console.error('[SUBSCRIPTION CREATE ERROR]', razorpay_order_id, err.message));
       return res.status(200).json({
         success: true,
         message: 'Payment already verified and reconciled',
@@ -518,10 +523,16 @@ app.post(['/api/verify-payment', '/api/verify-razorpay-payment', '/api/payments/
       }
 
       if (dbPool) {
-        dbPool.query(
-          `UPDATE payment_transactions SET gateway_payment_id = $1, status = 'reconciled', updated_at = NOW() WHERE gateway_order_id = $2 OR id = $3`,
-          [razorpay_payment_id, razorpay_order_id, transactionId || '']
-        ).catch(() => { });
+        try {
+          await dbPool.query(
+            `UPDATE payment_transactions SET gateway_payment_id = $1, status = 'reconciled', updated_at = NOW() WHERE gateway_order_id = $2 OR id = $3`,
+            [razorpay_payment_id, razorpay_order_id, transactionId || '']
+          );
+          await ensureSubscriptionForPayment(dbPool, razorpay_order_id);
+        } catch (err: any) {
+          // Payment is captured; the webhook or a retried verify will create the plan
+          console.error('[PAYMENT RECONCILE ERROR]', razorpay_order_id, err.message);
+        }
       }
 
       return res.status(200).json({
@@ -1139,7 +1150,6 @@ app.post('/api/webhooks/razorpay', async (req, res) => {
       return res.status(400).json({ error: 'Invalid webhook signature' });
     }
 
-    processedWebhooksStore.add(eventId);
 
     const event = req.body;
     if (event.event === 'payment.captured' || event.event === 'order.paid') {
@@ -1154,14 +1164,17 @@ app.post('/api/webhooks/razorpay', async (req, res) => {
         tx.updatedAt = new Date().toISOString();
       }
 
-      if (dbPool) {
-        dbPool.query(
+      if (dbPool && orderId) {
+        await dbPool.query(
           `UPDATE payment_transactions SET gateway_payment_id = $1, status = 'reconciled', updated_at = NOW() WHERE gateway_order_id = $2`,
           [paymentId, orderId]
-        ).catch(() => { });
+        );
+        await ensureSubscriptionForPayment(dbPool, orderId);
       }
     }
 
+    // Mark processed only after success, so a provider retry can recover a failed save
+    processedWebhooksStore.add(eventId);
     res.status(200).json({ status: 'success' });
   } catch (err: any) {
     console.error('[RAZORPAY WEBHOOK ERROR]', err.message);
@@ -1188,7 +1201,6 @@ app.post(['/api/webhooks/cashfree', '/api/payments/cashfree-webhook'], async (re
     if (processedWebhooksStore.has(eventId)) {
       return res.status(200).json({ status: 'ignored', message: 'Webhook event already processed' });
     }
-    processedWebhooksStore.add(eventId);
 
     const data = req.body?.data || req.body;
     const orderId = data?.order?.order_id || data?.order_id;
@@ -1203,14 +1215,17 @@ app.post(['/api/webhooks/cashfree', '/api/payments/cashfree-webhook'], async (re
         tx.updatedAt = new Date().toISOString();
       }
 
-      if (dbPool) {
-        dbPool.query(
+      if (dbPool && orderId) {
+        await dbPool.query(
           `UPDATE payment_transactions SET gateway_payment_id = $1, status = 'reconciled', updated_at = NOW() WHERE gateway_order_id = $2 OR id = $2`,
           [String(paymentId), orderId]
-        ).catch(() => { });
+        );
+        await ensureSubscriptionForPayment(dbPool, orderId);
       }
     }
 
+    // Mark processed only after success, so a provider retry can recover a failed save
+    processedWebhooksStore.add(eventId);
     return res.status(200).json({ status: 'success', gateway: 'cashfree' });
   } catch (err: any) {
     console.error('[CASHFREE WEBHOOK ERROR]', err.message);
@@ -2768,9 +2783,10 @@ app.post('/api/consultations', enquiryLimiter, async (req, res) => {
     const coach = sanitizeInput(coachPreference || 'Head Coach Assignment');
     const date = sanitizeInput(preferredDate || '');
     const time = sanitizeInput(preferredTime || '');
+    const additionalNotes = sanitizeInput(String(req.body.additionalNotes || '').slice(0, 1000));
 
     const bookingRef = `BX-CONS-${Math.floor(100000 + Math.random() * 900000)}`;
-    const consultationMessage = `[FREE CONSULTATION BOOKED]\nRef: ${bookingRef}\nPrimary Exercise / Goal: ${leadGoal}\nSession Duration: ${leadDuration}\nScheduled Date & Time Slot: ${date} at ${time}\nAssigned Coach: ${coach}`;
+    const consultationMessage = `[FREE CONSULTATION BOOKED]\nRef: ${bookingRef}\nPrimary Exercise / Goal: ${leadGoal}\nSession Duration: ${leadDuration}\nScheduled Date & Time Slot: ${date} at ${time}\nAssigned Coach: ${coach}${additionalNotes ? `\nAdditional Notes: ${additionalNotes}` : ''}`;
 
     const enquiryId = `enq-consult-${Date.now()}`;
     const newEnquiry: ServerEnquiry = {
@@ -2841,16 +2857,18 @@ app.post('/api/consultations', enquiryLimiter, async (req, res) => {
             client_phone VARCHAR(50),
             goal VARCHAR(255),
             duration VARCHAR(50),
+            additional_notes TEXT,
             preferred_date VARCHAR(50),
             preferred_time VARCHAR(100),
             status VARCHAR(50) DEFAULT 'Confirmed',
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           )`
         );
+        await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS additional_notes TEXT');
         await dbPool.query(
-          `INSERT INTO consultations (id, client_name, client_email, client_phone, goal, duration, preferred_date, preferred_time, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Confirmed')`,
-          [bookingRef, leadName, leadEmail, leadPhone, leadGoal, leadDuration, date, time]
+          `INSERT INTO consultations (id, client_name, client_email, client_phone, goal, duration, additional_notes, preferred_date, preferred_time, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Confirmed')`,
+          [bookingRef, leadName, leadEmail, leadPhone, leadGoal, leadDuration, additionalNotes || null, date, time]
         );
       } catch (e: any) { }
     }
@@ -2896,6 +2914,7 @@ app.post('/api/consultations', enquiryLimiter, async (req, res) => {
             <p style="margin: 4px 0;"><strong>Phone:</strong> ${leadPhone}</p>
             <p style="margin: 4px 0;"><strong>Primary Goal:</strong> ${leadGoal}</p>
             <p style="margin: 4px 0;"><strong>Session Duration:</strong> ${leadDuration}</p>
+            ${additionalNotes ? `<p style="margin: 4px 0; white-space: pre-wrap;"><strong>Additional Notes:</strong> ${additionalNotes}</p>` : ''}
             <p style="margin: 4px 0;"><strong>Scheduled Date &amp; Time:</strong> ${date} at ${time}</p>
           </div>
           <p style="font-size: 12px; color: #71717a; margin: 0;">This lead is recorded in database and Admin panel.</p>

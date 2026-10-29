@@ -36,10 +36,9 @@ export const listSubscriptions = async (req: Request, res: Response) => {
 
 export const createSubscription = async (req: Request, res: Response) => {
   try {
-    const { id, userName, planName, price, billingCycle, status, startDate, endDate } = req.body;
-    const user = (req as any).user;
-    const userId = isStaff(req) ? req.body.userId : user.id;
-    const userEmail = isStaff(req) ? req.body.userEmail : user.email;
+    // Clients get plans only through verified payments (ensureSubscriptionForPayment), never by posting one
+    if (!isStaff(req)) return res.status(403).json({ error: 'Not allowed' });
+    const { id, userName, planName, price, billingCycle, status, startDate, endDate, userId, userEmail } = req.body;
     if (!userId || !userEmail || !planName) return res.status(400).json({ error: 'userId, email and planName are required' });
 
     const subId = id || `sub-${Date.now()}`;
@@ -64,6 +63,7 @@ export const createSubscription = async (req: Request, res: Response) => {
 
 export const deleteSubscription = async (req: Request, res: Response) => {
   try {
+    if (!isStaff(req)) return res.status(403).json({ error: 'Not allowed' });
     const { id } = req.params;
     if (dbPool) {
       await dbPool.query('DELETE FROM subscriptions WHERE id = $1', [id]);

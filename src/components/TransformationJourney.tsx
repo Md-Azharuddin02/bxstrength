@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Play, Maximize2, X, Flame, CalendarCheck, ClipboardList, ArrowUpRight } from 'lucide-react';
+import { cloudinaryImage } from '../utils/image';
+import { LazyVideo } from './ui/LazyVideo';
 
 interface TransformationJourneyProps {
   onOpenAssessment: () => void;
@@ -45,18 +47,14 @@ export const TransformationJourney: React.FC<TransformationJourneyProps> = ({
               onClick={() => setSelectedMedia({
                 id: 'v1',
                 type: 'video',
-                url: 'https://res.cloudinary.com/yuyxn5b0/video/upload/v1790697693/WhatsApp_Video_2026-09-29_at_8.54.24_PM.mp4',
+                url: 'https://res.cloudinary.com/yuyxn5b0/video/upload/q_auto,f_auto/v1790697693/WhatsApp_Video_2026-09-29_at_8.54.24_PM.mp4',
                 title: 'Boxing Mittwork & Reflex Combinations',
                 category: 'BOXING CONDITIONING'
               })}
               className="relative h-[380px] sm:h-[460px] rounded-3xl overflow-hidden bg-zinc-900 border border-zinc-800 hover:border-[#CCFF00] cursor-pointer group transition-all duration-300 shadow-xl"
             >
-              <video
-                src="https://res.cloudinary.com/yuyxn5b0/video/upload/v1790697693/WhatsApp_Video_2026-09-29_at_8.54.24_PM.mp4"
-                muted
-                loop
-                playsInline
-                autoPlay
+              <LazyVideo
+                src="https://res.cloudinary.com/yuyxn5b0/video/upload/q_auto,f_auto/v1790697693/WhatsApp_Video_2026-09-29_at_8.54.24_PM.mp4"
                 className="w-full h-full object-cover opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
@@ -101,7 +99,9 @@ export const TransformationJourney: React.FC<TransformationJourneyProps> = ({
               className="relative h-[220px] rounded-3xl overflow-hidden bg-zinc-900 border border-zinc-800 hover:border-[#CCFF00] cursor-pointer group transition-all duration-300 shadow-xl"
             >
               <img
-                src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1790173781/WhatsApp_Image_2026-09-23_at_7.50.17_PM.jpg?auto=format&fit=crop&q=80&w=800"
+                src={cloudinaryImage("https://res.cloudinary.com/yuyxn5b0/image/upload/v1790173781/WhatsApp_Image_2026-09-23_at_7.50.17_PM.jpg?auto=format&fit=crop&q=80&w=800", 480)}
+                loading="lazy"
+                decoding="async"
                 alt="Head Coach & Team"
                 className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
               />
@@ -139,7 +139,9 @@ export const TransformationJourney: React.FC<TransformationJourneyProps> = ({
               className="relative h-[200px] rounded-3xl overflow-hidden bg-zinc-900 border border-zinc-800 hover:border-[#CCFF00] cursor-pointer group transition-all duration-300 shadow-xl"
             >
               <img
-                src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1790173783/WhatsApp_Image_2026-09-23_at_7.50.19_PM_2.jpg?auto=format&fit=crop&q=80&w=800"
+                src={cloudinaryImage("https://res.cloudinary.com/yuyxn5b0/image/upload/v1790173783/WhatsApp_Image_2026-09-23_at_7.50.19_PM_2.jpg?auto=format&fit=crop&q=80&w=800", 480)}
+                loading="lazy"
+                decoding="async"
                 alt="Strength Training"
                 className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
               />
@@ -166,7 +168,9 @@ export const TransformationJourney: React.FC<TransformationJourneyProps> = ({
               className="relative h-[360px] rounded-3xl overflow-hidden bg-zinc-900 border border-zinc-800 hover:border-[#CCFF00] cursor-pointer group transition-all duration-300 shadow-xl"
             >
               <img
-                src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1790173784/WhatsApp_Image_2026-09-23_at_7.50.19_PM.jpg?auto=format&fit=crop&q=80&w=800"
+                src={cloudinaryImage("https://res.cloudinary.com/yuyxn5b0/image/upload/v1790173784/WhatsApp_Image_2026-09-23_at_7.50.19_PM.jpg?auto=format&fit=crop&q=80&w=800", 480)}
+                loading="lazy"
+                decoding="async"
                 alt="Tactical Conditioning"
                 className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
               />
@@ -184,18 +188,14 @@ export const TransformationJourney: React.FC<TransformationJourneyProps> = ({
               onClick={() => setSelectedMedia({
                 id: 'v2',
                 type: 'video',
-                url: 'https://res.cloudinary.com/yuyxn5b0/video/upload/v1789384992/WhatsApp_Video_2026-08-29_at_6.06.53_AM.mp4',
+                url: 'https://res.cloudinary.com/yuyxn5b0/video/upload/q_auto,f_auto/v1789384992/WhatsApp_Video_2026-08-29_at_6.06.53_AM.mp4',
                 title: 'Heavy Bag Power Strikes',
                 category: 'BOXING POWER'
               })}
               className="relative h-[300px] rounded-3xl overflow-hidden bg-zinc-900 border border-zinc-800 hover:border-[#CCFF00] cursor-pointer group transition-all duration-300 shadow-xl"
             >
-              <video
-                src="https://res.cloudinary.com/yuyxn5b0/video/upload/v1789384992/WhatsApp_Video_2026-08-29_at_6.06.53_AM.mp4"
-                muted
-                loop
-                playsInline
-                autoPlay
+              <LazyVideo
+                src="https://res.cloudinary.com/yuyxn5b0/video/upload/q_auto,f_auto/v1789384992/WhatsApp_Video_2026-08-29_at_6.06.53_AM.mp4"
                 className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-opacity"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
@@ -243,7 +243,9 @@ export const TransformationJourney: React.FC<TransformationJourneyProps> = ({
               className="relative h-[440px] rounded-3xl overflow-hidden bg-zinc-900 border border-zinc-800 hover:border-[#CCFF00] cursor-pointer group transition-all duration-300 shadow-xl"
             >
               <img
-                src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1790173786/WhatsApp_Image_2026-09-23_at_7.50.51_PM.jpg?auto=format&fit=crop&q=80&w=800"
+                src={cloudinaryImage("https://res.cloudinary.com/yuyxn5b0/image/upload/v1790173786/WhatsApp_Image_2026-09-23_at_7.50.51_PM.jpg?auto=format&fit=crop&q=80&w=800", 480)}
+                loading="lazy"
+                decoding="async"
                 alt="Movement Quality"
                 className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
               />
@@ -329,7 +331,7 @@ export const TransformationJourney: React.FC<TransformationJourneyProps> = ({
                 />
               ) : (
                 <img
-                  src={selectedMedia.url}
+                  src={cloudinaryImage(selectedMedia.url, 1600)}
                   alt={selectedMedia.title}
                   className="w-full max-h-[70vh] object-contain"
                 />

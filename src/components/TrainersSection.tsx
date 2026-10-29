@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Trainer, ViewPage } from '../types';
 import { BxTrainer, TRAINERS_DATA } from '../data/gymData';
 import { Star, Calendar, ShieldCheck, Globe, Clock, Award, Trophy, CheckCircle2, X, ExternalLink, Database, RefreshCw, ChevronLeft, ChevronRight, Film } from 'lucide-react';
+import { cloudinaryImage } from '../utils/image';
 
 interface TrainersSectionProps {
   onSelectTrainer: (trainer: Trainer) => void;
@@ -194,7 +195,9 @@ export const TrainersSection: React.FC<TrainersSectionProps> = ({
                   title="Click to view qualifications & photo gallery"
                 >
                   <img
-                    src={trainer.image}
+                    src={cloudinaryImage(trainer.image, 640)}
+                    loading="lazy"
+                    decoding="async"
                     alt={trainer.name}
                     className={`w-full h-full object-cover ${trainer.imagePosition || 'object-top'} filter contrast-105 brightness-95 transition-transform duration-700 group-hover:scale-105`}
                   />
@@ -315,7 +318,7 @@ export const TrainersSection: React.FC<TrainersSectionProps> = ({
                 title="Click to view full image"
               >
                 <img
-                  src={selectedTrainerForProfile.image}
+                  src={cloudinaryImage(selectedTrainerForProfile.image, 400)}
                   alt={selectedTrainerForProfile.name}
                   className={`w-36 h-36 sm:w-44 sm:h-44 rounded-2xl object-cover ${selectedTrainerForProfile.imagePosition || 'object-top'} border-4 border-[#CCFF00] shadow-2xl group-hover:scale-105 transition-transform duration-300`}
                 />
@@ -529,7 +532,9 @@ export const TrainersSection: React.FC<TrainersSectionProps> = ({
                         title="Click to expand photo"
                       >
                         <img
-                          src={photo}
+                          src={cloudinaryImage(photo, 640)}
+                          loading="lazy"
+                          decoding="async"
                           alt={`${selectedTrainerForProfile.name} Physique ${idx + 1}`}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                         />
@@ -585,7 +590,7 @@ export const TrainersSection: React.FC<TrainersSectionProps> = ({
             <div className="relative w-full flex items-center justify-center">
               {lightboxMedia.type === 'photo' ? (
                 <img
-                  src={lightboxMedia.url}
+                  src={cloudinaryImage(lightboxMedia.url, 1600)}
                   alt="Coach Gallery Full Preview"
                   className="max-h-[82vh] max-w-full object-contain rounded-2xl border border-zinc-800 shadow-2xl animate-in zoom-in-95 duration-300"
                 />

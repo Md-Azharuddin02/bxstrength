@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 export interface CountryOption {
   code: string;
@@ -8,9 +8,9 @@ export interface CountryOption {
   placeholder: string;
 }
 
+// UK only: BxStrength does not provide services outside the UK
 export const COUNTRIES: CountryOption[] = [
   { code: 'GB', name: 'United Kingdom', flag: '🇬🇧', dialCode: '+44', placeholder: '7911 123456 or 07911 123456' },
-  { code: 'IN', name: 'India', flag: '🇮🇳', dialCode: '+91', placeholder: '98765 43210' }
 ];
 
 interface PhoneInputProps {
@@ -30,14 +30,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   className = '',
   inputClassName = ''
 }) => {
-  const [selectedCountry, setSelectedCountry] = useState<CountryOption>(() => {
-    if (value && (value.startsWith('+91') || value.startsWith('91'))) {
-      return COUNTRIES[1]; // India
-    }
-    return COUNTRIES[0]; // UK default
-  });
-
-  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const selectedCountry = COUNTRIES[0];
 
   return (
     <div className={`space-y-1.5 ${className}`}>
@@ -47,43 +40,13 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
         </label>
       )}
       <div className="relative flex items-center">
-        {/* Country Flag Selector Button */}
-        <div className="absolute left-2 top-1/2 -translate-y-1/2 z-20">
-          <button
-            type="button"
-            onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center gap-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 px-2 py-1 rounded text-xs font-mono font-bold text-white shadow-sm transition-colors cursor-pointer select-none"
-            title="Select Country Code"
-          >
-            <span className="text-sm leading-none">{selectedCountry.flag}</span>
-            <span className="text-[11px] text-zinc-200 font-bold">{selectedCountry.dialCode}</span>
-            <span className="text-[9px] text-zinc-400 ml-0.5">▼</span>
-          </button>
-
-          {/* Dropdown Menu */}
-          {isOpen && (
-            <div className="absolute top-full left-0 mt-1 w-48 bg-[#18181b] border border-zinc-700 rounded-lg shadow-2xl overflow-hidden z-30 animate-in fade-in zoom-in-95 duration-150">
-              {COUNTRIES.map((c) => (
-                <button
-                  key={c.code}
-                  type="button"
-                  onClick={() => {
-                    setSelectedCountry(c);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold transition-colors cursor-pointer text-left ${
-                    selectedCountry.code === c.code ? 'bg-[#CCFF00]/15 text-[#CCFF00]' : 'text-zinc-200 hover:bg-zinc-800'
-                  }`}
-                >
-                  <span className="text-base leading-none">{c.flag}</span>
-                  <div className="flex flex-col">
-                    <span>{c.name}</span>
-                    <span className="text-[10px] text-zinc-400 font-mono">{c.dialCode}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
+        {/* Fixed UK country code */}
+        <div
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-20 flex items-center gap-1 bg-zinc-900 border border-zinc-700/80 px-2 py-1 rounded text-xs font-mono font-bold text-white shadow-sm select-none"
+          title={selectedCountry.name}
+        >
+          <span className="text-sm leading-none" aria-hidden="true">{selectedCountry.flag}</span>
+          <span className="text-[11px] text-zinc-200 font-bold">{selectedCountry.dialCode}</span>
         </div>
 
         {/* Input Field */}

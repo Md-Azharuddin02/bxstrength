@@ -12,6 +12,7 @@ import {
   createPasswordResetToken, consumePasswordResetToken
 } from '../services/tokenService.ts';
 import { bearerToken } from '../utils/request.ts';
+import { validatePassword } from '../utils/passwordPolicy.ts';
 
 const SERVICE_UNAVAILABLE = 'Service temporarily unavailable. Please try again.';
 
@@ -24,8 +25,13 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Name, email, and password are required' });
     }
 
-    if (typeof rawPassword !== 'string' || rawPassword.length < 6 || rawPassword.length > 128) {
-      return res.status(400).json({ error: 'Password must be between 6 and 128 characters.' });
+    if (typeof rawPassword !== 'string' || rawPassword.length > 128) {
+      return res.status(400).json({ error: 'Password must be at most 128 characters.' });
+    }
+
+    const pwError = validatePassword(rawPassword);
+    if (pwError) {
+      return res.status(400).json({ error: pwError });
     }
 
     if (typeof rawName !== 'string' || rawName.length > 100 || typeof rawEmail !== 'string' || rawEmail.length > 150) {
@@ -595,8 +601,13 @@ export const resetPassword = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'New password is required.' });
     }
 
-    if (typeof newPassword !== 'string' || newPassword.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    if (typeof newPassword !== 'string' || newPassword.length > 128) {
+      return res.status(400).json({ error: 'Password must be at most 128 characters.' });
+    }
+
+    const pwError = validatePassword(newPassword);
+    if (pwError) {
+      return res.status(400).json({ error: pwError });
     }
 
 

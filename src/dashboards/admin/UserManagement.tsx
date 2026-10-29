@@ -8,6 +8,7 @@ import {
   ShieldCheck, UserCheck, Key, Eye, Power, Lock, Shield, Award, Calendar, DollarSign
 } from 'lucide-react';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { validatePassword } from '../../utils/passwordValidation';
 
 interface UserManagementProps {
   users: User[];
@@ -196,6 +197,15 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       return;
     }
 
+    // NEW: validate password only when creating a user
+    if (!editingUser) {
+      const pwError = validatePassword(password);
+      if (pwError) {
+        onShowToast(pwError);
+        return;
+      }
+    }
+
     const targetRole = isCoach ? 'client' : (role === 'customer_support' ? 'customer_support' : role);
     const finalCoachPos = targetRole === 'headcoach' ? 'Head Coach' : (targetRole === 'coach' ? 'Coach' : (targetRole === 'customer_support' ? 'Customer Support' : undefined));
     const numHeight = Number(heightCm) || 175;
@@ -284,6 +294,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const handleAdminResetPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resetPasswordUser || !newPasswordInput) return;
+
+    // NEW: block weak passwords
+    const pwError = validatePassword(newPasswordInput);
+    if (pwError) {
+      onShowToast(pwError);
+      return;
+    }
+
     try {
       await VelocityAPI.adminResetUserPassword(resetPasswordUser.id, newPasswordInput);
       onShowToast(`✓ Password successfully reset for "${resetPasswordUser.name}"`);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ViewPage } from "../types";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import { normalizeRole } from "../utils/auth";
+import { cloudinaryImage } from '../utils/image';
 interface HeaderProps {
   currentPage: ViewPage | null;
   onNavigate: (page: ViewPage) => void;
@@ -36,7 +37,8 @@ export const Header: React.FC<HeaderProps> = ({
   const { user, isAuthenticated } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [scrollProgress, setScrollProgress] = useState(0);
+  // Progress is written straight to the bar: state here re-rendered the whole header every scroll frame
+  const progressBarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let ticking = false;
@@ -46,12 +48,9 @@ export const Header: React.FC<HeaderProps> = ({
         document.documentElement.scrollHeight -
         document.documentElement.clientHeight;
       const currentScroll = window.scrollY;
-      if (totalHeight > 0) {
-        setScrollProgress(
-          Math.min(Math.max(currentScroll / totalHeight, 0), 1),
-        );
-      } else {
-        setScrollProgress(0);
+      const progress = totalHeight > 0 ? Math.min(Math.max(currentScroll / totalHeight, 0), 1) : 0;
+      if (progressBarRef.current) {
+        progressBarRef.current.style.transform = `scaleX(${progress})`;
       }
 
       if (currentScroll > 40) {
@@ -78,8 +77,8 @@ export const Header: React.FC<HeaderProps> = ({
   const navItems: { label: string; page: ViewPage }[] = [
     { label: "HOME", page: "home" },
     { label: "SERVICES", page: "services" },
-    { label: "COACHES", page: "trainers" },
     { label: "ABOUT", page: "about" },
+    { label: "COACHES", page: "trainers" },
     { label: "BLOG", page: "blog" },
     { label: "CONTACT", page: "contact" },
   ];
@@ -111,9 +110,10 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Precision UK Executive Scroll Hairline */}
       <div className="fixed top-0 left-0 right-0 h-[2.5px] bg-zinc-950/80 z-[100] pointer-events-none overflow-hidden">
         <div
+          ref={progressBarRef}
           className="h-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-amber-300 shadow-[0_0_8px_rgba(16,185,129,0.7)] transition-transform duration-75 ease-out will-change-transform"
           style={{
-            transform: `scaleX(${scrollProgress})`,
+            transform: "scaleX(0)",
             transformOrigin: "left",
           }}
         />
@@ -125,7 +125,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-6">
             <span className="text-[#CCFF00] font-black uppercase text-[11px] tracking-widest flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#CCFF00] animate-pulse" />
-              UK &amp; INDIA DIGITAL PERFORMANCE &amp; BOXING PLATFORM
+              UK DIGITAL PERFORMANCE &amp; BOXING PLATFORM
             </span>
           </div>
 
@@ -169,7 +169,7 @@ export const Header: React.FC<HeaderProps> = ({
             aria-label="BxStrength Home"
           >
             <img
-              src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1789566029/WhatsApp_Image_2026-09-08_at_10.50.41_AM.png"
+              src={cloudinaryImage("https://res.cloudinary.com/yuyxn5b0/image/upload/v1789566029/WhatsApp_Image_2026-09-08_at_10.50.41_AM.png", 720)}
               alt="BxStrength Logo"
               className="h-10 sm:h-14 md:h-16 lg:h-18 w-auto max-w-[220px] sm:max-w-[280px] md:max-w-[340px] object-contain rounded-lg shadow-lg group-hover:opacity-90 transition-all"
             />
@@ -193,7 +193,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="bg-white hover:bg-zinc-200 text-black font-black text-xs tracking-wider uppercase px-5 py-2.5 rounded-lg transition-all shadow-md cursor-pointer flex items-center gap-1.5"
             >
               <Calendar className="w-4 h-4" />
-              BOOK FREE CONSULTATION
+              BOOK FREE DEMO SESSION
             </button>
 
             {isAuthenticated && user ? (

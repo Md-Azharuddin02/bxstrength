@@ -4,8 +4,11 @@ import { BrowserRouter } from 'react-router-dom';
 
 import App from './App.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
+import { installResizedImageFallback } from './utils/image';
 
 import './index.css';
+
+installResizedImageFallback();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

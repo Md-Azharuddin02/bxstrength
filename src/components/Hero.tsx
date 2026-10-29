@@ -17,7 +17,7 @@ export const Hero: React.FC<HeroProps> = () => {
     >
       {/* Hidden H1 for SEO & Screen Reader Accessibility */}
       <h1 className="sr-only">
-        BxStrength — UK &amp; India Digital Coaching, Boxing, Strength &amp; Fitness Platform
+        BxStrength — UK Digital Coaching, Boxing, Strength &amp; Fitness Platform
       </h1>
 
       {/* Hero video clip */}

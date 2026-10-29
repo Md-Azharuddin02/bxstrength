@@ -104,7 +104,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
 
   useEffect(() => {
     fetchAllTickets();
-    const interval = setInterval(() => fetchAllTickets(false), 5000); // 5 sec live sync
+    const interval = setInterval(() => { if (!document.hidden) fetchAllTickets(false); }, 15000); // near-live for staff, paused in background tabs
     return () => clearInterval(interval);
   }, []);
 

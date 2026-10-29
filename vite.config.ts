@@ -26,11 +26,12 @@ export default defineConfig(() => {
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {
-              if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler')) {
-                return 'vendor-react';
-              }
-              if (id.includes('lucide-react')) {
+              // Exact package folders: a bare includes('react') also caught lucide-react
+              if (id.includes('/node_modules/lucide-react/')) {
                 return 'vendor-lucide';
+              }
+              if (/\/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) {
+                return 'vendor-react';
               }
               if (id.includes('motion') || id.includes('framer-motion')) {
                 return 'vendor-motion';

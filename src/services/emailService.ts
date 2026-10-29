@@ -50,6 +50,7 @@ export interface ConsultationEmailParams {
   coachPreference: string;
   date: string;
   timeSlot: string;
+  additionalNotes?: string;
 }
 
 export const sendConsultationConfirmationEmail = async (

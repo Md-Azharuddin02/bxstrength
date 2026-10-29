@@ -483,7 +483,7 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate, onOpenBooking 
               </div>
               <div className="space-y-1">
                 <span className="text-zinc-500 font-bold uppercase block text-[11px]">Primary Operating Regions</span>
-                <span className="text-[#CCFF00] font-bold">United Kingdom &amp; India</span>
+                <span className="text-[#CCFF00] font-bold">United Kingdom</span>
               </div>
               <div className="space-y-1">
                 <span className="text-zinc-500 font-bold uppercase block text-[11px]">Customer Support Email</span>

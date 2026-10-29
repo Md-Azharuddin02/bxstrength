@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FitnessClass, ViewPage } from '../types';
 import { CLASSES_DATA } from '../data/gymData';
 import { Flame, Clock, User, ArrowRight, Check } from 'lucide-react';
+import { cloudinaryImage } from '../utils/image';
 
 interface FeaturedClassesProps {
   onSelectClass: (cls: FitnessClass) => void;
@@ -70,7 +71,9 @@ export const FeaturedClasses: React.FC<FeaturedClassesProps> = ({
               {/* Class Image Container */}
               <div className="relative h-56 overflow-hidden bg-gray-900">
                 <img
-                  src={cls.image}
+                  src={cloudinaryImage(cls.image, 800)}
+                  loading="lazy"
+                  decoding="async"
                   alt={cls.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 filter contrast-105"
                 />

@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   X,
+  AlertCircle,
+  CheckCircle2,
   Check,
   Dumbbell,
   Target,
@@ -34,6 +36,8 @@ import { useAuth } from '../context/AuthContext';
 import { VelocityAPI } from '../services/api';
 import { openRazorpayCheckout } from '../services/razorpayService';
 import { canUseMockPayments } from '../services/mockPayment';
+import { calculateCustomPlanTotals, CUSTOM_SERVICE_PRICING, getCustomExerciseNames, getServicePlanType, SERVICE_PLAN_PRICES } from '../services/servicePricing';
+import type { User } from '../types';
 
 // Available Training Elements for Custom Plan
 export interface CustomTrainingElement {
@@ -51,8 +55,8 @@ const CUSTOM_ELEMENTS: CustomTrainingElement[] = [
     id: 'strength',
     name: 'Strength Training',
     description: 'Build strength, improve endurance and move better.',
-    price: 25,
-    durationMin: 15,
+    price: CUSTOM_SERVICE_PRICING.strength.price,
+    durationMin: CUSTOM_SERVICE_PRICING.strength.durationMin,
     durationLabel: '15 min',
     icon: Dumbbell
   },
@@ -60,8 +64,8 @@ const CUSTOM_ELEMENTS: CustomTrainingElement[] = [
     id: 'functional',
     name: 'Functional Training',
     description: 'Improve overall fitness with real-world movements.',
-    price: 25,
-    durationMin: 15,
+    price: CUSTOM_SERVICE_PRICING.functional.price,
+    durationMin: CUSTOM_SERVICE_PRICING.functional.durationMin,
     durationLabel: '15 min',
     icon: Target
   },
@@ -69,8 +73,8 @@ const CUSTOM_ELEMENTS: CustomTrainingElement[] = [
     id: 'boxing',
     name: 'Fitness Boxing',
     description: 'Develop fitness, coordination and boxing skills.',
-    price: 30,
-    durationMin: 15,
+    price: CUSTOM_SERVICE_PRICING.boxing.price,
+    durationMin: CUSTOM_SERVICE_PRICING.boxing.durationMin,
     durationLabel: '15 min',
     icon: Flame
   },
@@ -78,8 +82,8 @@ const CUSTOM_ELEMENTS: CustomTrainingElement[] = [
     id: 'mobility',
     name: 'Mobility',
     description: 'Improve movement, reduce stiffness and prevent injury.',
-    price: 20,
-    durationMin: 15,
+    price: CUSTOM_SERVICE_PRICING.mobility.price,
+    durationMin: CUSTOM_SERVICE_PRICING.mobility.durationMin,
     durationLabel: '15 min',
     icon: Activity
   },
@@ -87,8 +91,8 @@ const CUSTOM_ELEMENTS: CustomTrainingElement[] = [
     id: 'flexibility',
     name: 'Flexibility',
     description: 'Increase flexibility and support better movement.',
-    price: 20,
-    durationMin: 15,
+    price: CUSTOM_SERVICE_PRICING.flexibility.price,
+    durationMin: CUSTOM_SERVICE_PRICING.flexibility.durationMin,
     durationLabel: '15 min',
     icon: UserCheck
   },
@@ -96,8 +100,8 @@ const CUSTOM_ELEMENTS: CustomTrainingElement[] = [
     id: 'guided-warmup',
     name: 'Guided Warm-Up',
     description: 'Get ready for your session with a structured warm-up.',
-    price: 12,
-    durationMin: 10,
+    price: CUSTOM_SERVICE_PRICING['guided-warmup'].price,
+    durationMin: CUSTOM_SERVICE_PRICING['guided-warmup'].durationMin,
     durationLabel: '10 min',
     icon: Target
   },
@@ -105,8 +109,8 @@ const CUSTOM_ELEMENTS: CustomTrainingElement[] = [
     id: 'personalised-warmup',
     name: 'Personalised Warm-Up',
     description: 'A customised warm-up based on your goals and needs.',
-    price: 15,
-    durationMin: 10,
+    price: CUSTOM_SERVICE_PRICING['personalised-warmup'].price,
+    durationMin: CUSTOM_SERVICE_PRICING['personalised-warmup'].durationMin,
     durationLabel: '10 min',
     icon: Flame
   },
@@ -114,8 +118,8 @@ const CUSTOM_ELEMENTS: CustomTrainingElement[] = [
     id: 'cooldown',
     name: 'Dedicated Cool-Down',
     description: 'Guided cool-down and recovery exercises.',
-    price: 15,
-    durationMin: 10,
+    price: CUSTOM_SERVICE_PRICING.cooldown.price,
+    durationMin: CUSTOM_SERVICE_PRICING.cooldown.durationMin,
     durationLabel: '10 min',
     icon: ShieldCheck
   },
@@ -123,8 +127,8 @@ const CUSTOM_ELEMENTS: CustomTrainingElement[] = [
     id: 'yoga',
     name: 'Guided Yoga',
     description: 'Relax, restore and improve mind-body balance.',
-    price: 40,
-    durationMin: 30,
+    price: CUSTOM_SERVICE_PRICING.yoga.price,
+    durationMin: CUSTOM_SERVICE_PRICING.yoga.durationMin,
     durationLabel: '30 min',
     icon: Flower2
   },
@@ -132,8 +136,8 @@ const CUSTOM_ELEMENTS: CustomTrainingElement[] = [
     id: 'wellness',
     name: 'Wellness Support',
     description: 'One-to-one conversation and lifestyle support.',
-    price: 40,
-    durationMin: 30,
+    price: CUSTOM_SERVICE_PRICING.wellness.price,
+    durationMin: CUSTOM_SERVICE_PRICING.wellness.durationMin,
     durationLabel: '30 min',
     icon: MessageSquare
   }
@@ -176,6 +180,9 @@ const MONTHLY_OPTIONS = [
   'Mindset & Wellness'
 ];
 
+const contactModeLabel = (mode?: string) =>
+  ({ whatsapp: 'WhatsApp', call: 'Phone Call', email: 'Email', all: 'All (WhatsApp, Call & Email)' } as Record<string, string>)[mode || ''] || mode || '';
+
 interface ServiceCustomizationModalProps {
   isOpen: boolean;
   suspended?: boolean;
@@ -217,10 +224,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
   const [continueToPaymentAfterLogin, setContinueToPaymentAfterLogin] = useState(false);
 
   // --- Custom Plan State ---
-  const [elementQuantities, setElementQuantities] = useState<Record<string, number>>({
-    'guided-warmup': 1,
-    'strength': 1
-  });
+  const [elementQuantities, setElementQuantities] = useState<Record<string, number>>({});
 
   const updateElementQuantity = (id: string, delta: number) => {
     setElementQuantities(prev => {
@@ -256,15 +260,17 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
   ]);
   const [openMonthlyDropdownIdx, setOpenMonthlyDropdownIdx] = useState<number | null>(null);
 
-  // Checkbox disclosures matching user screenshot in a 2x2 grid
-  const [ageConfirmed, setAgeConfirmed] = useState<boolean>(true);
-  const [virtualCoachingConfirmed, setVirtualCoachingConfirmed] = useState<boolean>(true);
-  const [healthConfirmed, setHealthConfirmed] = useState<boolean>(true);
-  const [spaceConfirmed, setSpaceConfirmed] = useState<boolean>(true);
-  const [termsAccepted, setTermsAccepted] = useState<boolean>(true);
+  // Agreements start unticked: UK consent must be an active choice, never pre-checked
+  const [ageConfirmed, setAgeConfirmed] = useState<boolean>(false);
+  const [virtualCoachingConfirmed, setVirtualCoachingConfirmed] = useState<boolean>(false);
+  const [healthConfirmed, setHealthConfirmed] = useState<boolean>(false);
+  const [spaceConfirmed, setSpaceConfirmed] = useState<boolean>(false);
+  const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
+  // Optional and never required to pay (marketing consent is kept separate from the Terms)
+  const [marketingConsent, setMarketingConsent] = useState<boolean>(false);
 
   // Mode of Contact state (auto-populated if user already has it on profile)
-  const [selectedContactMode, setSelectedContactMode] = useState<string>(user?.preferredContactMethod || '');
+  const [selectedContactMode, setSelectedContactMode] = useState<User['preferredContactMethod'] | ''>(user?.preferredContactMethod || '');
   const [contactPhoneInput, setContactPhoneInput] = useState<string>(user?.phone || '');
 
   // Keep contact mode synced when user logs in
@@ -298,12 +304,16 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
       setIsPaymentSuccess(false);
       setIsSuccessAnimationVisible(false);
       setOpenMonthlyDropdownIdx(null);
-      setElementQuantities({
-        'guided-warmup': 1,
-        'strength': 1
-      });
+      setElementQuantities({});
       setWeeklySessions(['Strength Training', 'Fitness Boxing', 'Mobility']);
-      setConfirmedOrderId(`BX${Math.floor(100000 + Math.random() * 900000)}`);
+      setConfirmedOrderId('');
+      // Agreements must be ticked fresh for every checkout, never carried over from an earlier one
+      setAgeConfirmed(false);
+      setVirtualCoachingConfirmed(false);
+      setHealthConfirmed(false);
+      setSpaceConfirmed(false);
+      setTermsAccepted(false);
+      setMarketingConsent(false);
       setBookingDate(
         new Date().toLocaleDateString('en-GB', {
           weekday: 'short',
@@ -319,7 +329,8 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
         setContactPhoneInput(user.phone);
       }
     }
-  }, [isOpen, service?.title, user]);
+    // Not keyed on `user`: saving the contact mode updates the user and would restart checkout at step 1
+  }, [isOpen, service?.title]);
 
   useEffect(() => {
     if (!isSuccessAnimationVisible) return;
@@ -347,6 +358,54 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
     }
   }, [isOpen, mainStage, user]);
 
+  // Dialog behaviour: focus moves in and stays in, Escape closes, the page behind doesn't scroll.
+  // Latest values live in a ref so re-renders don't re-run the effect and steal focus.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const dialogLatest = useRef({ onClose, isProcessing });
+  dialogLatest.current = { onClose, isProcessing };
+
+  useEffect(() => {
+    if (!isOpen || suspended) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialogRef.current?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      if (e.key === 'Escape') {
+        // Never close mid-payment: the Razorpay window is still open
+        if (dialogLatest.current.isProcessing) return;
+        e.preventDefault();
+        dialogLatest.current.onClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ));
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const outside = !dialog.contains(document.activeElement);
+      if (e.shiftKey && (document.activeElement === first || outside)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (document.activeElement === last || outside)) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus?.();
+    };
+  }, [isOpen, suspended]);
+
   const continueToPayment = async () => {
     if (user) {
       // If contact mode selected and different from user profile, persist it
@@ -370,42 +429,39 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
 
   if (!isOpen || suspended || !service) return null;
 
-  // Determine which plan type this is
-  const planTitle = service.title?.toLowerCase() || '';
-  const isCustomPlan = planTitle.includes('custom');
-  const isWeeklyPlan = planTitle.includes('weekly');
-  const isMonthlyPlan = planTitle.includes('monthly');
-  const isBasic = planTitle.includes('basic');
-  const isFocus = planTitle.includes('focus');
-  const isPerformance = planTitle.includes('performance');
-  const isComplete = planTitle.includes('complete');
-  const isWellness = planTitle.includes('wellness') || planTitle.includes('mindset');
+  // Same exact-name lookup the server prices with, so the page and the charge can't disagree
+  const planType = getServicePlanType(service.title || '');
+  if (!planType) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+        <div role="alertdialog" aria-labelledby="plan-unavailable-title" className="w-full max-w-md bg-[#0c0d12] border border-zinc-800 rounded-2xl p-6 text-center space-y-4">
+          <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
+          <h2 id="plan-unavailable-title" className="text-lg font-black text-white">This plan isn't available to buy online</h2>
+          <p className="text-sm text-zinc-400">Please contact us and we'll help you get started.</p>
+          <button type="button" onClick={onClose} className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase tracking-wider py-3 px-6 rounded-xl cursor-pointer">
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
+  const isCustomPlan = planType === 'custom';
+  const isWeeklyPlan = planType === 'weekly';
+  const isMonthlyPlan = planType === 'monthly';
+  const isBasic = planType === 'basic';
+  const isFocus = planType === 'focus';
+  const isPerformance = planType === 'performance';
+  const isComplete = planType === 'complete';
+  const isWellness = planType === 'wellness';
 
   // Custom Plan Selected Elements & Calculation
-  const selectedElements = Object.keys(elementQuantities).filter(id => (elementQuantities[id] || 0) > 0);
-  const totalSelectedCount = Object.values(elementQuantities).reduce((acc, q) => acc + q, 0);
-
-  const customPlanTotalMinutes = CUSTOM_ELEMENTS.reduce((acc, el) => {
-    const qty = elementQuantities[el.id] || 0;
-    return acc + (el.durationMin * qty);
-  }, 0);
-
-  const customPlanTotalPrice = CUSTOM_ELEMENTS.reduce((acc, el) => {
-    const qty = elementQuantities[el.id] || 0;
-    return acc + (el.price * qty);
-  }, 0);
+  const customPlanTotals = calculateCustomPlanTotals(elementQuantities);
+  const totalSelectedCount = customPlanTotals.count;
+  const customPlanTotalMinutes = customPlanTotals.durationMinutes;
+  const customPlanTotalPrice = customPlanTotals.price;
 
   // Total Price determination
-  let displayTotalPrice = 0;
-  if (isCustomPlan) {
-    displayTotalPrice = customPlanTotalPrice;
-  } else if (isWeeklyPlan) {
-    displayTotalPrice = 110;
-  } else if (isMonthlyPlan) {
-    displayTotalPrice = 359;
-  } else {
-    displayTotalPrice = Number(service.priceGbp || service.price || 40);
-  }
+  const displayTotalPrice = isCustomPlan ? customPlanTotalPrice : SERVICE_PLAN_PRICES[planType];
 
   // Determine Service Inclusions & Display items for all 8 packages
   interface ServiceLineItem {
@@ -426,7 +482,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
       return {
         items: [
           { name: 'Basic Warm-Up', duration: '10-15 minutes', price: 'Included', icon: Flame, isMandatory: true, description: 'Cardio activation and joint prep' },
-          { name: 'Strength Training', duration: '15 minutes', price: '£20', icon: Dumbbell, isMandatory: true, description: 'Focused progressive resistance training' }
+          { name: 'Strength Training', duration: '15 minutes', price: `£${SERVICE_PLAN_PRICES.basic}`, icon: Dumbbell, isMandatory: true, description: 'Focused progressive resistance training' }
         ],
         totalDurationLabel: '15 minutes',
         servicesCount: 2
@@ -437,7 +493,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
         items: [
           { name: 'Guided Warm-Up', duration: '10-15 minutes', price: 'Included', icon: Target, isMandatory: true, description: 'Targeted mobility and neuromuscular prep' },
           { name: 'Strength Training', duration: '15 minutes', price: 'Included', icon: Dumbbell, isMandatory: true, description: 'Compound strength and core overload' },
-          { name: 'Functional Training', duration: '15 minutes', price: '£40', icon: Activity, isMandatory: true, description: 'Movement patterns and metabolic conditioning' }
+          { name: 'Functional Training', duration: '15 minutes', price: `£${SERVICE_PLAN_PRICES.focus}`, icon: Activity, isMandatory: true, description: 'Movement patterns and metabolic conditioning' }
         ],
         totalDurationLabel: '30 minutes',
         servicesCount: 3
@@ -449,7 +505,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
           { name: 'Personalised Warm-Up', duration: '10-15 minutes', price: 'Included', icon: Flame, isMandatory: true, description: 'Tailored dynamic preparation' },
           { name: 'Strength Training', duration: '15 minutes', price: 'Included', icon: Dumbbell, isMandatory: true, description: 'Hypertrophy and explosive power' },
           { name: 'Functional Training', duration: '15 minutes', price: 'Included', icon: Activity, isMandatory: true, description: 'Full-body movement integration' },
-          { name: 'Mobility & Flexibility', duration: '15 minutes', price: '£60', icon: UserCheck, isMandatory: true, description: 'Active range of motion and joint health' }
+          { name: 'Mobility & Flexibility', duration: '15 minutes', price: `£${SERVICE_PLAN_PRICES.performance}`, icon: UserCheck, isMandatory: true, description: 'Active range of motion and joint health' }
         ],
         totalDurationLabel: '45 minutes',
         servicesCount: 4
@@ -463,7 +519,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
           { name: 'Strength Training', duration: '15 minutes', price: 'Included', icon: Dumbbell, isMandatory: true, description: 'Core and full-body resistance' },
           { name: 'Functional Training', duration: '15 minutes', price: 'Included', icon: Activity, isMandatory: true, description: 'Athletic endurance and conditioning' },
           { name: 'Mobility & Flexibility', duration: '15 minutes', price: 'Included', icon: UserCheck, isMandatory: true, description: 'Structural alignment and suppleness' },
-          { name: 'Cool-Down & Recovery', duration: '10-15 minutes', price: '£80', icon: ShieldCheck, isMandatory: true, description: 'Dedicated parasympathetic down-regulation' }
+          { name: 'Cool-Down & Recovery', duration: '10-15 minutes', price: `£${SERVICE_PLAN_PRICES.complete}`, icon: ShieldCheck, isMandatory: true, description: 'Dedicated parasympathetic down-regulation' }
         ],
         totalDurationLabel: '60 minutes',
         servicesCount: 6
@@ -475,7 +531,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
           { name: 'Guided Yoga', duration: '15 minutes', price: 'Included', icon: Flower2, isMandatory: true, description: 'Restorative flow and posture work' },
           { name: 'Breathing & Relaxation', duration: '10 minutes', price: 'Included', icon: Target, isMandatory: true, description: 'Breathwork for nervous system reset' },
           { name: '1-to-1 Wellness Conversation', duration: '15 minutes', price: 'Included', icon: MessageSquare, isMandatory: true, description: 'Lifestyle, stress and sleep guidance' },
-          { name: 'Mindset & Lifestyle Support', duration: '15 minutes', price: '£40', icon: Calendar, isMandatory: true, description: 'Habit coaching and accountability' }
+          { name: 'Mindset & Lifestyle Support', duration: '15 minutes', price: `£${SERVICE_PLAN_PRICES.wellness}`, icon: Calendar, isMandatory: true, description: 'Habit coaching and accountability' }
         ],
         totalDurationLabel: '30 minutes',
         servicesCount: 4
@@ -486,7 +542,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
         items: [
           { name: `Session 1: Guided Warm-Up + ${weeklySessions[0]}`, duration: '30 minutes', price: 'Included', icon: Target, isMandatory: true },
           { name: `Session 2: Guided Warm-Up + ${weeklySessions[1]}`, duration: '30 minutes', price: 'Included', icon: Dumbbell, isMandatory: true },
-          { name: `Session 3: Guided Warm-Up + ${weeklySessions[2]}`, duration: '30 minutes', price: '£110', icon: Flame, isMandatory: true }
+          { name: `Session 3: Guided Warm-Up + ${weeklySessions[2]}`, duration: '30 minutes', price: `£${SERVICE_PLAN_PRICES.weekly}`, icon: Flame, isMandatory: true }
         ],
         totalDurationLabel: '3 sessions (90 minutes)',
         servicesCount: 3
@@ -497,7 +553,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
         items: [
           { name: '12 Guided Warm-Ups', duration: 'Pre-session', price: 'Included', icon: Target, isMandatory: true },
           { name: '12 Chosen Core Coaching Services', duration: '30 min each', price: 'Included', icon: Dumbbell, isMandatory: true },
-          { name: '12 Cool-Down & Recovery Sessions', duration: 'Post-session', price: '£359', icon: ShieldCheck, isMandatory: true },
+          { name: '12 Cool-Down & Recovery Sessions', duration: 'Post-session', price: `£${SERVICE_PLAN_PRICES.monthly}`, icon: ShieldCheck, isMandatory: true },
           { name: '10-Day Grace Period Recovery', duration: 'Bonus', price: 'Free', icon: Award, isMandatory: true }
         ],
         totalDurationLabel: '12 sessions (360 minutes)',
@@ -531,7 +587,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
         description: 'A focused foundation session designed for high-efficiency movement and core strength development.',
         duration: '15 MINUTES',
         format: '1-on-1 Live Virtual Coaching',
-        price: 20
+        price: SERVICE_PLAN_PRICES.basic
       };
     }
     if (isFocus) {
@@ -540,7 +596,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
         description: 'A targeted double-discipline session combining guided warm-up with focused strength or functional conditioning.',
         duration: '30 MINUTES',
         format: '1-on-1 Live Virtual Coaching',
-        price: 40
+        price: SERVICE_PLAN_PRICES.focus
       };
     }
     if (isPerformance) {
@@ -549,7 +605,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
         description: 'A performance-focused session designed for more complete movement, strength and mobility work.',
         duration: '45 MINUTES',
         format: '1-on-1 Live Virtual Coaching',
-        price: 60
+        price: SERVICE_PLAN_PRICES.performance
       };
     }
     if (isComplete) {
@@ -558,7 +614,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
         description: 'The ultimate comprehensive training session integrating full dynamic preparation, strength, boxing, functional athletic conditioning and dedicated recovery.',
         duration: '60 MINUTES',
         format: '1-on-1 Live Virtual Coaching',
-        price: 80
+        price: SERVICE_PLAN_PRICES.complete
       };
     }
     if (isWellness) {
@@ -567,7 +623,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
         description: 'Holistic restorative session combining guided yoga flow, nervous system reset breathwork, and lifestyle wellness coaching.',
         duration: '30 MINUTES',
         format: '1-on-1 Live Virtual Coaching',
-        price: 40
+        price: SERVICE_PLAN_PRICES.wellness
       };
     }
     return {
@@ -625,29 +681,26 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                 structure: '12 Warm-Ups + 12 Core Services + 12 Cool-Downs',
                 sessions: monthlySessions.map((s, idx) => `Session ${idx + 1}: Guided Warm-Up + ${s} + Cool-Down & Recovery`)
               })
-            : ''
+          : '',
+        customExercises: isCustomPlan
+          ? getCustomExerciseNames(elementQuantities)
+          : isWeeklyPlan
+          ? weeklySessions
+          : isMonthlyPlan
+          ? monthlySessions
+          : packageDetails.items.map(item => item.name)
         },
         onSuccess: async (res) => {
           setIsProcessing(false);
-          const orderRef = res.razorpay_order_id || `BX${Math.floor(100000 + Math.random() * 900000)}`;
-          setConfirmedOrderId(orderRef);
+          if (!res.razorpay_order_id) {
+            setErrorMessage('Payment received but we could not confirm your order reference. Please contact support before paying again.');
+            return;
+          }
+          setConfirmedOrderId(res.razorpay_order_id);
           setIsSuccessAnimationVisible(true);
 
-          // Save subscription in application storage
-          VelocityAPI.createSubscription({
-            id: orderRef,
-            userId: user?.id || 'client-anon',
-            userName: clientName,
-            userEmail: clientEmail,
-            planName: service.title,
-            billingCycle: 'monthly',
-            price: displayTotalPrice,
-            startDate: new Date().toISOString(),
-            nextBillingDate: new Date(Date.now() + 30 * 86400000).toISOString(),
-            expiryDate: new Date(Date.now() + 30 * 86400000).toLocaleDateString('en-GB'),
-            status: 'active',
-            autoRenew: isMonthlyPlan
-          });
+          // The server creates the subscription when it verifies the payment; pull it into the local cache
+          VelocityAPI.fetchSubscriptions().catch(() => {});
         },
         onFailure: (err) => {
           setIsProcessing(false);
@@ -686,7 +739,14 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md overflow-y-auto">
-      <div className={`relative w-full ${modalMaxWidth} max-h-[94vh] flex flex-col bg-[#0c0d12] border border-zinc-800 rounded-2xl shadow-2xl my-auto transition-all`}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Checkout: ${service.title}`}
+        tabIndex={-1}
+        className={`relative w-full ${modalMaxWidth} max-h-[94vh] flex flex-col bg-[#0c0d12] border border-zinc-800 rounded-2xl shadow-2xl my-auto transition-all outline-none`}
+      >
 
         {/* =========================================================================
             TOP BRAND HEADER
@@ -698,9 +758,6 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
               alt="BX Strength"
               className="h-9 sm:h-10 w-auto max-w-[185px] object-contain"
             />
-            <span className="hidden sm:inline-block text-[11px] font-bold uppercase tracking-wider text-zinc-400 border-l border-zinc-800 pl-3">
-              UK LIVE COACHING AT HOME
-            </span>
           </div>
 
           <button
@@ -712,13 +769,6 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
           </button>
         </div>
 
-        {/* =========================================================================
-            TOP 4-STEP PROGRESS BAR (RESPONSIVE ACROSS MOBILE, IPAD, DESKTOP)
-            1: ONBOARDING (Choose Service)
-            2: CHECKOUT (Accept Terms)
-            3: PAYMENT (Pay Securely)
-            4: CONFIRMED (Class Scheduled)
-           ========================================================================= */}
         <div className={`${mainStage === 4 ? 'hidden' : 'flex'} items-center justify-between px-3 sm:px-6 py-2.5 sm:py-3.5 border-b border-zinc-800/80 bg-zinc-950/70 overflow-x-auto text-xs no-scrollbar shrink-0 gap-1 sm:gap-2`}>
           {/* Step 1: Onboarding */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
@@ -950,6 +1000,17 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                       return (
                         <div
                           key={element.id}
+                          role="group"
+                          tabIndex={0}
+                          onClick={() => {
+                            if (!isSelected) updateElementQuantity(element.id, 1);
+                          }}
+                          onKeyDown={event => {
+                            if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ') && !isSelected) {
+                              event.preventDefault();
+                              updateElementQuantity(element.id, 1);
+                            }
+                          }}
                           className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
                             isSelected
                               ? 'bg-[#181822] border-[#CCFF00] shadow-[0_0_18px_-4px_rgba(204,255,0,0.28)]'
@@ -990,16 +1051,19 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                             <div className="flex items-center bg-[#0a0a0f] border border-zinc-800 rounded-lg p-0.5">
                               <button
                                 type="button"
-                                onClick={() => updateElementQuantity(element.id, -1)}
+                                onClick={event => {
+                                  event.stopPropagation();
+                                  updateElementQuantity(element.id, -1);
+                                }}
                                 disabled={qty === 0}
-                                className={`w-7 h-7 rounded flex items-center justify-center transition-colors cursor-pointer ${
+                                className={`w-8 h-8 rounded flex items-center justify-center transition-colors cursor-pointer ${
                                   qty === 0
                                     ? 'text-zinc-600 cursor-not-allowed'
                                     : 'text-zinc-300 hover:text-white hover:bg-zinc-800'
                                 }`}
                                 aria-label={`Decrease ${element.name} quantity`}
                               >
-                                <Minus className="w-3.5 h-3.5" />
+                                <Minus className="w-5 h-5" strokeWidth={2.5} />
                               </button>
 
                               <span className={`w-8 text-center text-xs font-black select-none ${isSelected ? 'text-[#CCFF00]' : 'text-zinc-400'}`}>
@@ -1008,11 +1072,14 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
 
                               <button
                                 type="button"
-                                onClick={() => updateElementQuantity(element.id, 1)}
-                                className="w-7 h-7 rounded flex items-center justify-center text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                                onClick={event => {
+                                  event.stopPropagation();
+                                  updateElementQuantity(element.id, 1);
+                                }}
+                                className="w-8 h-8 rounded flex items-center justify-center text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
                                 aria-label={`Increase ${element.name} quantity`}
                               >
-                                <Plus className="w-3.5 h-3.5" />
+                                <Plus className="w-5 h-5" strokeWidth={2.5} />
                               </button>
                             </div>
                           </div>
@@ -1048,30 +1115,43 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                         <span>Back</span>
                       </button>
 
-                      <div className="flex items-center gap-3 text-xs pl-2">
-                        <span className="text-zinc-400">
-                          Total Time: <strong className="text-white">{customPlanTotalMinutes} min</strong>
+                      <div className="flex items-center gap-3 text-sm sm:text-base pl-2">
+                        <span className="text-zinc-300 font-semibold">
+                          Total Time: <strong className="font-bold text-white">{customPlanTotalMinutes} min</strong>
                         </span>
-                        <span className="text-zinc-700">•</span>
-                        <span className="text-zinc-400">
-                          Price: <strong className="text-xl sm:text-2xl font-black text-white">£{customPlanTotalPrice}</strong>
+                        <span className="text-zinc-500">•</span>
+                        <span className="text-zinc-300 font-semibold">
+                          Price: <strong className="font-bold text-white">£{customPlanTotalPrice}</strong>
                         </span>
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setMainStage(2)}
-                      disabled={totalSelectedCount === 0}
-                      className={`w-full sm:w-auto font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-5 sm:px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md ${
-                        totalSelectedCount > 0
-                          ? 'bg-[#CCFF00] hover:bg-[#b8e600] text-black cursor-pointer'
-                          : 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-zinc-700/50'
-                      }`}
-                    >
-                      <span>NEXT: CHECKOUT &amp; TERMS</span>
-                      <ArrowRight className="w-4 h-4 stroke-[3]" />
-                    </button>
+                    <span className="relative w-full sm:w-auto group">
+                      <button
+                        type="button"
+                        onClick={() => setMainStage(2)}
+                        disabled={totalSelectedCount === 0}
+                        aria-describedby={totalSelectedCount === 0 ? 'service-selection-alert' : undefined}
+                        className={`w-full sm:w-auto font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-5 sm:px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md ${
+                          totalSelectedCount > 0
+                            ? 'bg-[#CCFF00] hover:bg-[#b8e600] text-black cursor-pointer'
+                            : 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-zinc-700/50'
+                        }`}
+                      >
+                        <span>NEXT: CHECKOUT &amp; TERMS</span>
+                        <ArrowRight className="w-4 h-4 stroke-[3]" />
+                      </button>
+                      {totalSelectedCount === 0 && (
+                        <span
+                          id="service-selection-alert"
+                          role="alert"
+                          className="pointer-events-none absolute bottom-full right-0 z-20 mb-2.5 flex w-max max-w-[min(19rem,calc(100vw-3rem))] items-start gap-2.5 rounded-lg border border-[#CCFF00]/35 bg-gradient-to-br from-zinc-800 to-zinc-950 px-4 py-3 text-[13px] font-semibold leading-snug text-white opacity-0 shadow-[0_10px_28px_rgba(0,0,0,0.5)] ring-1 ring-white/10 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:opacity-100 group-focus-within:-translate-y-0.5 group-focus-within:opacity-100 sm:text-sm"
+                        >
+                          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#CCFF00]/15 text-base font-black leading-none text-[#CCFF00] ring-1 ring-[#CCFF00]/30">!</span>
+                          <span className="max-w-[15rem]">Choose at least one training service before continuing to checkout.</span>
+                        </span>
+                      )}
+                    </span>
                   </div>
                 </div>
               )}
@@ -1353,7 +1433,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                       </span>
                     ) : (
                       <span className="text-[10px] sm:text-[11px] font-bold text-zinc-300 bg-zinc-900 border border-zinc-800 px-2.5 py-0.5 rounded">
-                        Selected: <strong className="text-[#CCFF00]">{selectedContactMode || user.preferredContactMethod}</strong>
+                        Selected: <strong className="text-[#CCFF00]">{contactModeLabel(selectedContactMode || user.preferredContactMethod)}</strong>
                       </span>
                     )}
                   </div>
@@ -1366,10 +1446,10 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
 
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                         {[
-                          { id: 'WhatsApp', label: 'WhatsApp', icon: MessageSquare, desc: 'Instant chat & link' },
-                          { id: 'Phone Call', label: 'Phone Call', icon: Phone, desc: 'Voice check-in' },
-                          { id: 'Email', label: 'Email', icon: Mail, desc: 'Class link by email' },
-                          { id: 'SMS', label: 'SMS / Text', icon: MessageSquare, desc: 'Mobile text alerts' }
+                          { id: 'whatsapp' as const, label: 'WhatsApp', icon: MessageSquare, desc: 'Instant chat & link' },
+                          { id: 'call' as const, label: 'Phone Call', icon: Phone, desc: 'Voice check-in' },
+                          { id: 'email' as const, label: 'Email', icon: Mail, desc: 'Class link by email' },
+                          { id: 'all' as const, label: 'All', icon: CheckCircle2, desc: 'WhatsApp, call & email' }
                         ].map(mode => {
                           const isSelected = selectedContactMode === mode.id;
                           const IconComp = mode.icon;
@@ -1406,10 +1486,10 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                       </div>
 
                       {/* If WhatsApp, Phone Call, or SMS is chosen and user has no phone */}
-                      {['WhatsApp', 'Phone Call', 'SMS'].includes(selectedContactMode) && (!user.phone || contactPhoneInput !== user.phone) && (
+                      {(selectedContactMode === 'whatsapp' || selectedContactMode === 'call' || selectedContactMode === 'all') && (!user.phone || contactPhoneInput !== user.phone) && (
                         <div className="pt-2">
                           <label className="text-[11px] font-bold text-zinc-300 uppercase tracking-wider block mb-1.5">
-                            Mobile Phone Number for {selectedContactMode}:
+                            Mobile Phone Number for {contactModeLabel(selectedContactMode)}:
                           </label>
                           <input
                             type="tel"
@@ -1429,7 +1509,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                         </div>
                         <div>
                           <p className="text-xs font-bold text-white">
-                            Preferred Contact: {selectedContactMode || user.preferredContactMethod}
+                            Preferred Contact: {contactModeLabel(selectedContactMode || user.preferredContactMethod)}
                           </p>
                           <p className="text-[10px] text-zinc-400">
                             {user.phone ? `Mobile: ${user.phone}` : `Email: ${user.email}`}
@@ -1462,7 +1542,11 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
                   {/* 1. 18+ CONFIRMATION */}
                   <div
+                    role="checkbox"
+                    aria-checked={ageConfirmed}
+                    tabIndex={0}
                     onClick={() => setAgeConfirmed(!ageConfirmed)}
+                    onKeyDown={event => { if (event.key === " " || event.key === "Enter") { event.preventDefault(); setAgeConfirmed(!ageConfirmed); } }}
                     className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
                       ageConfirmed
                         ? 'bg-[#12141c] border-[#CCFF00]/40 shadow-sm'
@@ -1487,7 +1571,11 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
 
                   {/* 2. VIRTUAL COACHING */}
                   <div
+                    role="checkbox"
+                    aria-checked={virtualCoachingConfirmed}
+                    tabIndex={0}
                     onClick={() => setVirtualCoachingConfirmed(!virtualCoachingConfirmed)}
+                    onKeyDown={event => { if (event.key === " " || event.key === "Enter") { event.preventDefault(); setVirtualCoachingConfirmed(!virtualCoachingConfirmed); } }}
                     className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
                       virtualCoachingConfirmed
                         ? 'bg-[#12141c] border-[#CCFF00]/40 shadow-sm'
@@ -1512,7 +1600,11 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
 
                   {/* 3. HEALTH DISCLOSURE */}
                   <div
+                    role="checkbox"
+                    aria-checked={healthConfirmed}
+                    tabIndex={0}
                     onClick={() => setHealthConfirmed(!healthConfirmed)}
+                    onKeyDown={event => { if (event.key === " " || event.key === "Enter") { event.preventDefault(); setHealthConfirmed(!healthConfirmed); } }}
                     className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
                       healthConfirmed
                         ? 'bg-[#12141c] border-[#CCFF00]/40 shadow-sm'
@@ -1537,7 +1629,11 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
 
                   {/* 4. SAFE TRAINING SPACE */}
                   <div
+                    role="checkbox"
+                    aria-checked={spaceConfirmed}
+                    tabIndex={0}
                     onClick={() => setSpaceConfirmed(!spaceConfirmed)}
+                    onKeyDown={event => { if (event.key === " " || event.key === "Enter") { event.preventDefault(); setSpaceConfirmed(!spaceConfirmed); } }}
                     className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
                       spaceConfirmed
                         ? 'bg-[#12141c] border-[#CCFF00]/40 shadow-sm'
@@ -1562,23 +1658,60 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                 </div>
 
                 {/* Additional Terms agreement */}
-                <div className="p-3.5 rounded-xl bg-[#0e1319] border border-zinc-800/80">
-                  <label className="flex items-start gap-2.5 sm:gap-3 cursor-pointer select-none text-xs sm:text-sm text-zinc-300">
-                    <div className={`w-4 h-4 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
-                      termsAccepted ? 'bg-[#CCFF00] text-black' : 'border border-zinc-700 bg-zinc-900'
-                    }`}>
-                      {termsAccepted && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                    </div>
+                <div className="p-3.5 rounded-xl bg-[#0e1319] border border-zinc-800/80 flex items-start gap-2.5 sm:gap-3 text-xs sm:text-sm text-zinc-300">
+                  {/* Only the box toggles; the sentence holds the terms link */}
+                  <label className="mt-0.5 shrink-0 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={termsAccepted}
                       onChange={e => setTermsAccepted(e.target.checked)}
-                      className="sr-only"
+                      aria-labelledby="checkout-terms-text"
+                      className="peer sr-only"
                     />
-                    <span className="leading-relaxed">
-                      I agree to the <strong className="text-white font-bold">BXStrength Terms &amp; Conditions</strong> and cancellation policy.
+                    <span className={`w-4 h-4 rounded flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#CCFF00] peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[#0e1319] ${
+                      termsAccepted ? 'bg-[#CCFF00] text-black' : 'border border-zinc-700 bg-zinc-900'
+                    }`}>
+                      {termsAccepted && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </span>
                   </label>
+                  <span id="checkout-terms-text" className="leading-relaxed">
+                    I agree to the{' '}
+                    <a
+                      href="/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-white font-bold underline underline-offset-2 hover:text-[#CCFF00]"
+                    >
+                      BXStrength Terms &amp; Conditions
+                    </a>{' '}
+                    and cancellation policy.
+                  </span>
+                </div>
+
+                {/* Optional marketing consent: same box-only toggle as the terms row */}
+                <div className="p-3.5 rounded-xl bg-[#0e1319] border border-zinc-800/80 flex items-start gap-2.5 sm:gap-3 text-xs sm:text-sm text-zinc-300">
+                  <label className="mt-0.5 shrink-0 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={marketingConsent}
+                      onChange={e => setMarketingConsent(e.target.checked)}
+                      aria-labelledby="checkout-marketing-title checkout-marketing-text"
+                      className="peer sr-only"
+                    />
+                    <span className={`w-4 h-4 rounded flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#CCFF00] peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[#0e1319] ${
+                      marketingConsent ? 'bg-[#CCFF00] text-black' : 'border border-zinc-700 bg-zinc-900'
+                    }`}>
+                      {marketingConsent && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    </span>
+                  </label>
+                  <div className="leading-relaxed">
+                    <p id="checkout-marketing-title" className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-400">
+                      Optional Marketing Consent
+                    </p>
+                    <p id="checkout-marketing-text" className="mt-0.5">
+                      I would like to receive BXStrength offers, training updates and marketing communications. I understand that I can unsubscribe at any time.
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -1877,7 +2010,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                     <span>Booking Reference</span>
                   </div>
                   <span className="font-black text-white text-xs sm:text-sm">
-                    {confirmedOrderId || 'BX726458'}
+                    {confirmedOrderId}
                   </span>
                 </div>
 

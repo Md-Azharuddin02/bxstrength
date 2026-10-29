@@ -17,7 +17,7 @@ export const PrivacyView: React.FC = () => {
       content: (
         <div className="space-y-3">
           <p>
-            BXStrength is a premier international digital performance &amp; fitness coaching platform serving athletes across the United Kingdom and India.
+            BXStrength is a premier international digital performance &amp; fitness coaching platform serving athletes across the United Kingdom.
           </p>
           <div className="bg-[#18181c] border border-zinc-800 p-4 rounded-xl space-y-2 text-xs">
             <p className="flex items-start gap-2 text-zinc-300">

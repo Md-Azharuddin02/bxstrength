@@ -114,7 +114,7 @@ export const AssignedTasksSection: React.FC<AssignedTasksSectionProps> = ({
     window.addEventListener('bxstrength_assignments_updated', handleUpdate);
     window.addEventListener('bxstrength_programs_updated', handleUpdate);
     window.addEventListener('storage', handleUpdate);
-    const interval = setInterval(loadAssignments, 4000);
+    const interval = setInterval(() => { if (!document.hidden) loadAssignments(); }, 15000); // paused in background tabs
 
     return () => {
       window.removeEventListener('bxstrength_assignments_updated', handleUpdate);

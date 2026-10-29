@@ -20,9 +20,9 @@ function setMeta(selector: string, create: () => HTMLElement, attr: string, valu
 
 export const SeoHead: React.FC<SeoHeadProps> = ({ currentPage }) => {
   useEffect(() => {
-    let title = 'BxStrength — UK & India Digital Coaching, Boxing, Strength & Fitness Platform';
-    let description = 'BxStrength (BX) is the premier UK & India digital coaching platform for boxing, strength training, physiotherapy rehab, and 1-on-1 expert fitness coaching.';
-    let keywords = 'BxStrength, Bx Strength, BX, Strength, fitness, training, boxing, coaches, coach, personal trainer, UK fitness, India fitness';
+    let title = 'BxStrength — UK Digital Coaching, Boxing, Strength & Fitness Platform';
+    let description = 'BxStrength (BX) is the premier UK digital coaching platform for boxing, strength training, physiotherapy rehab, and 1-on-1 expert fitness coaching.';
+    let keywords = 'BxStrength, Bx Strength, BX, Strength, fitness, training, boxing, coaches, coach, personal trainer, UK fitness';
     let canonical = `${SITE}/`;
     let noindex = false;
 

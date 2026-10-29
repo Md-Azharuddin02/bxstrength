@@ -207,7 +207,7 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
     <>
       {/* Standalone Floating Chat Button (Only if hideFloatingButton is false) */}
       {!hideFloatingButton && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2">
+        <div className="fixed bottom-6 right-6 z-40 flex items-center gap-2">
           {!isOpen && (
             <div className="hidden sm:flex items-center gap-2 bg-[#18181b] border border-zinc-700 text-white px-3 py-1.5 rounded-full shadow-2xl animate-bounce text-xs font-bold">
               <Zap className="w-3.5 h-3.5 text-[#CCFF00]" />
@@ -234,7 +234,7 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
 
       {/* Chat Modal Window */}
       {isOpen && (
-        <div className="fixed bottom-20 sm:bottom-24 right-2 sm:right-6 z-50 w-[95vw] max-w-[420px] max-h-[82vh] sm:max-h-[600px] bg-[#121214] border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-white font-sans animate-in slide-in-from-bottom-4 duration-200">
+        <div className="fixed bottom-20 sm:bottom-24 right-2 sm:right-6 z-40 w-[95vw] max-w-[420px] max-h-[82vh] sm:max-h-[600px] bg-[#121214] border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-white font-sans animate-in slide-in-from-bottom-4 duration-200">
           
           {/* Header */}
           <div className="p-4 bg-[#18181b] border-b border-zinc-800 flex items-center justify-between">
@@ -380,7 +380,7 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
                       type="tel"
                       value={contactPhone}
                       onChange={(e) => setContactPhone(e.target.value)}
-                      placeholder="+91 1234567890"
+                      placeholder="+44 7911 123456"
                       className="w-full bg-[#121214] border border-zinc-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
                     />
                   </div>

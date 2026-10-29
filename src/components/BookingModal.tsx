@@ -120,6 +120,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [userName, setUserName] = useState(user?.name || '');
   const [userEmail, setUserEmail] = useState(user?.email || '');
   const [userPhone, setUserPhone] = useState(user?.phone || '');
+  const [additionalNotes, setAdditionalNotes] = useState('');
   const [goal, setGoal] = useState<string>(preSelectedClass || 'Fitness Boxing');
   const [selectedDuration, setSelectedDuration] = useState<number>(20);
   const [selectedTrainer, setSelectedTrainer] = useState(preSelectedTrainer || 'Assigned Lead Coach');
@@ -130,6 +131,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const nameInputId = useId();
   const emailInputId = useId();
   const phoneInputId = useId();
+  const additionalNotesInputId = useId();
   const goalInputId = useId();
 
   // Auto-fill logged in user details
@@ -168,6 +170,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     setUserName('');
     setUserEmail('');
     setUserPhone('');
+    setAdditionalNotes('');
     setGoal('Fitness Boxing');
   };
 
@@ -180,6 +183,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       clientName: userName,
       clientEmail: userEmail,
       clientPhone: userPhone,
+      notes: additionalNotes.trim() || undefined,
       goal,
       duration: durationText,
       coachPreference: selectedTrainer,
@@ -198,6 +202,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         phone: userPhone,
         subject: `Free Consultation (${durationText}): ${goal}`,
         message: `[FREE CONSULTATION BOOKED]\nRef: ${newBooking.id}\nGoal/Exercise: ${goal}\nDuration: ${durationText}\nPreferred schedule: To be arranged by the coaching team\nAssigned Coach: ${selectedTrainer}`
+          + (additionalNotes.trim() ? `\nAdditional Notes: ${additionalNotes.trim()}` : '')
       });
     } catch (err) {
       console.error('Consultation enquiry save error:', err);
@@ -216,6 +221,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           name: userName,
           email: userEmail,
           phone: userPhone,
+          additionalNotes,
           goal,
           duration: durationText,
           coachPreference: selectedTrainer,
@@ -247,7 +253,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       duration: durationText,
       coachPreference: selectedTrainer,
       date: 'To be scheduled',
-      timeSlot: 'To be scheduled'
+      timeSlot: 'To be scheduled',
+      additionalNotes: additionalNotes.trim()
     }).catch(() => {});
 
     setSubmitError(null);
@@ -330,26 +337,28 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         
         {confirmedBooking ? (
           /* FULL PAGE CONFIRMATION VIEW */
-          <div className="max-w-xl mx-auto bg-[#121214] border border-zinc-800 rounded-3xl p-6 sm:p-10 text-center space-y-8 shadow-2xl animate-in zoom-in-95 duration-200 my-4">
-            <div className="w-20 h-20 bg-emerald-950/40 border border-emerald-800 text-emerald-400 rounded-3xl flex items-center justify-center mx-auto shadow-xl shadow-emerald-900/30">
-              <CheckCircle2 className="w-10 h-10" />
+          <div aria-live="polite" className="max-w-xl mx-auto bg-[#121214] border border-zinc-800 rounded-3xl p-5 sm:p-8 text-center space-y-6 shadow-2xl animate-in zoom-in-95 duration-200 my-4">
+            <div className="assessment-success-stage relative h-24 w-24 flex items-center justify-center mx-auto">
+              <div className="assessment-success-icon relative w-20 h-20 bg-emerald-950/40 border border-emerald-800 text-emerald-400 rounded-3xl flex items-center justify-center shadow-xl shadow-emerald-900/30">
+                <CheckCircle2 className="assessment-success-mark w-10 h-10" />
+              </div>
             </div>
 
             <div>
               <span className="text-[11px] font-black tracking-widest text-emerald-400 uppercase bg-emerald-950/60 px-4 py-1.5 rounded-full border border-emerald-800">
                 REQUEST RECEIVED
               </span>
-              <h2 className="text-2xl sm:text-3xl font-black text-white uppercase mt-4">
-                CONSULTATION REQUESTED!
+              <h2 className="text-2xl sm:text-3xl font-black text-white uppercase mt-3">
+                YOUR FREE DEMO REQUEST IS CONFIRMED
               </h2>
               <p className="text-xs sm:text-sm text-zinc-400 mt-2 max-w-md mx-auto leading-relaxed">
-                We've received your request. Our team will contact you at <strong className="text-white">{confirmedBooking.clientEmail}</strong> to schedule your free 15-min session.
+                Thank you, <strong className="text-white">{confirmedBooking.clientName.split(' ')[0]}</strong>. We’ve received your request for a free 15-minute BXStrength demo session. Our team will contact you shortly to confirm a suitable date and time and share your joining details.
               </p>
             </div>
 
             {/* Voucher Details */}
-            <div className="bg-[#18181b] p-6 rounded-2xl border border-zinc-800 text-left space-y-4 shadow-xl">
-              <div className="flex justify-between items-center pb-4 border-b border-zinc-800">
+            <div className="bg-[#18181b] p-4 sm:p-5 rounded-2xl border border-zinc-800 text-left space-y-4 shadow-xl">
+              <div className="flex justify-between items-center gap-3 pb-3 border-b border-zinc-800">
                 <div>
                   <span className="text-[10px] font-bold text-zinc-500 uppercase block">BOOKING REF</span>
                   <span className="text-sm font-mono font-bold text-[#CCFF00] tracking-wider">
@@ -361,7 +370,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4 text-xs">
                 <div>
                   <p className="text-zinc-500 text-[10px] uppercase font-bold">CLIENT NAME</p>
                   <p className="font-bold text-white uppercase text-sm mt-0.5">{confirmedBooking.clientName}</p>
@@ -375,19 +384,33 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   <p className="font-bold text-white uppercase mt-0.5">{confirmedBooking.duration || '20 Min'}</p>
                 </div>
                 <div className="col-span-full bg-zinc-900/90 p-4 rounded-xl border border-zinc-800/90">
-                  <p className="text-zinc-500 text-[10px] uppercase font-bold">SCHEDULING</p>
+                  <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">NEXT STEP</p>
                   <p className="font-bold text-[#CCFF00] text-sm mt-0.5">Our team will contact you to arrange your session time.</p>
                 </div>
+                {confirmedBooking.notes && (
+                  <div className="col-span-full rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+                    <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">YOUR NOTE</p>
+                    <p className="mt-1 text-sm leading-relaxed text-zinc-200 whitespace-pre-wrap">{confirmedBooking.notes}</p>
+                  </div>
+                )}
               </div>
             </div>
 
-            <button
-              onClick={goToDashboard}
-              className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs tracking-widest py-4 uppercase rounded-xl transition-all shadow-xl shadow-[#CCFF00]/10 cursor-pointer flex items-center justify-center gap-2"
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              GO TO DASHBOARD
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={goToDashboard}
+                className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs tracking-widest py-3.5 uppercase rounded-xl transition-all shadow-xl shadow-[#CCFF00]/10 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                GO TO DASHBOARD
+              </button>
+              <p className="text-xs text-zinc-500">
+                Need help? Contact us at{' '}
+                <a href="mailto:support@bxstrength.com" className="font-bold text-[#CCFF00] hover:underline">
+                  support@bxstrength.com
+                </a>.
+              </p>
+            </div>
           </div>
         ) : (
           /* FULL PAGE FORM EXPERIENCE */
@@ -401,7 +424,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   <span>1-on-1 Free Personal Consultation</span>
                 </div>
                 <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
-                  Schedule Your Strategy &amp; Assessment Session
+                  Schedule Your Strategy Session
                 </h2>
               </div>
 
@@ -465,7 +488,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     id={phoneInputId}
                     type="tel"
                     required
-                    placeholder="+91 8423594482"
+                    placeholder="+44 7911 123456"
                     value={userPhone}
                     onChange={(e) => setUserPhone(e.target.value)}
                     className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-4 py-3 text-xs font-semibold text-white focus:outline-none focus:border-[#CCFF00] transition-colors"
@@ -525,9 +548,30 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               )}
             </section> */}
 
-            <div>
-              Add box for the user input
-            </div>
+            <section className="bg-[#121214] p-6 sm:p-8 rounded-3xl border border-zinc-800/80 space-y-3 shadow-xl">
+              <div>
+                <label htmlFor={additionalNotesInputId} className="block text-sm font-black tracking-wide text-white">
+                  Anything else you’d like us to know?
+                  <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">Optional</span>
+                </label>
+                <p id={`${additionalNotesInputId}-hint`} className="mt-1 text-xs text-zinc-400">
+                  Share a question or anything that could help your coach prepare.
+                </p>
+              </div>
+              <textarea
+                id={additionalNotesInputId}
+                value={additionalNotes}
+                onChange={event => setAdditionalNotes(event.target.value)}
+                maxLength={1000}
+                rows={4}
+                aria-describedby={`${additionalNotesInputId}-hint ${additionalNotesInputId}-count`}
+                placeholder="Type your message here (optional)…"
+                className="w-full resize-y rounded-xl border border-zinc-800 bg-[#18181b] px-4 py-3 text-sm font-medium text-white placeholder:text-zinc-500 focus:border-[#CCFF00] focus:outline-none transition-colors"
+              />
+              <p id={`${additionalNotesInputId}-count`} className="text-right text-[10px] text-zinc-500">
+                {additionalNotes.length}/1000
+              </p>
+            </section>
 
 
             {/* Submission CTA Bar */}
@@ -538,7 +582,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 id="btn-confirm-booking-submit"
               >
                 <CheckCircle2 className="w-5 h-5" />
-                <span>REQUEST MY FREE CONSULTATION</span>
+                <span>REQUEST MY FREE 15-MIN DEMO</span>
               </button>
 
               <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-zinc-500">

@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { User, UserRole } from '../types';
 import { VelocityAPI } from '../services/api';
 
@@ -38,16 +38,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // The role the server last confirmed, kept in memory like the access token.
+  // The cached user in localStorage can be edited by hand, so its role is never trusted.
+  const confirmedRef = useRef<{ id: string; role: UserRole } | null>(null);
+
+  const acceptServerUser = (serverUser: User, accessToken: string | null) => {
+    confirmedRef.current = { id: serverUser.id, role: serverUser.role };
+    setUser(serverUser);
+    setToken(accessToken);
+  };
+
+  const signedOut = () => {
+    confirmedRef.current = null;
+    setUser(null);
+    setToken(null);
+  };
+
+  // Cached profile details are fine to show, but only for the confirmed user and with the confirmed role
+  const withConfirmedRole = (cached: User | null): User | null => {
+    const confirmed = confirmedRef.current;
+    if (!cached || !confirmed || cached.id !== confirmed.id) return null;
+    return { ...cached, role: confirmed.role };
+  };
+
   const syncUser = () => {
-    const currentUser = VelocityAPI.getCurrentUser();
+    const currentUser = withConfirmedRole(VelocityAPI.getCurrentUser());
     const storedToken = VelocityAPI.getAccessToken();
 
     if (currentUser && currentUser.isVerified !== false && storedToken) {
       setUser(currentUser);
       setToken(storedToken);
     } else {
-      setUser(null);
-      setToken(null);
+      signedOut();
     }
   };
 
@@ -65,8 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         // token was restored (or was already present in this page session).
         if (!VelocityAPI.getAccessToken()) {
           if (!active) return;
-          setUser(null);
-          setToken(null);
+          signedOut();
           return;
         }
 
@@ -75,16 +96,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (!active) return;
 
         if (me && me.isVerified !== false) {
-          setUser(me);
-          setToken(VelocityAPI.getAccessToken());
+          acceptServerUser(me, VelocityAPI.getAccessToken());
         } else {
-          setUser(null);
-          setToken(null);
+          signedOut();
         }
       } catch {
         if (!active) return;
 
-        // Fall back to the locally cached session.
+        // Server unreachable: keep an already-confirmed session going; a fresh page load stays signed out.
         syncUser();
       } finally {
         if (active) {
@@ -123,8 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const res = await VelocityAPI.login(email, password_or_hash);
 
     if (res.user && res.user.isVerified !== false) {
-      setUser(res.user);
-      setToken(res.token);
+      acceptServerUser(res.user, res.token);
     }
 
     return res.user;
@@ -134,8 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const res = await VelocityAPI.loginWithGoogle(accessToken);
 
     if (res.user && res.user.isVerified !== false) {
-      setUser(res.user);
-      setToken(res.token);
+      acceptServerUser(res.user, res.token);
     }
 
     return res.user;
@@ -157,8 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     });
 
     if (!res.requireOtp && res.token && res.user?.isVerified !== false) {
-      setUser(res.user);
-      setToken(res.token);
+      acceptServerUser(res.user, res.token);
     }
 
     return { user: res.user, requireOtp: res.requireOtp };
@@ -167,8 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const verifyOtp = async (email: string, otp: string): Promise<User> => {
     const res = await VelocityAPI.verifyOtp(email, otp);
 
-    setUser(res.user);
-    setToken(res.token);
+    acceptServerUser(res.user, res.token);
 
     return res.user;
   };
@@ -181,8 +196,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const logout = () => {
     VelocityAPI.logout();
-    setUser(null);
-    setToken(null);
+    signedOut();
   };
 
   const updateProfile = async (
@@ -193,7 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     const updated = await VelocityAPI.updateUser(user.id, updates);
-    setUser(updated);
+    setUser(withConfirmedRole(updated));
 
     return updated;
   };
@@ -204,7 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         isVerified: true,
       });
 
-      setUser(updated);
+      setUser(withConfirmedRole(updated));
     }
   };
 

@@ -154,6 +154,7 @@ const builders: Record<string, Builder> = {
             <tr><td style="padding: 6px 0; color: #a1a1aa;">Phone / WhatsApp:</td><td style="padding: 6px 0; font-weight: bold;"><a href="https://wa.me/${digits(d.clientPhone)}" style="color: #CCFF00;">${esc(d.clientPhone)}</a></td></tr>
             <tr><td style="padding: 6px 0; color: #a1a1aa;">Primary Exercise / Goal:</td><td style="padding: 6px 0; font-weight: bold; color: #CCFF00;">${esc(d.goal)}</td></tr>
             <tr><td style="padding: 6px 0; color: #a1a1aa;">Session Duration:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${esc(d.duration || '15 Min')}</td></tr>
+            <tr><td style="padding: 6px 0; color: #a1a1aa; vertical-align: top;">Additional Notes:</td><td style="padding: 6px 0; color: #ffffff; white-space: pre-wrap;">${esc(d.additionalNotes || 'None provided')}</td></tr>
             <tr><td style="padding: 6px 0; color: #a1a1aa;">Scheduled Date:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${esc(d.date)}</td></tr>
             <tr><td style="padding: 6px 0; color: #a1a1aa;">Scheduled Time Slot:</td><td style="padding: 6px 0; font-weight: bold; color: #CCFF00;">${esc(d.timeSlot)}</td></tr>
             <tr><td style="padding: 6px 0; color: #a1a1aa;">Assigned Coach:</td><td style="padding: 6px 0; font-weight: bold;">${esc(d.coachPreference)}</td></tr>

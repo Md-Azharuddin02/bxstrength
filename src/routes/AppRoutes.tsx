@@ -1,22 +1,24 @@
-import React from "react";
+import React, { lazy } from "react";
 import { Routes, Route, Navigate, useParams, useNavigate } from "react-router-dom";
 
 import { Trainer, ViewPage } from "../types";
 
 import { HomePage } from "../pages/HomePage";
-import { ServicesPage } from "../pages/ServicesPage";
-import { CoachesPage } from "../pages/CoachesPage";
-import { NotFoundPage } from "../pages/NotFoundPage";
 
-import { AboutView } from "../components/AboutView";
-import { BlogView } from "../components/BlogView";
-import { ContactView } from "../components/ContactView";
-import { TermsView } from "../components/TermsView";
-import { PrivacyView } from "../components/PrivacyView";
-import { OnboardingTermsView } from "../components/OnboardingTermsView";
 
 import ProtectedRoute from "../components/ProtectedRoute";
 import RoleDashboard from "../components/RoleDashboard";
+
+// Home stays in the main bundle; every other page loads when first visited
+const ServicesPage = lazy(() => import("../pages/ServicesPage").then(m => ({ default: m.ServicesPage })));
+const CoachesPage = lazy(() => import("../pages/CoachesPage").then(m => ({ default: m.CoachesPage })));
+const NotFoundPage = lazy(() => import("../pages/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
+const AboutView = lazy(() => import("../components/AboutView").then(m => ({ default: m.AboutView })));
+const BlogView = lazy(() => import("../components/BlogView").then(m => ({ default: m.BlogView })));
+const ContactView = lazy(() => import("../components/ContactView").then(m => ({ default: m.ContactView })));
+const TermsView = lazy(() => import("../components/TermsView").then(m => ({ default: m.TermsView })));
+const PrivacyView = lazy(() => import("../components/PrivacyView").then(m => ({ default: m.PrivacyView })));
+const OnboardingTermsView = lazy(() => import("../components/OnboardingTermsView").then(m => ({ default: m.OnboardingTermsView })));
 
 function BlogPostRoute() {
   const { postId } = useParams();

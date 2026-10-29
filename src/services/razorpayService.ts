@@ -97,9 +97,11 @@ export const createRazorpayOrder = async (
       receipt,
       planName: notes?.planName || notes?.planTitle,
       serviceType: notes?.serviceType || notes?.planType || "individual",
-      customExercises: notes?.customExercises
-        ? String(notes.customExercises).split(", ")
-        : [],
+      customExercises: Array.isArray(notes?.customExercises)
+        ? notes.customExercises.map(String)
+        : notes?.customExercises
+          ? String(notes.customExercises).split(", ")
+          : [],
       userEmail: notes?.userEmail,
       userName: notes?.userName,
       idempotencyKey,

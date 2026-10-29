@@ -3,6 +3,16 @@ import { useAuth } from '../../context/AuthContext';
 import { getApiUrl } from '../../services/api';
 import { X, Mail, CheckCircle2, ArrowRight, KeyRound, Lock, Eye, EyeOff } from 'lucide-react';
 
+const MIN_PASSWORD_LENGTH = 8;
+
+// Keep this in sync with the backend validator
+const validatePassword = (pw: string): string | null => {
+  if (pw.length < MIN_PASSWORD_LENGTH) {
+    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`;
+  }
+  return null;
+};
+
 interface ForgotPasswordModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -31,6 +41,10 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
     setNewPassword('');
     setConfirmPassword('');
     setErrorMsg(null);
+    setResetTokenFromUrl('');
+    if (window.location.hash.includes('reset-password')) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
     onClose();
   }, [onClose]);
 
@@ -102,10 +116,11 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
       return;
     }
 
-    if (newPassword.length < 6) {
-      setErrorMsg('Password must be at least 6 characters long.');
+    const pwError = validatePassword(newPassword);
+    if (pwError) {
+      setErrorMsg(pwError);
       return;
-    }
+    }   
 
     if (newPassword !== confirmPassword) {
       setErrorMsg('Passwords do not match. Please verify.');
@@ -320,7 +335,7 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
                     required
                     value={newPassword}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
-                    placeholder="Enter at least 6 characters"
+                    placeholder="Enter at least 8 characters"
                     className="w-full bg-[#18181b] border border-zinc-800 focus:border-zinc-600 text-white pl-10 pr-10 py-2.5 text-xs font-bold rounded-lg outline-none"
                   />
                   <button

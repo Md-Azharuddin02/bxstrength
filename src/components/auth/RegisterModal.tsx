@@ -5,6 +5,7 @@ import { loadGoogleGsiScript, decodeGoogleJwt, promptGoogleAccountSelect, GOOGLE
 import { isValidUkMobile, UK_PHONE_ERROR_MSG } from '../../utils/phoneValidation';
 import { PhoneInput } from '../PhoneInput';
 import { X, Lock, Mail, User, Phone, Dumbbell, AlertCircle, ArrowRight, ShieldCheck, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { validatePassword } from '../../utils/passwordValidation';
 
 interface RegisterModalProps {
   isOpen: boolean;
@@ -62,10 +63,11 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
       setError('Passwords do not match.');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
-      return;
-    }
+    const pwError = validatePassword(password);
+      if (pwError) {
+        setError(pwError);
+        return;
+}
     if (!agreeTerms) {
       setError('You must agree to the Terms of Service and Privacy Policy.');
       return;
@@ -302,6 +304,11 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
                 </div>
               </div>
             </div>
+            
+            <p className="text-[11px] text-zinc-500 leading-snug">
+              Password must be at least 8 characters and include an uppercase letter,
+              a lowercase letter, a number and a special character.
+            </p>
 
             <button
               type="submit"

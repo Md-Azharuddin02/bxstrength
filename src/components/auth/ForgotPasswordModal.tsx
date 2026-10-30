@@ -2,6 +2,11 @@ import React, { useState, useEffect, useCallback, FC, FormEvent, ChangeEvent } f
 import { useAuth } from '../../context/AuthContext';
 import { getApiUrl } from '../../services/api';
 import { X, Mail, CheckCircle2, ArrowRight, KeyRound, Lock, Eye, EyeOff } from 'lucide-react';
+import { validatePassword } from "../../utils/passwordValidation";
+
+
+
+
 
 interface ForgotPasswordModalProps {
   isOpen: boolean;
@@ -31,6 +36,10 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
     setNewPassword('');
     setConfirmPassword('');
     setErrorMsg(null);
+    setResetTokenFromUrl('');
+    if (window.location.hash.includes('reset-password')) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
     onClose();
   }, [onClose]);
 
@@ -102,10 +111,11 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
       return;
     }
 
-    if (newPassword.length < 6) {
-      setErrorMsg('Password must be at least 6 characters long.');
+    const pwError = validatePassword(newPassword);
+    if (pwError) {
+      setErrorMsg(pwError);
       return;
-    }
+    }   
 
     if (newPassword !== confirmPassword) {
       setErrorMsg('Passwords do not match. Please verify.');
@@ -263,9 +273,10 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
 
               <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-4 text-left space-y-2 text-xs text-zinc-400">
                 <div className="flex items-center gap-2 text-amber-400 font-bold text-[11px] uppercase tracking-wider">
+                  <span>⏱️ 5-Minute Time Limit</span>
                 </div>
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
-                  For your security, the reset link will expire in <strong>10 minutes</strong>. If you don't see the email within a minute, please check your spam or junk folder.
+                  For your security, the reset link will expire in <strong>5 minutes</strong>. If you don't see the email within a minute, please check your spam or junk folder.
                 </p>
               </div>
 
@@ -320,7 +331,8 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
                     required
                     value={newPassword}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
-                    placeholder="Enter at least 6 characters"
+                    placeholder="Min 8 chars, A-Z, a-z, 0-9, symbol"
+                    autoComplete="new-password"
                     className="w-full bg-[#18181b] border border-zinc-800 focus:border-zinc-600 text-white pl-10 pr-10 py-2.5 text-xs font-bold rounded-lg outline-none"
                   />
                   <button
@@ -347,6 +359,7 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
                     value={confirmPassword}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
                     placeholder="Re-enter your new password"
+                    autoComplete="new-password"
                     className="w-full bg-[#18181b] border border-zinc-800 focus:border-zinc-600 text-white pl-10 pr-10 py-2.5 text-xs font-bold rounded-lg outline-none"
                   />
                 </div>

@@ -5,6 +5,7 @@ import { loadGoogleGsiScript, decodeGoogleJwt, promptGoogleAccountSelect, GOOGLE
 import { isValidUkMobile, UK_PHONE_ERROR_MSG } from '../../utils/phoneValidation';
 import { PhoneInput } from '../PhoneInput';
 import { X, Lock, Mail, User, Phone, Dumbbell, AlertCircle, ArrowRight, ShieldCheck, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { validatePassword } from "../../utils/passwordValidation";
 
 interface RegisterModalProps {
   isOpen: boolean;
@@ -62,8 +63,10 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
       setError('Passwords do not match.');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
+    const passwordError = validatePassword(password);
+
+    if (passwordError) {
+      setError(passwordError);
       return;
     }
     if (!agreeTerms) {
@@ -262,7 +265,8 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     maxLength={128}
-                    placeholder="Enter password"
+                    placeholder="Min 8 chars, A-Z, a-z, 0-9, symbol"
+                    autoComplete="new-password"
                     className="w-full min-h-[44px] bg-[#18181b] border border-zinc-800 focus:border-zinc-500 text-white pl-10 pr-9 py-2 text-sm sm:text-xs font-bold rounded-lg outline-none"
                   />
                   <button
@@ -290,6 +294,7 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Re-enter password"
+                    autoComplete="new-password"
                     className="w-full min-h-[44px] bg-[#18181b] border border-zinc-800 focus:border-zinc-500 text-white pl-10 pr-9 py-2 text-sm sm:text-xs font-bold rounded-lg outline-none"
                   />
                   <button

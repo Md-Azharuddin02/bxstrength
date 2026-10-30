@@ -129,6 +129,11 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanName = formData.name.trim();
+    if (!cleanName) {
+      setSubmitError('Please enter your full name.');
+      return;
+    }
     if (formData.phone && !isValidUkMobile(formData.phone)) {
       alert(UK_PHONE_ERROR_MSG);
       return;
@@ -141,7 +146,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: formData.name,
+          name: cleanName,
           email: formData.email,
           phone: formData.phone,
           preferredContactMethod: formData.preferredContactMethod,
@@ -161,10 +166,10 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
         throw new Error(payload.error || 'Could not save your assessment. Please try again.');
       }
 
-      const finalAssessment = { ...formData, submittedAt: new Date().toISOString() };
+      const finalAssessment = { ...formData,name: cleanName, submittedAt: new Date().toISOString() };
       try {
         VelocityAPI.createEnquiry({
-          name: formData.name,
+          name: cleanName,
           email: formData.email,
           phone: formData.phone,
           preferredContactMethod: formData.preferredContactMethod || undefined,

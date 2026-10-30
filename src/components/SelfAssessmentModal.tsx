@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { isValidUkMobile, UK_PHONE_ERROR_MSG } from '../utils/phoneValidation';
 import { PhoneInput } from './PhoneInput';
 import { apiFetch, getApiUrl } from '../services/core/http';
+import { loadAssessmentDraft, saveAssessmentDraft } from '../utils/assessmentDraft';
 
 // Equipment options depend on where the client trains
 const EQUIPMENT_BY_LOCATION: Record<string, { title: string; desc: string }[]> = {
@@ -47,8 +48,10 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
   onCompleteAndBookConsultation,
 }) => {
   const { user } = useAuth();
-  const [step, setStep] = useState<number>(1);
-  const [formData, setFormData] = useState<SelfAssessmentData>({
+  const [step, setStep] = useState<number>(() => loadAssessmentDraft()?.step ?? 1);
+  const [formData, setFormData] = useState<SelfAssessmentData>(
+    () =>
+      loadAssessmentDraft()?.formData ?? {
     goal: '',
     fitnessLevel: '',
     trainingDays: '',
@@ -64,7 +67,8 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
     phone: user?.phone || '',
     preferredContactMethod: '',
     submittedAt: '',
-  });
+  },
+);
 
   // Auto-fill user details whenever user or modal state updates
   useEffect(() => {
@@ -78,9 +82,15 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
     }
   }, [user, isOpen]);
 
-  const [isCompleted, setIsCompleted] = useState<boolean>(false);
+  const [isCompleted, setIsCompleted] = useState<boolean>(
+    () => loadAssessmentDraft()?.isCompleted ?? false,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+
+  useEffect(() => {
+    saveAssessmentDraft({ formData, step, isCompleted });
+  }, [formData, step, isCompleted]);
 
   if (!isOpen) return null;
 

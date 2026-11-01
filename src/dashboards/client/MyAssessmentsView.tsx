@@ -100,8 +100,8 @@ export const MyAssessmentsView: React.FC<MyAssessmentsViewProps> = ({
               <p className="text-[11px] text-zinc-400">Ensure all workouts are safe and customized around joint or past medical history.</p>
             </div>
             <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
-              <span className="text-[#CCFF00] font-black text-xs uppercase block mb-1">3. Specialist Allocation</span>
-              <p className="text-[11px] text-zinc-400">Head Coach personally reviews and aligns a dedicated coach to your profile.</p>
+              <span className="text-[#CCFF00] font-black text-xs uppercase block mb-1">3. Direct Consultation</span>
+              <p className="text-[11px] text-zinc-400">Our coaching and support team directly reviews your goals and reaches out via your preferred contact method.</p>
             </div>
           </div>
         </div>
@@ -131,7 +131,7 @@ export const MyAssessmentsView: React.FC<MyAssessmentsViewProps> = ({
                       ? 'bg-blue-600 text-white'
                       : 'bg-amber-500 text-black'
                   }`}>
-                    {isReviewed ? '✓ REVIEWED & FEEDBACK READY' : isAssigned ? '● COACH ASSIGNED' : '● PENDING HEAD COACH REVIEW'}
+                    {isReviewed ? '✓ REVIEWED & CONTACTED' : '● PENDING COACH REVIEW'}
                   </span>
                 </div>
 
@@ -144,15 +144,11 @@ export const MyAssessmentsView: React.FC<MyAssessmentsViewProps> = ({
               <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 text-xs text-zinc-300 leading-relaxed">
                 {isReviewed ? (
                   <p className="text-emerald-300">
-                    Your diagnostic profile has been reviewed by your coaching team! Check the personalized recommendations below.
-                  </p>
-                ) : isAssigned ? (
-                  <p>
-                    Head Coach has assigned your diagnostic evaluation to <strong>{latestAssessment.assignedCoachName || 'Assigned Coach'}</strong>. Your coach is analyzing your movement parameters and will publish feedback shortly.
+                    Your diagnostic profile has been reviewed by our coaching staff! We have reached out to you via your preferred contact method.
                   </p>
                 ) : (
                   <p>
-                    Your self-assessment has been received by our Head Coach. We are currently analyzing your goals and will assign your specialist coach.
+                    Your self-assessment has been received by our coaching team. We are currently analyzing your movement goals and will reach out to you directly via your preferred contact method ({latestAssessment.preferredContactMethod || 'Call'}).
                   </p>
                 )}
               </div>

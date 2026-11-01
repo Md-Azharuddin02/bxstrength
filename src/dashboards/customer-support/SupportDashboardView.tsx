@@ -4,18 +4,19 @@ import { VelocityAPI, getApiUrl } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { ProfileManagement } from '../client/ProfileManagement';
+import { FreeAssessmentsView } from '../head-coach/FreeAssessmentsView';
 import { 
   LifeBuoy, CheckCircle2, Clock, AlertCircle, MessageSquare, Search, Filter, ShieldAlert, 
   Send, Trash2, UserCheck, ArrowUpRight, Phone, Mail, Globe, Tag, ChevronRight, RefreshCw, 
   BarChart2, Lock, AlertTriangle, Plus, FileText, Check, ShieldCheck, X, Zap, CornerUpRight,
-  User as UserIcon, Settings, LogOut, Home
+  User as UserIcon, Settings, LogOut, Home, ClipboardCheck
 } from 'lucide-react';
 
 interface SupportDashboardViewProps {
   onShowToast?: (msg: string) => void;
   onNavigateHome?: () => void;
   onLogout?: () => void;
-  initialTab?: 'inbox' | 'analytics' | 'audit_logs' | 'account_settings';
+  initialTab?: 'inbox' | 'analytics' | 'audit_logs' | 'account_settings' | 'assessments';
 }
 
 export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({ 
@@ -31,7 +32,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     user?.role === 'admin' ? 'admin' : ((user?.role === 'headcoach' || user?.role === 'coach') ? user.role : 'customer_support')
   );
 
-  const [activeTab, setActiveTab] = useState<'inbox' | 'analytics' | 'audit_logs' | 'account_settings'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'inbox' | 'analytics' | 'audit_logs' | 'account_settings' | 'assessments'>(initialTab);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -404,6 +405,15 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
             >
               <BarChart2 className="w-4 h-4 text-blue-400" />
               <span>📊 PERFORMANCE ANALYTICS</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('assessments')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === 'assessments' ? 'bg-[#CCFF00] text-black shadow-lg scale-102' : 'bg-[#18181b] text-zinc-400 hover:text-white border border-zinc-800'
+              }`}
+            >
+              <ClipboardCheck className="w-4 h-4 text-[#CCFF00]" />
+              <span>📋 ATHLETE ASSESSMENTS</span>
             </button>
           </div>
 
@@ -958,6 +968,14 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
               </div>
             )}
           </div>
+        )}
+
+        {/* TAB 5: ATHLETE ASSESSMENTS DESK */}
+        {activeTab === 'assessments' && user && (
+          <FreeAssessmentsView
+            user={user}
+            onShowToast={onShowToast}
+          />
         )}
 
       </div>

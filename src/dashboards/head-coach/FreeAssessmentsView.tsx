@@ -3,21 +3,21 @@ import { AthleteAssessment, User } from '../../types';
 import { VelocityAPI } from '../../services/api';
 import { normalizeRole } from '../../utils/auth';
 import {
-  ClipboardCheck, Clock, UserCheck, CheckCircle2, Phone, Mail, Award,
-  Search, RefreshCw, X, ExternalLink, MessageSquare, AlertCircle,
-  Check, User as UserIcon, Trash2, Activity, ShieldCheck, HeartPulse
+  ClipboardCheck, Clock, CheckCircle2, Phone, Mail, Award,
+  Search, RefreshCw, X, MessageSquare, AlertCircle,
+  Trash2, Activity, HeartPulse, Send, MessageCircle, ExternalLink,
+  Edit3, Check, MapPin, Dumbbell, Target, ShieldAlert
 } from 'lucide-react';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 
 interface FreeAssessmentsViewProps {
   user: User;
-  coaches: User[];
+  coaches?: User[];
   onShowToast: (msg: string) => void;
 }
 
 export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
   user,
-  coaches,
   onShowToast
 }) => {
   const normRole = normalizeRole(user.role);
@@ -28,67 +28,22 @@ export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
       user.coachPosition.toLowerCase().includes('chief')
     )
   ));
-  const isCoach = normRole === 'coach';
-  const isHeadCoachOrAdmin = isAdmin || isHeadCoach;
+  const isCustomerSupport = normRole === 'customersupport' || normRole === 'support';
+  const canDelete = isAdmin || isHeadCoach;
 
   const [assessments, setAssessments] = useState<AthleteAssessment[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'headcoach' | 'coaches' | 'completed'>('all');
+  const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'contacted' | 'completed'>('all');
 
-  // Assign Modal State
-  const [assignTarget, setAssignTarget] = useState<AthleteAssessment | null>(null);
-  const [selectedCoachId, setSelectedCoachId] = useState<string>('');
-  const [selectedCoachName, setSelectedCoachName] = useState<string>('');
-  const [assignNotes, setAssignNotes] = useState<string>('');
-  const [isSubmittingAssign, setIsSubmittingAssign] = useState<boolean>(false);
-
-  // Review / Status Update Modal State
-  const [reviewTarget, setReviewTarget] = useState<AthleteAssessment | null>(null);
-  const [newStatus, setNewStatus] = useState<string>('Reviewed');
-  const [recommendedPlan, setRecommendedPlan] = useState<string>('');
-  const [coachFeedback, setCoachFeedback] = useState<string>('');
-  const [coachNotes, setCoachNotes] = useState<string>('');
-  const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
+  // Contact Note Modal State
+  const [noteTarget, setNoteTarget] = useState<AthleteAssessment | null>(null);
+  const [noteText, setNoteText] = useState<string>('');
+  const [noteStatus, setNoteStatus] = useState<string>('Contacted');
+  const [isSavingNote, setIsSavingNote] = useState<boolean>(false);
 
   // Delete Confirm State
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  const [dbCoaches, setDbCoaches] = useState<User[]>([]);
-
-  useEffect(() => {
-    VelocityAPI.fetchUsers().then(uList => {
-      const staff = uList.filter(u => {
-        const r = normalizeRole(u.role);
-        return r === 'coach' || r === 'headcoach';
-      });
-      if (staff.length > 0) setDbCoaches(staff);
-    }).catch(() => {});
-  }, []);
-
-  // Available Specialist Coaches (strictly real users from DB with role === 'coach', excluding Head Coach and Admins)
-  const availableSpecialistCoaches = useMemo(() => {
-    const combined = [...coaches, ...dbCoaches];
-    const uniqueMap = new Map<string, { id: string; name: string; position: string; email: string }>();
-
-    combined.forEach(c => {
-      const r = normalizeRole(c.role);
-      const isSelf = c.id === user.id || (c.email && c.email.toLowerCase() === user.email.toLowerCase());
-      const isHeadCoachRole = r === 'headcoach' || (c.name && c.name.toLowerCase().includes('head coach'));
-      const isAdminRole = r === 'admin';
-
-      if (r === 'coach' && !isSelf && !isHeadCoachRole && !isAdminRole) {
-        uniqueMap.set(c.id, {
-          id: c.id,
-          name: c.name,
-          position: c.coachPosition || 'Specialist Coach',
-          email: c.email
-        });
-      }
-    });
-
-    return Array.from(uniqueMap.values());
-  }, [coaches, dbCoaches, user]);
 
   const loadAssessments = async () => {
     setIsLoading(true);
@@ -112,37 +67,17 @@ export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
     };
   }, []);
 
-  // Filter based on user role (coach vs headcoach/admin)
-  const roleFiltered = useMemo(() => {
-    if (isHeadCoachOrAdmin) return assessments;
-    // Specialist coach only sees assessments assigned to them
-    return assessments.filter(a => {
-      const isIdMatch = a.assignedCoachId && a.assignedCoachId === user.id;
-      const isNameMatch = a.assignedCoachName && a.assignedCoachName.toLowerCase().trim() === user.name.toLowerCase().trim();
-      return isIdMatch || isNameMatch;
-    });
-  }, [assessments, isHeadCoachOrAdmin, user]);
-
-  // Tab Filtering & Search Filtering
+  // Filter based on Tab & Search
   const displayedAssessments = useMemo(() => {
-    return roleFiltered.filter(a => {
+    return assessments.filter(a => {
       // Tab filter
+      const normStatus = (a.status || 'Pending').toLowerCase();
       if (filterTab === 'pending') {
-        if (a.status !== 'Pending') return false;
-      } else if (filterTab === 'headcoach') {
-        const isHead = a.assignedCoachName && (
-          a.assignedCoachName.toLowerCase().includes('head coach') ||
-          a.assignedCoachName.toLowerCase().includes('azhar')
-        );
-        if (!isHead) return false;
-      } else if (filterTab === 'coaches') {
-        const isHead = a.assignedCoachName && (
-          a.assignedCoachName.toLowerCase().includes('head coach') ||
-          a.assignedCoachName.toLowerCase().includes('azhar')
-        );
-        if (!a.assignedCoachName || isHead) return false;
+        if (normStatus !== 'pending') return false;
+      } else if (filterTab === 'contacted') {
+        if (normStatus !== 'contacted' && normStatus !== 'reviewed' && normStatus !== 'assigned') return false;
       } else if (filterTab === 'completed') {
-        if (a.status !== 'Completed' && a.status !== 'Reviewed') return false;
+        if (normStatus !== 'completed') return false;
       }
 
       // Search filter
@@ -153,116 +88,59 @@ export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
         const matchPhone = a.clientPhone?.toLowerCase().includes(q);
         const matchGoal = a.primaryGoal.toLowerCase().includes(q);
         const matchId = a.id.toLowerCase().includes(q);
-        const matchCoach = a.assignedCoachName?.toLowerCase().includes(q);
-        return matchName || matchEmail || matchPhone || matchGoal || matchId || matchCoach;
+        const matchLocation = a.trainingLocation?.toLowerCase().includes(q);
+        return matchName || matchEmail || matchPhone || matchGoal || matchId || matchLocation;
       }
 
       return true;
     });
-  }, [roleFiltered, filterTab, searchTerm]);
+  }, [assessments, filterTab, searchTerm]);
 
   // KPI calculations
-  const totalCount = roleFiltered.length;
-  const pendingCount = roleFiltered.filter(a => a.status === 'Pending').length;
-  const headCoachCount = roleFiltered.filter(a => a.assignedCoachName && (
-    a.assignedCoachName.toLowerCase().includes('head coach') ||
-    a.assignedCoachName.toLowerCase().includes('azhar')
-  )).length;
-  const coachesCount = roleFiltered.filter(a => {
-    const isHead = a.assignedCoachName && (
-      a.assignedCoachName.toLowerCase().includes('head coach') ||
-      a.assignedCoachName.toLowerCase().includes('azhar')
-    );
-    return a.assignedCoachName && !isHead;
+  const totalCount = assessments.length;
+  const pendingCount = assessments.filter(a => (a.status || 'Pending').toLowerCase() === 'pending').length;
+  const contactedCount = assessments.filter(a => {
+    const s = (a.status || '').toLowerCase();
+    return s === 'contacted' || s === 'reviewed' || s === 'assigned';
   }).length;
-  const completedCount = roleFiltered.filter(a => a.status === 'Completed' || a.status === 'Reviewed').length;
+  const completedCount = assessments.filter(a => (a.status || '').toLowerCase() === 'completed').length;
 
-  // Handle "Take Myself" (Self-assign to Head Coach)
-  const handleSelfAssign = async (assessment: AthleteAssessment) => {
-    const coachDisplayName = isHeadCoach ? 'Head Coach' : user.name;
+  // Quick Status Update
+  const handleQuickStatusUpdate = async (assessment: AthleteAssessment, newStatus: string) => {
     try {
-      await VelocityAPI.assignAssessment(assessment.id, {
-        assignedCoachId: user.id,
-        assignedCoachName: coachDisplayName,
-        assignedBy: user.name,
-        notes: `${user.name} claimed this diagnostic assessment directly for athletic review.`
+      await VelocityAPI.updateAssessmentStatus(assessment.id, {
+        status: newStatus
       });
-      onShowToast(`Assessment ${assessment.id} successfully claimed by ${coachDisplayName}!`);
+      onShowToast(`Assessment ${assessment.id} marked as ${newStatus}!`);
       loadAssessments();
     } catch (e: any) {
-      onShowToast(e.message || 'Failed to claim assessment');
+      onShowToast(e.message || 'Failed to update status');
     }
   };
 
-  // Open delegation modal
-  const handleOpenAssignModal = (assessment: AthleteAssessment) => {
-    setAssignTarget(assessment);
-    const defaultCoach = availableSpecialistCoaches[0];
-    if (defaultCoach) {
-      setSelectedCoachId(defaultCoach.id);
-      setSelectedCoachName(defaultCoach.name);
-    } else {
-      setSelectedCoachId('');
-      setSelectedCoachName('');
-    }
-    setAssignNotes('');
+  // Open Staff Notes Modal
+  const handleOpenNoteModal = (assessment: AthleteAssessment) => {
+    setNoteTarget(assessment);
+    setNoteText(assessment.coachNotes || '');
+    setNoteStatus(assessment.status || 'Contacted');
   };
 
-  // Confirm delegation to coach
-  const handleConfirmAssign = async () => {
-    if (!assignTarget || !selectedCoachName) {
-      onShowToast('Please select a specialist coach to assign.');
-      return;
-    }
-
-    setIsSubmittingAssign(true);
+  // Save Staff Notes
+  const handleSaveNote = async () => {
+    if (!noteTarget) return;
+    setIsSavingNote(true);
     try {
-      await VelocityAPI.assignAssessment(assignTarget.id, {
-        assignedCoachId: selectedCoachId || null,
-        assignedCoachName: selectedCoachName,
-        assignedBy: isHeadCoach ? 'Head Coach' : user.name,
-        notes: assignNotes.trim() || undefined
+      await VelocityAPI.updateAssessmentStatus(noteTarget.id, {
+        status: noteStatus,
+        coachNotes: noteText.trim() || undefined
       });
-
-      onShowToast(`Assessment ${assignTarget.id} delegated to ${selectedCoachName}!`);
-      setAssignTarget(null);
+      onShowToast(`Staff contact notes saved for ${noteTarget.clientName}!`);
+      setNoteTarget(null);
       loadAssessments();
     } catch (e: any) {
-      onShowToast(e.message || 'Failed to delegate assessment');
+      onShowToast(e.message || 'Failed to save notes');
     } finally {
-      setIsSubmittingAssign(false);
-    }
-  };
-
-  // Open Review / Feedback Modal
-  const handleOpenReviewModal = (assessment: AthleteAssessment) => {
-    setReviewTarget(assessment);
-    setNewStatus(assessment.status === 'Pending' ? 'Reviewed' : assessment.status);
-    setRecommendedPlan(assessment.recommendedPlan || '');
-    setCoachFeedback(assessment.coachFeedback || '');
-    setCoachNotes(assessment.coachNotes || '');
-  };
-
-  // Confirm Review / Feedback
-  const handleConfirmReview = async () => {
-    if (!reviewTarget) return;
-
-    setIsSubmittingReview(true);
-    try {
-      await VelocityAPI.updateAssessmentStatus(reviewTarget.id, {
-        status: newStatus,
-        recommendedPlan: recommendedPlan.trim() || undefined,
-        coachFeedback: coachFeedback.trim() || undefined,
-        coachNotes: coachNotes.trim() || undefined
-      });
-
-      onShowToast(`Assessment ${reviewTarget.id} updated to ${newStatus}! Client notified via email.`);
-      setReviewTarget(null);
-      loadAssessments();
-    } catch (e: any) {
-      onShowToast(e.message || 'Failed to update assessment review');
-    } finally {
-      setIsSubmittingReview(false);
+      setIsSavingNote(false);
     }
   };
 
@@ -286,10 +164,10 @@ export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[10px] font-mono font-bold text-[#CCFF00] bg-[#CCFF00]/10 px-2 py-0.5 border border-[#CCFF00]/30 rounded uppercase">
-              {isHeadCoach ? 'HEAD COACH PIPELINE • SEPARATE ASSESSMENTS' : isCoach ? 'COACH DELEGATED ASSESSMENTS' : 'ADMIN ATHLETE ASSESSMENTS'}
+              {isAdmin ? 'ADMIN INTAKE DESK' : isHeadCoach ? 'HEAD COACH INTAKE DESK' : 'CUSTOMER SUPPORT DESK'}
             </span>
             <span className="text-[10px] font-bold text-zinc-400 font-mono">
-              {totalCount} Total Diagnostic Intakes
+              {totalCount} Total Diagnostic Assessments
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white flex items-center gap-2.5">
@@ -297,9 +175,7 @@ export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
             ATHLETE DIAGNOSTIC ASSESSMENTS
           </h1>
           <p className="text-xs text-zinc-400 mt-1 max-w-2xl leading-relaxed">
-            {isHeadCoachOrAdmin
-              ? 'Separate lead management for athletes who submitted the 5-Min Self-Assessment. Review movement goals, injury history, self-assign, or delegate to specialist coaches.'
-              : 'Review diagnostic profiles assigned to you by the Head Coach. Provide customized exercise recommendations and feedback.'}
+            Direct intake lead management for athletes who submitted the 5-Minute Self-Assessment. Review movement goals, schedule constraints, and injury flags to reach out directly via WhatsApp, Phone, or Email.
           </p>
         </div>
 
@@ -314,7 +190,7 @@ export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
       </div>
 
       {/* KPI Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-[#121214] border border-zinc-800 p-4 rounded-xl">
           <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">TOTAL ASSESSMENTS</span>
           <span className="text-2xl font-black text-white mt-1 block">{totalCount}</span>
@@ -323,16 +199,12 @@ export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
           <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">PENDING ACTION</span>
           <span className="text-2xl font-black text-amber-400 mt-1 block">{pendingCount}</span>
         </div>
-        <div className="bg-[#121214] border border-zinc-800 p-4 rounded-xl">
-          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">TAKEN BY HEAD COACH</span>
-          <span className="text-2xl font-black text-white mt-1 block">{headCoachCount}</span>
-        </div>
         <div className="bg-[#121214] border border-blue-500/30 p-4 rounded-xl">
-          <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">COACH DELEGATED</span>
-          <span className="text-2xl font-black text-blue-400 mt-1 block">{coachesCount}</span>
+          <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">CONTACTED CLIENTS</span>
+          <span className="text-2xl font-black text-blue-400 mt-1 block">{contactedCount}</span>
         </div>
         <div className="bg-[#121214] border border-emerald-500/30 p-4 rounded-xl">
-          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">REVIEWED / COMPLETED</span>
+          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">COMPLETED / ENROLLED</span>
           <span className="text-2xl font-black text-emerald-400 mt-1 block">{completedCount}</span>
         </div>
       </div>
@@ -345,23 +217,23 @@ export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by athlete name, email, phone, goal, or ref..."
+            placeholder="Search by athlete name, email, phone, goal, location, or ref..."
             className="w-full bg-zinc-900 border border-zinc-800 text-white text-xs pl-10 pr-4 py-2.5 rounded-lg focus:outline-none focus:border-[#CCFF00]"
           />
         </div>
 
         <div className="flex items-center gap-1.5 overflow-x-auto">
-          {(['all', 'pending', 'headcoach', 'coaches', 'completed'] as const).map(tab => (
+          {(['all', 'pending', 'contacted', 'completed'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setFilterTab(tab)}
-              className={`text-[10px] font-black uppercase px-3 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+              className={`text-[10px] font-black uppercase px-3.5 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                 filterTab === tab
                   ? 'bg-white text-black'
                   : 'bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800'
               }`}
             >
-              {tab === 'headcoach' ? 'HEAD COACH' : tab}
+              {tab === 'all' ? 'ALL ASSESSMENTS' : tab === 'pending' ? 'PENDING ACTION' : tab}
             </button>
           ))}
         </div>
@@ -378,52 +250,74 @@ export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
           <ClipboardCheck className="w-10 h-10 text-zinc-600 mx-auto" />
           <h3 className="text-sm font-black text-white uppercase">No Diagnostic Assessments Found</h3>
           <p className="text-xs text-zinc-400 max-w-md mx-auto">
-            {searchTerm ? 'No assessments match your search query.' : 'When clients complete the 5-min self-assessment on the website, their full diagnostic profiles will appear here.'}
+            {searchTerm ? 'No assessments match your search query.' : 'When clients complete the 5-min self-assessment on the website, their full diagnostic profiles will appear here for direct contact.'}
           </p>
         </div>
       ) : (
         <div className="space-y-4">
           {displayedAssessments.map(a => {
-            const isPending = a.status === 'Pending';
-            const isAssigned = a.status === 'Assigned';
-            const isReviewed = a.status === 'Reviewed';
-            const isCompleted = a.status === 'Completed';
-            const hasInjuryFlag = a.hasInjury && a.hasInjury.toLowerCase() !== 'no' && a.hasInjury.toLowerCase() !== 'none';
+            const rawStatus = (a.status || 'Pending').toLowerCase();
+            const isPending = rawStatus === 'pending';
+            const isContacted = rawStatus === 'contacted' || rawStatus === 'reviewed' || rawStatus === 'assigned';
+            const isCompleted = rawStatus === 'completed';
+
+            const rawContact = (a.preferredContactMethod || 'call').toLowerCase();
+            const isWhatsApp = rawContact.includes('whatsapp') || rawContact.includes('what');
+            const isCall = rawContact.includes('call') || rawContact.includes('phone');
+            const isEmailContact = rawContact.includes('email');
+
+            const cleanPhone = (a.clientPhone || '').replace(/[\s\-\(\)\+]/g, '');
+            const hasInjuryFlag = a.hasInjury && a.hasInjury.toLowerCase() !== 'no' && a.hasInjury.toLowerCase() !== 'none' && a.hasInjury.toLowerCase() !== 'not provided';
+
+            // WhatsApp direct chat URL with pre-filled greeting
+            const waText = encodeURIComponent(
+              `Hello ${a.clientName}! This is the coaching team from BxStrength. We received your 5-minute athletic assessment regarding your primary goal "${a.primaryGoal}". Would you be available for a brief strategy consultation?`
+            );
+            const waUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=${waText}` : null;
 
             return (
               <div
                 key={a.id}
-                className={`bg-[#121214] border p-5 sm:p-6 rounded-2xl transition-all space-y-4 ${
-                  isReviewed || isCompleted
-                    ? 'border-emerald-800/60 shadow-lg shadow-emerald-950/10'
-                    : isAssigned
+                className={`bg-[#121214] border p-5 sm:p-6 rounded-2xl transition-all space-y-4 shadow-xl ${
+                  isCompleted
+                    ? 'border-emerald-800/60 shadow-emerald-950/10'
+                    : isContacted
                     ? 'border-blue-700/60'
                     : 'border-amber-600/60'
                 }`}
               >
-                {/* Top Line: Ref ID, Status, Date */}
+                {/* Top Line: Ref ID, Status, Preferred Contact, Date */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800 pb-3">
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-xs font-bold text-amber-300 bg-amber-950/60 px-2.5 py-0.5 border border-amber-800/80 rounded">
                       REF: {a.id}
                     </span>
                     <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
-                      isReviewed || isCompleted
+                      isCompleted
                         ? 'bg-emerald-500 text-black'
-                        : isAssigned
+                        : isContacted
                         ? 'bg-blue-600 text-white'
                         : 'bg-amber-500 text-black'
                     }`}>
-                      {isCompleted ? '✓ COMPLETED' : isReviewed ? '● REVIEWED' : isAssigned ? '● COACH ASSIGNED' : '● PENDING ACTION'}
+                      {isCompleted ? '✓ COMPLETED / ENROLLED' : isContacted ? '● CONTACTED' : '● NEW / PENDING ACTION'}
                     </span>
-                    <span className="text-[10px] font-mono text-zinc-400 uppercase">
-                      Contact: {a.preferredContactMethod || 'Call'}
+
+                    {/* Preferred Contact Badge */}
+                    <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded border flex items-center gap-1 ${
+                      isWhatsApp
+                        ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/80'
+                        : isCall
+                        ? 'bg-blue-950/60 text-blue-300 border-blue-800/80'
+                        : 'bg-zinc-800 text-zinc-300 border-zinc-700'
+                    }`}>
+                      {isWhatsApp ? <MessageCircle className="w-3 h-3 text-emerald-400" /> : isCall ? <Phone className="w-3 h-3 text-blue-400" /> : <Mail className="w-3 h-3 text-zinc-400" />}
+                      <span>Prefers: {a.preferredContactMethod || 'Call'}</span>
                     </span>
                   </div>
 
                   <div className="flex items-center gap-3 text-xs text-zinc-400">
                     <span className="text-[10px] font-mono">{new Date(a.createdAt).toLocaleDateString()} {new Date(a.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    {isHeadCoachOrAdmin && (
+                    {canDelete && (
                       <button
                         onClick={() => setDeletingId(a.id)}
                         className="text-zinc-500 hover:text-red-400 transition-colors p-1"
@@ -435,141 +329,156 @@ export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
                   </div>
                 </div>
 
-                {/* Athlete Contact Header */}
+                {/* Athlete Contact & Quick Action Bar */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="space-y-1">
-                    <h3 className="text-lg font-black text-white uppercase">{a.clientName}</h3>
+                    <h3 className="text-lg font-black text-white uppercase flex items-center gap-2">
+                      <span>{a.clientName}</span>
+                    </h3>
                     <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-300">
-                      <span className="flex items-center gap-1.5">
+                      <a href={`mailto:${a.clientEmail}`} className="flex items-center gap-1.5 hover:text-[#CCFF00] transition-colors">
                         <Mail className="w-3.5 h-3.5 text-zinc-500" /> {a.clientEmail}
-                      </span>
+                      </a>
                       {a.clientPhone && (
-                        <span className="flex items-center gap-1.5">
+                        <a href={`tel:${a.clientPhone}`} className="flex items-center gap-1.5 hover:text-[#CCFF00] transition-colors">
                           <Phone className="w-3.5 h-3.5 text-zinc-500" /> {a.clientPhone}
-                        </span>
+                        </a>
                       )}
                     </div>
                   </div>
 
-                  {/* Current Assigned Coach */}
-                  <div className="bg-zinc-900/80 border border-zinc-800 px-4 py-2.5 rounded-xl shrink-0">
-                    <span className="text-[9px] uppercase font-bold text-zinc-500 block mb-0.5">Assigned Specialist</span>
-                    <span className={`text-xs font-black uppercase ${a.assignedCoachName ? 'text-white' : 'text-amber-400'}`}>
-                      {a.assignedCoachName || 'Unassigned (Action Pending)'}
-                    </span>
+                  {/* DIRECT CONTACT ACTION BUTTONS */}
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    {cleanPhone && (
+                      <>
+                        {waUrl && (
+                          <a
+                            href={waUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                            <span>WhatsApp</span>
+                          </a>
+                        )}
+                        <a
+                          href={`tel:${a.clientPhone}`}
+                          className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow"
+                        >
+                          <Phone className="w-4 h-4" />
+                          <span>Call Client</span>
+                        </a>
+                      </>
+                    )}
+                    <a
+                      href={`mailto:${a.clientEmail}?subject=${encodeURIComponent(`BxStrength Athletic Strategy - ${a.primaryGoal}`)}`}
+                      className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-bold uppercase px-3 py-2 rounded-xl transition-all flex items-center gap-1.5"
+                    >
+                      <Mail className="w-4 h-4 text-zinc-400" />
+                      <span>Email</span>
+                    </a>
                   </div>
                 </div>
 
-                {/* Diagnostic Data Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs pt-1">
-                  <div className="bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800/80">
-                    <span className="text-[9px] uppercase font-bold text-zinc-500 block">Primary Goal</span>
-                    <span className="font-bold text-[#CCFF00] block mt-0.5 truncate">{a.primaryGoal}</span>
+                {/* FULL DIAGNOSTIC DATA GRID (ALL DETAILS DISPLAYED) */}
+                <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-black uppercase text-zinc-400 tracking-wider">
+                    <Target className="w-3.5 h-3.5 text-[#CCFF00]" />
+                    <span>Submitted Self-Assessment Intake Parameters</span>
                   </div>
-                  <div className="bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800/80">
-                    <span className="text-[9px] uppercase font-bold text-zinc-500 block">Main Obstacle</span>
-                    <span className="font-bold text-white block mt-0.5 truncate">{a.mainObstacle || 'N/A'}</span>
-                  </div>
-                  <div className="bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800/80">
-                    <span className="text-[9px] uppercase font-bold text-zinc-500 block">Experience</span>
-                    <span className="font-bold text-white block mt-0.5 truncate">{a.experienceLevel || 'N/A'}</span>
-                  </div>
-                  <div className="bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800/80">
-                    <span className="text-[9px] uppercase font-bold text-zinc-500 block">Commitment</span>
-                    <span className="font-bold text-white block mt-0.5 truncate">{a.weeklyCommitment || 'N/A'}</span>
-                  </div>
-                  <div className="bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800/80">
-                    <span className="text-[9px] uppercase font-bold text-zinc-500 block">Location</span>
-                    <span className="font-bold text-white block mt-0.5 truncate">{a.trainingLocation || 'N/A'}</span>
-                  </div>
-                  <div className="bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800/80">
-                    <span className="text-[9px] uppercase font-bold text-zinc-500 block">Equipment</span>
-                    <span className="font-bold text-white block mt-0.5 truncate">{a.equipment || 'N/A'}</span>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 text-xs">
+                    <div className="bg-black/40 p-2.5 rounded-lg border border-zinc-800">
+                      <span className="text-[9px] uppercase font-bold text-zinc-500 block">Primary Goal</span>
+                      <span className="font-bold text-[#CCFF00] block mt-0.5">{a.primaryGoal}</span>
+                    </div>
+                    <div className="bg-black/40 p-2.5 rounded-lg border border-zinc-800">
+                      <span className="text-[9px] uppercase font-bold text-zinc-500 block">Main Obstacle</span>
+                      <span className="font-bold text-white block mt-0.5">{a.mainObstacle || 'N/A'}</span>
+                    </div>
+                    <div className="bg-black/40 p-2.5 rounded-lg border border-zinc-800">
+                      <span className="text-[9px] uppercase font-bold text-zinc-500 block">Experience Level</span>
+                      <span className="font-bold text-white block mt-0.5">{a.experienceLevel || 'N/A'}</span>
+                    </div>
+                    <div className="bg-black/40 p-2.5 rounded-lg border border-zinc-800">
+                      <span className="text-[9px] uppercase font-bold text-zinc-500 block">Weekly Days</span>
+                      <span className="font-bold text-white block mt-0.5">{a.weeklyCommitment || 'N/A'}</span>
+                    </div>
+                    <div className="bg-black/40 p-2.5 rounded-lg border border-zinc-800">
+                      <span className="text-[9px] uppercase font-bold text-zinc-500 block">Location</span>
+                      <span className="font-bold text-white block mt-0.5">{a.trainingLocation || 'N/A'}</span>
+                    </div>
+                    <div className="bg-black/40 p-2.5 rounded-lg border border-zinc-800">
+                      <span className="text-[9px] uppercase font-bold text-zinc-500 block">Equipment</span>
+                      <span className="font-bold text-white block mt-0.5">{a.equipment || 'N/A'}</span>
+                    </div>
+                    <div className="bg-black/40 p-2.5 rounded-lg border border-zinc-800">
+                      <span className="text-[9px] uppercase font-bold text-zinc-500 block">Protocol Interest</span>
+                      <span className="font-bold text-white block mt-0.5">{a.trainingInterest || 'General Strength'}</span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Medical / Injury Warning Banner */}
                 {hasInjuryFlag && (
-                  <div className="bg-amber-950/30 border border-amber-600/50 p-3 rounded-xl flex items-start gap-2.5 text-xs text-amber-200">
-                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="bg-amber-950/40 border border-amber-600/70 p-3.5 rounded-xl flex items-start gap-2.5 text-xs text-amber-200">
+                    <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     <div>
-                      <strong className="text-amber-400 uppercase text-[10px] block">ATHLETE INJURY / RESTRICTION FLAG:</strong>
-                      <span>{a.hasInjury}</span>
+                      <strong className="text-amber-400 uppercase text-[10px] block tracking-wider">ATHLETE INJURY / MEDICAL RESTRICTION:</strong>
+                      <span className="mt-0.5 block font-medium">{a.hasInjury}</span>
                     </div>
                   </div>
                 )}
 
-                {/* Coach Feedback & Recommendations block if present */}
-                {(a.recommendedPlan || a.coachFeedback) && (
-                  <div className="bg-emerald-950/20 border border-emerald-800/60 p-4 rounded-xl space-y-2 text-xs">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider">COACHING RECOMMENDATIONS &amp; PROTOCOL</span>
+                {/* Staff Contact Notes (If Recorded) */}
+                {a.coachNotes && (
+                  <div className="bg-zinc-900/90 border border-zinc-700 p-3 rounded-xl text-xs space-y-1">
+                    <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] font-bold uppercase">
+                      <Edit3 className="w-3 h-3 text-[#CCFF00]" />
+                      <span>Internal Contact &amp; Follow-up Notes:</span>
                     </div>
-                    {a.recommendedPlan && (
-                      <p className="text-white">
-                        <strong className="text-zinc-400 uppercase text-[10px] block">Recommended Protocol:</strong>
-                        {a.recommendedPlan}
-                      </p>
-                    )}
-                    {a.coachFeedback && (
-                      <p className="text-zinc-300">
-                        <strong className="text-zinc-400 uppercase text-[10px] block">Coach Diagnostic Notes:</strong>
-                        {a.coachFeedback}
-                      </p>
-                    )}
+                    <p className="text-zinc-200 whitespace-pre-line font-mono text-[11px]">{a.coachNotes}</p>
                   </div>
                 )}
 
-                {/* Action Buttons Footer */}
+                {/* Action Footer: Status Changer & Log Note Button */}
                 <div className="pt-3 border-t border-zinc-800 flex flex-wrap items-center justify-between gap-3">
-                  <div className="text-[10px] text-zinc-400">
-                    {a.assignedBy && (
-                      <span>Assigned by <strong>{a.assignedBy}</strong> {a.assignedAt ? `on ${new Date(a.assignedAt).toLocaleDateString()}` : ''}</span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    {/* Head Coach / Admin Actions */}
-                    {isHeadCoachOrAdmin && isPending && (
-                      <>
-                        <button
-                          onClick={() => handleSelfAssign(a)}
-                          className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <UserCheck className="w-4 h-4" />
-                          <span>Take Myself</span>
-                        </button>
-
-                        <button
-                          onClick={() => handleOpenAssignModal(a)}
-                          className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs uppercase px-4 py-2 rounded-lg transition-all border border-zinc-700 flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <UserIcon className="w-4 h-4 text-[#CCFF00]" />
-                          <span>Assign to Coach</span>
-                        </button>
-                      </>
-                    )}
-
-                    {isHeadCoachOrAdmin && isAssigned && (
-                      <button
-                        onClick={() => handleOpenAssignModal(a)}
-                        className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs uppercase px-3 py-1.5 rounded-lg transition-all border border-zinc-700 flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <UserIcon className="w-3.5 h-3.5 text-[#CCFF00]" />
-                        <span>Re-assign Coach</span>
-                      </button>
-                    )}
-
-                    {/* Review / Provide Feedback Button (Available to Head Coach, Admin, or the assigned Coach) */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase">Change Status:</span>
                     <button
-                      onClick={() => handleOpenReviewModal(a)}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
+                      onClick={() => handleQuickStatusUpdate(a, 'Pending')}
+                      className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded transition-all cursor-pointer ${
+                        isPending ? 'bg-amber-500 text-black font-black' : 'bg-zinc-900 text-zinc-400 hover:text-white'
+                      }`}
                     >
-                      <ClipboardCheck className="w-4 h-4" />
-                      <span>{isReviewed || isCompleted ? 'Update Review' : 'Provide Feedback'}</span>
+                      Pending
+                    </button>
+                    <button
+                      onClick={() => handleQuickStatusUpdate(a, 'Contacted')}
+                      className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded transition-all cursor-pointer ${
+                        isContacted ? 'bg-blue-600 text-white font-black' : 'bg-zinc-900 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      Contacted
+                    </button>
+                    <button
+                      onClick={() => handleQuickStatusUpdate(a, 'Completed')}
+                      className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded transition-all cursor-pointer ${
+                        isCompleted ? 'bg-emerald-500 text-black font-black' : 'bg-zinc-900 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      Completed
                     </button>
                   </div>
+
+                  <button
+                    onClick={() => handleOpenNoteModal(a)}
+                    className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs uppercase px-3.5 py-1.5 rounded-lg transition-all border border-zinc-700 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-[#CCFF00]" />
+                    <span>{a.coachNotes ? 'Edit Contact Note' : 'Add Contact Note'}</span>
+                  </button>
                 </div>
               </div>
             );
@@ -577,192 +486,81 @@ export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
         </div>
       )}
 
-      {/* ASSIGN TO COACH MODAL */}
-      {assignTarget && (
+      {/* STAFF CONTACT NOTE MODAL */}
+      {noteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#121214] border border-zinc-800 text-white w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-5">
+          <div className="bg-[#121214] border border-zinc-800 text-white w-full max-w-md rounded-2xl shadow-2xl p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <h3 className="text-sm font-black uppercase text-white flex items-center gap-2">
-                <UserCheck className="w-4 h-4 text-[#CCFF00]" />
-                DELEGATE ASSESSMENT TO SPECIALIST COACH
+                <Edit3 className="w-4 h-4 text-[#CCFF00]" />
+                LOG CONTACT / FOLLOW-UP NOTE
               </h3>
-              <button onClick={() => setAssignTarget(null)} className="text-zinc-500 hover:text-white">
+              <button onClick={() => setNoteTarget(null)} className="text-zinc-500 hover:text-white cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div className="bg-zinc-900 p-3 rounded-lg border border-zinc-800 text-xs">
-                <p><strong>Athlete:</strong> {assignTarget.clientName} ({assignTarget.clientEmail})</p>
-                <p><strong>Primary Goal:</strong> {assignTarget.primaryGoal}</p>
-                <p><strong>Experience:</strong> {assignTarget.experienceLevel || 'N/A'}</p>
+            <div className="space-y-3 text-xs">
+              <div className="bg-zinc-900 p-3 rounded-lg border border-zinc-800">
+                <p><strong>Client:</strong> {noteTarget.clientName}</p>
+                <p><strong>Contact:</strong> {noteTarget.clientPhone || noteTarget.clientEmail} ({noteTarget.preferredContactMethod || 'Call'})</p>
+                <p><strong>Goal:</strong> {noteTarget.primaryGoal}</p>
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase text-zinc-400 mb-1">
-                  SELECT SPECIALIST COACH *
-                </label>
-                {availableSpecialistCoaches.length === 0 ? (
-                  <div className="p-3 bg-amber-950/40 border border-amber-800/60 rounded-lg text-xs text-amber-200">
-                    No specialist coaches found with role 'coach' in the database.
-                  </div>
-                ) : (
-                  <select
-                    value={selectedCoachId}
-                    onChange={(e) => {
-                      setSelectedCoachId(e.target.value);
-                      const found = availableSpecialistCoaches.find(c => c.id === e.target.value);
-                      if (found) setSelectedCoachName(found.name);
-                    }}
-                    className="w-full bg-zinc-900 border border-zinc-700 text-white text-xs px-3 py-2.5 rounded-lg focus:outline-none focus:border-[#CCFF00]"
-                  >
-                    {availableSpecialistCoaches.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} ({c.email})
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black uppercase text-zinc-400 mb-1">
-                  INSTRUCTIONS FOR COACH (OPTIONAL)
-                </label>
-                <textarea
-                  value={assignNotes}
-                  onChange={(e) => setAssignNotes(e.target.value)}
-                  placeholder="e.g. Please review client's shoulder restriction and recommend our beginner boxing mobility protocol."
-                  rows={3}
-                  className="w-full bg-zinc-900 border border-zinc-700 text-white text-xs p-3 rounded-lg focus:outline-none focus:border-[#CCFF00]"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800">
-              <button
-                onClick={() => setAssignTarget(null)}
-                className="px-4 py-2 rounded-lg text-xs font-bold uppercase text-zinc-400 hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmAssign}
-                disabled={isSubmittingAssign || availableSpecialistCoaches.length === 0}
-                className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase px-5 py-2.5 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
-              >
-                {isSubmittingAssign ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                <span>Confirm Delegation</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* REVIEW / FEEDBACK MODAL */}
-      {reviewTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#121214] border border-zinc-800 text-white w-full max-w-lg rounded-2xl shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <h3 className="text-sm font-black uppercase text-white flex items-center gap-2">
-                <ClipboardCheck className="w-4 h-4 text-emerald-400" />
-                PROVIDE ATHLETIC DIAGNOSTIC FEEDBACK
-              </h3>
-              <button onClick={() => setReviewTarget(null)} className="text-zinc-500 hover:text-white">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="bg-zinc-900 p-3 rounded-lg border border-zinc-800 text-xs">
-                <p><strong>Athlete:</strong> {reviewTarget.clientName} ({reviewTarget.clientEmail})</p>
-                <p><strong>Goal:</strong> {reviewTarget.primaryGoal} | <strong>Level:</strong> {reviewTarget.experienceLevel}</p>
-                {reviewTarget.hasInjury && <p className="text-amber-300"><strong>Injuries:</strong> {reviewTarget.hasInjury}</p>}
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black uppercase text-zinc-400 mb-1">
-                  UPDATE STATUS *
-                </label>
+                <label className="text-[10px] font-bold uppercase text-zinc-400 block mb-1">Update Status</label>
                 <select
-                  value={newStatus}
-                  onChange={(e) => setNewStatus(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-700 text-white text-xs px-3 py-2.5 rounded-lg focus:outline-none focus:border-emerald-400"
+                  value={noteStatus}
+                  onChange={(e) => setNoteStatus(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-white font-bold focus:outline-none focus:border-[#CCFF00]"
                 >
-                  <option value="Reviewed">Reviewed (Feedback Ready)</option>
-                  <option value="Completed">Completed (Roadmap Finalized)</option>
+                  <option value="Pending">Pending Action</option>
+                  <option value="Contacted">Contacted</option>
+                  <option value="Completed">Completed / Enrolled</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase text-zinc-400 mb-1">
-                  RECOMMENDED TRAINING PROTOCOL / PACKAGE
-                </label>
-                <input
-                  type="text"
-                  value={recommendedPlan}
-                  onChange={(e) => setRecommendedPlan(e.target.value)}
-                  placeholder="e.g. 1-on-1 Boxing Conditioning + Mobility 3x/week"
-                  className="w-full bg-zinc-900 border border-zinc-700 text-white text-xs px-3 py-2.5 rounded-lg focus:outline-none focus:border-emerald-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black uppercase text-zinc-400 mb-1">
-                  COACH DIAGNOSTIC FEEDBACK (SENT TO CLIENT)
-                </label>
+                <label className="text-[10px] font-bold uppercase text-zinc-400 block mb-1">Internal Note / Outcome</label>
                 <textarea
-                  value={coachFeedback}
-                  onChange={(e) => setCoachFeedback(e.target.value)}
-                  placeholder="Provide detailed feedback on athlete's movement goals, injury management, and next steps..."
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
                   rows={4}
-                  className="w-full bg-zinc-900 border border-zinc-700 text-white text-xs p-3 rounded-lg focus:outline-none focus:border-emerald-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black uppercase text-zinc-400 mb-1">
-                  INTERNAL COACH NOTES (STAFF ONLY)
-                </label>
-                <input
-                  type="text"
-                  value={coachNotes}
-                  onChange={(e) => setCoachNotes(e.target.value)}
-                  placeholder="Internal notes for Head Coach / trainers..."
-                  className="w-full bg-zinc-900 border border-zinc-700 text-white text-xs px-3 py-2.5 rounded-lg focus:outline-none focus:border-emerald-400"
+                  placeholder="e.g. Called client on WhatsApp. Discussed 12-week fat loss program. Client interested, follow-up scheduled for Friday..."
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-[#CCFF00]"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800">
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-zinc-800">
               <button
-                onClick={() => setReviewTarget(null)}
-                className="px-4 py-2 rounded-lg text-xs font-bold uppercase text-zinc-400 hover:text-white"
+                onClick={() => setNoteTarget(null)}
+                className="px-4 py-2 text-xs font-bold uppercase text-zinc-400 hover:text-white cursor-pointer"
               >
                 Cancel
               </button>
               <button
-                onClick={handleConfirmReview}
-                disabled={isSubmittingReview}
-                className="bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase px-5 py-2.5 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-lg"
+                onClick={handleSaveNote}
+                disabled={isSavingNote}
+                className="bg-[#CCFF00] hover:bg-[#b8e600] text-black text-xs font-black uppercase px-4 py-2 rounded-xl transition-all cursor-pointer shadow flex items-center gap-1.5"
               >
-                {isSubmittingReview ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                <span>Save Review &amp; Notify Client</span>
+                {isSavingNote ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                <span>Save Note</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* DELETE CONFIRM MODAL */}
+      {/* DELETE RECORD MODAL */}
       <ConfirmModal
         isOpen={Boolean(deletingId)}
-        title="Delete Assessment Record"
-        message="Are you sure you want to delete this athlete assessment record? This action cannot be undone."
-        confirmText="Delete Assessment"
-        type="danger"
-        onConfirm={handleConfirmDelete}
         onCancel={() => setDeletingId(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Assessment Record"
+        message="Are you sure you want to delete this athlete assessment intake record? This action cannot be undone."
+        confirmText="Delete Assessment"
+        requireTextConfirm={false}
       />
     </div>
   );

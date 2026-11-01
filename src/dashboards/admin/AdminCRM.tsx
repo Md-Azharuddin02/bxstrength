@@ -118,7 +118,7 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
     allowedCoachTabs.push('overview', 'free_consultations', 'free_assessments', 'users', 'schedule', 'programs', 'nutrition', 'enquiries', 'cs_dashboard', 'tickets', 'announcements');
     if (coachPerms.allowFinancials) allowedCoachTabs.push('subscriptions');
   } else if (isCoach) {
-    allowedCoachTabs.push('free_consultations', 'free_assessments');
+    allowedCoachTabs.push('free_consultations');
     if (coachPerms.allowLeadPipeline) allowedCoachTabs.push('overview');
     if (coachPerms.allowClientRoster) allowedCoachTabs.push('users');
     if (coachPerms.allowClassSchedules) allowedCoachTabs.push('schedule');
@@ -133,7 +133,7 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
   const allNavItems = [
     { id: 'overview', label: isHeadCoach ? 'HEAD COACH DASHBOARD' : (isCoach ? 'COACH DASHBOARD' : 'CRM OVERVIEW'), icon: LayoutDashboard },
     { id: 'free_consultations', label: isCoach && !isHeadCoach ? 'MY ASSIGNED DEMOS' : 'FREE DEMO / CONSULTATIONS', icon: Video },
-    { id: 'free_assessments', label: isCoach && !isHeadCoach ? 'MY ASSIGNED ASSESSMENTS' : 'ATHLETE ASSESSMENTS', icon: ClipboardCheck },
+    { id: 'free_assessments', label: 'ATHLETE ASSESSMENTS', icon: ClipboardCheck },
     { id: 'users', label: isCoach ? 'CLIENT ROSTER' : 'USER DIRECTORY', icon: Users },
     { id: 'schedule', label: 'CLASS SCHEDULES', icon: Calendar },
     { id: 'programs', label: 'WORKOUT PROGRAMS', icon: Dumbbell },
@@ -156,7 +156,7 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
       items: [
         { id: 'overview', label: isCoach ? 'COACH DASHBOARD' : 'CRM OVERVIEW', icon: LayoutDashboard },
         { id: 'free_consultations', label: isCoach && !isHeadCoach ? 'MY ASSIGNED DEMOS' : 'FREE DEMO / CONSULTATIONS', icon: Video },
-        { id: 'free_assessments', label: isCoach && !isHeadCoach ? 'MY ASSIGNED ASSESSMENTS' : 'ATHLETE ASSESSMENTS', icon: ClipboardCheck },
+        { id: 'free_assessments', label: 'ATHLETE ASSESSMENTS', icon: ClipboardCheck },
         { id: 'users', label: isCoach ? 'CLIENT ROSTER' : 'USER DIRECTORY', icon: Users },
       ]
     },

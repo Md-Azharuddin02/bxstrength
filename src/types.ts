@@ -549,7 +549,7 @@ export interface AthleteAssessment {
   equipment?: string;
   trainingInterest?: string;
   hasInjury?: string;
-  status: 'Pending' | 'Assigned' | 'Reviewed' | 'Completed' | 'Cancelled';
+  status: 'Pending' | 'Contacted' | 'Assigned' | 'Reviewed' | 'Completed' | 'Cancelled';
   assignedCoachId?: string | null;
   assignedCoachName?: string | null;
   assignedBy?: string | null;

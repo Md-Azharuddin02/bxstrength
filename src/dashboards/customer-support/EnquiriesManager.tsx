@@ -6,6 +6,7 @@ import {
   UserCheck, Clock, ShieldAlert, Plus, Tag, Flame, Zap, Check, ChevronDown, ChevronUp, History, MessageSquare, Award, CornerUpRight
 } from 'lucide-react';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { normalizeRole } from '../../utils/auth';
 
 interface EnquiriesManagerProps {
   enquiries: Enquiry[];
@@ -129,10 +130,11 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
   onShowToast
 }) => {
   const currentUser = user || VelocityAPI.getCurrentUser();
-  const isAdmin = currentUser?.role === 'admin';
-  const isHeadCoachRole = currentUser?.role === 'headcoach' || (currentUser?.role === 'coach' && Boolean(currentUser.coachPosition?.toLowerCase().includes('head')));
+  const normRole = normalizeRole(currentUser?.role);
+  const isAdmin = normRole === 'admin';
+  const isHeadCoachRole = normRole === 'headcoach' || (normRole === 'coach' && Boolean(currentUser?.coachPosition?.toLowerCase().includes('head')));
   const isHeadCoachOrAdmin = isAdmin || isHeadCoachRole || !currentUser;
-  const isCoachOnly = currentUser && currentUser.role === 'coach' && !isHeadCoachRole && !isAdmin;
+  const isCoachOnly = currentUser && normRole === 'coach' && !isHeadCoachRole && !isAdmin;
 
   // Dynamic coach list computation so newly onboarded coaches automatically appear
   const availableCoachOptions = useMemo(() => {

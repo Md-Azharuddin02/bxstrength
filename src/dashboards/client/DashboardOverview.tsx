@@ -1,6 +1,6 @@
 import React from 'react';
-import { User, BodyStat, Booking, WorkoutProgram, NutritionPlan, Announcement, Enquiry } from '../../types';
-import { Scale, Activity, Calendar, Dumbbell, Award, ShieldAlert, CheckCircle2, ChevronRight, Zap, Mail } from 'lucide-react';
+import { User, BodyStat, Booking, WorkoutProgram, NutritionPlan, Announcement, Enquiry, ConsultationBooking } from '../../types';
+import { Scale, Activity, Calendar, Dumbbell, Award, ShieldAlert, CheckCircle2, ChevronRight, Zap, Mail, Video, Sparkles, Clock, ExternalLink } from 'lucide-react';
 import { getApiUrl } from '../../services/core/http';
 
 interface DashboardOverviewProps {
@@ -11,6 +11,8 @@ interface DashboardOverviewProps {
   nutritionPlan?: NutritionPlan;
   announcements: Announcement[];
   enquiries?: Enquiry[];
+  consultations?: ConsultationBooking[];
+  onOpenBooking?: () => void;
   onNavigateTab: (tab: string) => void;
 }
 
@@ -22,6 +24,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   nutritionPlan,
   announcements,
   enquiries = [],
+  consultations = [],
+  onOpenBooking,
   onNavigateTab
 }) => {
   const [activeJourney, setActiveJourney] = React.useState<any>(null);
@@ -48,6 +52,12 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       clearInterval(interval);
     };
   }, [user?.email]);
+
+  // Active / Completed Free Demo Consultation state
+  const activeConsultation = consultations.find(c => c.status !== 'Cancelled');
+  const isConsultationCompleted = activeConsultation?.status === 'Completed';
+  const isConsultationInProgress = Boolean(activeConsultation && ['Pending', 'Assigned', 'Confirmed'].includes(activeConsultation.status));
+  const hasNoConsultation = !activeConsultation;
 
   return (
     <div className="space-y-6">
@@ -101,6 +111,162 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* 15-MIN COMPLIMENTARY STRATEGY SESSION / FREE DEMO BANNER */}
+      {hasNoConsultation && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-[#141417] to-zinc-950 border-2 border-amber-500/40 p-5 sm:p-6 rounded-xl shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-72 h-full bg-gradient-to-l from-amber-500/10 to-transparent pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 shadow-lg">
+                <Sparkles className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-amber-500 text-black px-2.5 py-0.5 rounded-full font-mono">
+                    COMPLIMENTARY ATHLETE BENEFIT
+                  </span>
+                  <span className="text-[10px] font-bold text-amber-300 tracking-wide uppercase">
+                    100% Free • 1-on-1 Strategy Call
+                  </span>
+                </div>
+                <h3 className="text-base sm:text-lg font-black text-white uppercase mt-1 tracking-tight">
+                  Claim Your 1-on-1 Free Demo &amp; Strategy Session
+                </h3>
+                <p className="text-xs text-zinc-300 max-w-xl mt-1 leading-relaxed">
+                  As a registered BxStrength athlete, you are eligible for one complimentary 15-minute consultation directly overseen by our Head Coach. Discuss your athletic goals and receive a custom training roadmap.
+                </p>
+              </div>
+            </div>
+            <div className="shrink-0 flex items-center">
+              <button
+                onClick={onOpenBooking}
+                className="w-full sm:w-auto bg-amber-400 hover:bg-amber-300 text-black font-black text-xs uppercase px-6 py-3.5 rounded-xl transition-all shadow-xl shadow-amber-500/20 hover:scale-[1.02] flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 fill-black" />
+                <span>Claim Free Demo</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isConsultationInProgress && activeConsultation && (
+        <div className="bg-[#121215] border border-zinc-700 p-5 sm:p-6 rounded-xl shadow-2xl relative overflow-hidden">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div className="flex items-start gap-4">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-lg ${
+                activeConsultation.status === 'Confirmed' 
+                  ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400' 
+                  : activeConsultation.status === 'Assigned'
+                  ? 'bg-blue-500/20 border border-blue-500/40 text-blue-400'
+                  : 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
+              }`}>
+                {activeConsultation.status === 'Confirmed' ? (
+                  <Video className="w-6 h-6 animate-pulse" />
+                ) : (
+                  <Clock className="w-6 h-6 animate-pulse" />
+                )}
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-mono font-bold text-zinc-400">
+                    REF: {activeConsultation.id}
+                  </span>
+                  <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                    activeConsultation.status === 'Confirmed'
+                      ? 'bg-emerald-500 text-black'
+                      : activeConsultation.status === 'Assigned'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-amber-500 text-black'
+                  }`}>
+                    {activeConsultation.status === 'Confirmed'
+                      ? '● SESSION CONFIRMED'
+                      : activeConsultation.status === 'Assigned'
+                      ? '● COACH ASSIGNED'
+                      : '● PENDING HEAD COACH REVIEW'}
+                  </span>
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase">
+                    15-Min Free Demo
+                  </span>
+                </div>
+                <h3 className="text-base font-black text-white uppercase tracking-tight">
+                  {activeConsultation.status === 'Confirmed'
+                    ? `Your Free Strategy Call is Ready with Coach ${activeConsultation.assignedCoachName || 'Assigned Coach'}`
+                    : activeConsultation.status === 'Assigned'
+                    ? `Dedicated Coach Assigned: ${activeConsultation.assignedCoachName || 'Assigned Coach'}`
+                    : 'Complimentary Free Demo Session Under Review'}
+                </h3>
+                <p className="text-xs text-zinc-400 max-w-xl leading-relaxed">
+                  {activeConsultation.status === 'Confirmed'
+                    ? activeConsultation.meetingLink
+                      ? 'Your video meeting link has been prepared. Click below to join your live 1-on-1 session at your scheduled time.'
+                      : 'Your coaching session is confirmed. Your coach will upload the video meeting link shortly.'
+                    : activeConsultation.status === 'Assigned'
+                    ? `Head Coach has assigned your free demo to Specialist Coach ${activeConsultation.assignedCoachName || 'Assigned Coach'}. The coach will generate and share your session link shortly.`
+                    : 'Your request has been delivered to the Head Coach. Our coaching team will assign your specialist coach and reach out shortly.'}
+                </p>
+              </div>
+            </div>
+            <div className="shrink-0 flex flex-wrap sm:flex-nowrap items-center gap-3">
+              {activeConsultation.status === 'Confirmed' && activeConsultation.meetingLink && (
+                <a
+                  href={activeConsultation.meetingLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase px-5 py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"
+                >
+                  <Video className="w-4 h-4" />
+                  <span>Join Video Call</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
+              <button
+                onClick={() => onNavigateTab('free-demo')}
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-xs uppercase px-4 py-3 rounded-xl transition-all border border-zinc-700 flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>View Demo Status</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isConsultationCompleted && activeConsultation && (
+        <div className="bg-[#121215] border border-emerald-900/50 p-5 rounded-xl shadow-xl">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded">
+                    FREE DEMO COMPLETED
+                  </span>
+                  <span className="text-[10px] font-mono font-bold text-zinc-500">REF: {activeConsultation.id}</span>
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase">• ALREADY CLAIMED (1 PER ATHLETE)</span>
+                </div>
+                <h3 className="text-sm font-black text-white uppercase mt-1">
+                  Complimentary 15-Min Strategy Session Completed
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5 max-w-xl">
+                  You have already claimed and completed your 1-on-1 complimentary 15-minute strategy demo session. Ready to begin your full athletic transformation?
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => onNavigateTab('subscription')}
+              className="bg-zinc-800 hover:bg-zinc-700 text-white font-black text-xs uppercase px-4 py-2.5 rounded-lg border border-zinc-700 shrink-0 transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <span>Explore Training Plans</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ACTIVE TRAINING JOURNEY BANNER (STEP 4 / STEP 5 PERSISTENT DASHBOARD STATE) */}
       {activeJourney && activeJourney.journeyState === 'SCHEDULING_PENDING' && (

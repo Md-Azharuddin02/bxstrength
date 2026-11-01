@@ -40,8 +40,9 @@ export async function apiFetch(
   url: string,
   init: RequestInit = {},
 ): Promise<Response> {
+  const targetUrl = url.startsWith("http://") || url.startsWith("https://") ? url : getApiUrl(url);
   const send = () =>
-    fetch(url, {
+    fetch(targetUrl, {
       ...init,
       credentials: "include",
       headers: {

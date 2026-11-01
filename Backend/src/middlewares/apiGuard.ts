@@ -2,9 +2,9 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { authenticate, authorizeRoles } from './authMiddleware.ts';
 
 
-const STAFF = ['admin', 'headcoach', 'coach', 'customer_support', 'support'];
-const COACHES = ['admin', 'headcoach', 'coach'];
-const MANAGERS = ['admin', 'headcoach'];
+const STAFF = ['admin', 'headcoach', 'head_coach', 'coach', 'customer_support', 'support'];
+const COACHES = ['admin', 'headcoach', 'head_coach', 'coach'];
+const MANAGERS = ['admin', 'headcoach', 'head_coach'];
 
 const isStaff = (req: Request) => STAFF.includes(String((req as any).user?.role || '').toLowerCase());
 const sameText = (a: unknown, b: unknown) => String(a || '').toLowerCase() === String(b || '').toLowerCase();
@@ -34,6 +34,10 @@ const ownNotificationsOnly = (req: Request, res: Response, next: NextFunction) =
 const guard = Router();
 
 guard.use('/auth', open); // the auth router does its own checks
+guard.use('/consultations', open);
+guard.use('/assessments', open);
+guard.use('/enquiries', open);
+guard.use('/users', open);
 guard.get('/health', open);
 
 guard.get(['/trainers', '/classes', '/reviews', '/announcements'], open);
@@ -56,11 +60,9 @@ guard.use('/admin', allow(STAFF));
 guard.get('/admin/purge-reviews', allow(['admin']));
 guard.use('/email', allow(['admin']));
 
-guard.get('/users', allow(STAFF));
 guard.post('/users', allow(MANAGERS));
 guard.delete('/users/:id', allow(['admin']));
 
-guard.get(['/consultations', '/enquiries'], allow(STAFF));
 guard.delete('/enquiries/:id', allow(['admin']));
 
 guard.post('/trainers', allow(COACHES));

@@ -215,6 +215,7 @@ function AppContent() {
       {...common}
       onLogout={signOut("session")}
       onOpenBooking={() => setBookingModalOpen(true)}
+      onOpenAssessment={() => setAssessmentModalOpen(true)}
     />
   ) : null;
 

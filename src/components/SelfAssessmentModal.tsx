@@ -176,6 +176,9 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
       }
       setFormData(finalAssessment);
       setIsCompleted(true);
+      try {
+        window.dispatchEvent(new CustomEvent('bxstrength_assessments_updated'));
+      } catch (_) {}
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Could not save your assessment. Please try again.');
     } finally {

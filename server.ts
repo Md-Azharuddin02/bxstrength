@@ -1863,7 +1863,16 @@ function journeyAccessAllowed(user: any, record: UkBookingJourneyRecord): boolea
 //   };
 // };
 
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+  let dbStatus = 'not connected';
+  if (dbPool) {
+    try {
+      await dbPool.query('SELECT 1');
+      dbStatus = 'connected';
+    } catch {
+      dbStatus = 'reconnecting';
+    }
+  }
   res.json({
     status: 'ok',
     system: 'BxStrength UK Digital Coaching Platform API',
@@ -1873,7 +1882,7 @@ app.get('/api/health', (req, res) => {
       sqlInjectionDefense: 'Active (Parameterized Queries)',
       xssSanitization: 'Active'
     },
-    database: dbPool ? 'connected' : 'not connected',
+    database: dbStatus,
     // Deployed commit (Render sets RENDER_GIT_COMMIT) so CI can confirm the right build is live.
     sha: process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || null,
     timestamp: new Date().toISOString()
@@ -2714,7 +2723,7 @@ app.post('/api/assessments', enquiryLimiter, async (req, res) => {
 
     const rawContactMethod = req.body.preferredContactMethod ?? req.body.preferred_contact_method;
     const allowedContactMethods = ['whatsapp', 'email', 'call'];
-    const preferredContactMethod = rawContactMethod ? sanitizeInput(String(rawContactMethod)).toLowerCase() : undefined;
+    const preferredContactMethod = rawContactMethod ? sanitizeInput(String(rawContactMethod)).toLowerCase() : 'call';
     if (preferredContactMethod && !allowedContactMethods.includes(preferredContactMethod)) {
       return res.status(400).json({ error: 'Preferred contact method must be WhatsApp, email, or call.' });
     }
@@ -2731,8 +2740,61 @@ app.post('/api/assessments', enquiryLimiter, async (req, res) => {
     const interest = sanitizeInput(trainingInterest || 'Not provided');
     const injuryDetails = sanitizeInput(hasInjury || 'Not provided');
 
+    const assessmentId = `BX-ASSESS-${Math.floor(100000 + Math.random() * 900000)}`;
     const enquiryId = `enq-assess-${Date.now()}`;
     const assessmentMessage = `[SELF ASSESSMENT DIAGNOSTIC]\nGoal: ${goal}\nMain Obstacle: ${obstacle}\nExperience Level: ${experience}\nWeekly Commitment: ${commitment}\nTraining Location: ${location}\nEquipment: ${equipmentDetails}\nTraining Interest: ${interest}\nInjury / Medical Restriction: ${injuryDetails}\nPreferred Contact Method: ${preferredContactMethod || 'Not provided'}`;
+
+    const assessmentRecord = {
+      id: assessmentId,
+      clientName: leadName,
+      clientEmail: leadEmail,
+      clientPhone: leadPhone,
+      preferredContactMethod,
+      primaryGoal: goal,
+      mainObstacle: obstacle,
+      experienceLevel: experience,
+      weeklyCommitment: commitment,
+      trainingLocation: location,
+      equipment: equipmentDetails,
+      trainingInterest: interest,
+      hasInjury: injuryDetails,
+      status: 'Pending',
+      assignedCoachId: null,
+      assignedCoachName: null,
+      assignedBy: null,
+      assignedAt: null,
+      coachNotes: null,
+      coachFeedback: null,
+      recommendedPlan: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    if (dbPool) {
+      try {
+        await dbPool.query(
+          `INSERT INTO assessments (
+            id, client_name, client_email, client_phone, preferred_contact_method,
+            primary_goal, main_obstacle, experience_level, weekly_commitment,
+            training_location, equipment, training_interest, has_injury, status, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'Pending', NOW(), NOW())`,
+          [
+            assessmentId, leadName, leadEmail, leadPhone, preferredContactMethod,
+            goal, obstacle, experience, commitment, location, equipmentDetails, interest, injuryDetails
+          ]
+        );
+
+        // Also record in enquiries table for legacy support
+        await dbPool.query(
+          `INSERT INTO enquiries (id, name, email, phone, preferred_contact_method, subject, message, status, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'new', NOW())`,
+          [enquiryId, leadName, leadEmail, leadPhone, preferredContactMethod || null, `Diagnostic: ${goal}`, assessmentMessage]
+        );
+      } catch (dbErr: any) {
+        console.error('Assessment database save error:', dbErr.message);
+        return res.status(500).json({ error: 'Failed to record self assessment' });
+      }
+    }
 
     const newEnquiry: ServerEnquiry = {
       id: enquiryId,
@@ -2746,25 +2808,286 @@ app.post('/api/assessments', enquiryLimiter, async (req, res) => {
       status: 'new',
       assignedNotes: 'Automatically created from 5-Min Self Assessment Lead Funnel'
     };
-
-    if (dbPool) {
-      try {
-        await dbPool.query(
-          `INSERT INTO enquiries (id, name, email, phone, preferred_contact_method, subject, message, status, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'new', NOW())`,
-          [enquiryId, leadName, leadEmail, leadPhone, preferredContactMethod || null, newEnquiry.subject, assessmentMessage]
-        );
-      } catch (dbErr: any) {
-        console.error('Assessment database save error:', dbErr.message);
-        return res.status(500).json({ error: 'Failed to record self assessment' });
-      }
-    }
-
     enquiriesStore.unshift(newEnquiry);
-    res.status(201).json({ message: 'Lead self-assessment recorded successfully', data: newEnquiry });
+
+    // Send email alert to head coach
+    sendServerEmail({
+      to: 'mdazharuddin1502@gmail.com',
+      subject: `New Athletic Assessment Received: ${leadName} (${goal})`,
+      html: `
+        <div style="font-family: sans-serif; background: #0a0a0a; color: #ffffff; padding: 24px; border-radius: 8px;">
+          <h2 style="color: #CCFF00; margin-top: 0;">New Athletic Self-Assessment Submitted</h2>
+          <p><strong>Athlete:</strong> ${leadName} (${leadEmail})</p>
+          <p><strong>Phone:</strong> ${leadPhone} | Preferred Contact: ${preferredContactMethod}</p>
+          <p><strong>Primary Goal:</strong> ${goal}</p>
+          <p><strong>Experience Level:</strong> ${experience} | <strong>Days/Wk:</strong> ${commitment}</p>
+          <p><strong>Location:</strong> ${location} | <strong>Equipment:</strong> ${equipmentDetails}</p>
+          <p><strong>Injury / Restrictions:</strong> ${injuryDetails}</p>
+          <p style="margin-top: 16px;">Log in to the Head Coach or Admin CRM to review and assign this athlete's diagnostic roadmap.</p>
+        </div>
+      `
+    }).catch(() => {});
+
+    res.status(201).json({ message: 'Lead self-assessment recorded successfully', data: assessmentRecord });
   } catch (err: any) {
     console.error('Assessment capture error:', err.message);
     res.status(500).json({ error: 'Failed to record self assessment' });
+  }
+});
+
+app.get('/api/assessments', async (req, res) => {
+  try {
+    const email = typeof req.query.email === 'string' ? req.query.email.trim().toLowerCase() : null;
+    const coachId = typeof req.query.coachId === 'string' ? req.query.coachId.trim() : null;
+
+    if (dbPool) {
+      try {
+        let query = 'SELECT * FROM assessments';
+        const params: any[] = [];
+        const conditions: string[] = [];
+
+        if (email) {
+          conditions.push(`LOWER(client_email) = $${params.length + 1}`);
+          params.push(email);
+        }
+        if (coachId) {
+          conditions.push(`assigned_coach_id = $${params.length + 1}`);
+          params.push(coachId);
+        }
+
+        if (conditions.length > 0) {
+          query += ' WHERE ' + conditions.join(' AND ');
+        }
+        query += ' ORDER BY created_at DESC';
+
+        const result = await dbPool.query(query, params);
+        const formatted = result.rows.map((r: any) => ({
+          id: r.id,
+          clientName: r.client_name,
+          clientEmail: r.client_email,
+          clientPhone: r.client_phone || '',
+          preferredContactMethod: r.preferred_contact_method || 'call',
+          primaryGoal: r.primary_goal,
+          mainObstacle: r.main_obstacle || '',
+          experienceLevel: r.experience_level || '',
+          weeklyCommitment: r.weekly_commitment || '',
+          trainingLocation: r.training_location || '',
+          equipment: r.equipment || '',
+          trainingInterest: r.training_interest || '',
+          hasInjury: r.has_injury || '',
+          status: r.status || 'Pending',
+          assignedCoachId: r.assigned_coach_id || null,
+          assignedCoachName: r.assigned_coach_name || null,
+          assignedBy: r.assigned_by || null,
+          assignedAt: r.assigned_at ? new Date(r.assigned_at).toISOString() : null,
+          coachNotes: r.coach_notes || '',
+          coachFeedback: r.coach_feedback || '',
+          recommendedPlan: r.recommended_plan || '',
+          createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+          updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString()
+        }));
+        return res.json(formatted);
+      } catch (e: any) {
+        console.error('Failed to query assessments from database:', e.message);
+      }
+    }
+    res.json([]);
+  } catch (err: any) {
+    res.json([]);
+  }
+});
+
+app.patch('/api/assessments/:id/assign', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { assignedCoachId, assignedCoachName, assignedBy, notes } = req.body;
+
+    if (!assignedCoachName) {
+      return res.status(400).json({ error: 'Assigned coach name is required' });
+    }
+
+    if (dbPool) {
+      const updateRes = await dbPool.query(
+        `UPDATE assessments 
+         SET assigned_coach_id = $1,
+             assigned_coach_name = $2,
+             assigned_by = $3,
+             assigned_at = CURRENT_TIMESTAMP,
+             coach_notes = COALESCE($4, coach_notes),
+             status = 'Assigned',
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $5
+         RETURNING *`,
+        [assignedCoachId || null, assignedCoachName, assignedBy || 'Head Coach', notes || null, id]
+      );
+
+      if (updateRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Assessment not found' });
+      }
+
+      const r = updateRes.rows[0];
+
+      // Notify assigned coach via email
+      try {
+        let coachEmail = '';
+        if (assignedCoachId) {
+          const u = await dbPool.query('SELECT email FROM users WHERE id = $1', [assignedCoachId]);
+          if (u.rows.length > 0) coachEmail = u.rows[0].email;
+        }
+        if (!coachEmail && assignedCoachName === 'Coach') {
+          coachEmail = 'mdmazharali2002@gmail.com';
+        } else if (!coachEmail && assignedCoachName.includes('Head Coach')) {
+          coachEmail = 'mdazharuddin1502@gmail.com';
+        }
+
+        if (coachEmail) {
+          sendServerEmail({
+            to: coachEmail,
+            subject: `New Athlete Diagnostic Assessment Assigned: ${r.client_name} (${r.primary_goal})`,
+            html: `
+              <div style="font-family: sans-serif; background: #0a0a0a; color: #ffffff; padding: 24px; border-radius: 8px;">
+                <h2 style="color: #CCFF00; margin-top: 0;">New Diagnostic Assessment Assigned to You</h2>
+                <p>Hello <strong>${assignedCoachName}</strong>,</p>
+                <p>Head Coach has assigned you a new athlete diagnostic assessment:</p>
+                <div style="background: #141416; padding: 16px; border-left: 4px solid #CCFF00; margin: 16px 0;">
+                  <p><strong>Athlete:</strong> ${r.client_name} (${r.client_email})</p>
+                  <p><strong>Phone:</strong> ${r.client_phone || 'N/A'}</p>
+                  <p><strong>Goal:</strong> ${r.primary_goal}</p>
+                  <p><strong>Experience:</strong> ${r.experience_level} | Commitment: ${r.weekly_commitment}</p>
+                  <p><strong>Injuries/Restrictions:</strong> ${r.has_injury || 'None'}</p>
+                  ${notes ? `<p><strong>Head Coach Instructions:</strong> ${notes}</p>` : ''}
+                </div>
+                <p>Please log in to your Coach Portal, review the diagnostic profile, and provide training feedback & recommendations.</p>
+              </div>
+            `
+          }).catch(() => {});
+        }
+      } catch (emailErr) {
+        console.error('Coach assessment notification email error:', emailErr);
+      }
+
+      return res.json({
+        success: true,
+        assessment: {
+          id: r.id,
+          clientName: r.client_name,
+          clientEmail: r.client_email,
+          clientPhone: r.client_phone,
+          primaryGoal: r.primary_goal,
+          mainObstacle: r.main_obstacle,
+          experienceLevel: r.experience_level,
+          weeklyCommitment: r.weekly_commitment,
+          trainingLocation: r.training_location,
+          equipment: r.equipment,
+          trainingInterest: r.training_interest,
+          hasInjury: r.has_injury,
+          status: r.status,
+          assignedCoachId: r.assigned_coach_id,
+          assignedCoachName: r.assigned_coach_name,
+          assignedBy: r.assigned_by,
+          assignedAt: r.assigned_at,
+          coachNotes: r.coach_notes,
+          coachFeedback: r.coach_feedback,
+          recommendedPlan: r.recommended_plan,
+          createdAt: r.created_at,
+          updatedAt: r.updated_at
+        }
+      });
+    }
+
+    res.status(500).json({ error: 'Database unavailable' });
+  } catch (err: any) {
+    console.error('Assessment assign error:', err.message);
+    res.status(500).json({ error: 'Failed to assign assessment' });
+  }
+});
+
+app.patch('/api/assessments/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, coachFeedback, recommendedPlan, coachNotes } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ error: 'Status is required' });
+    }
+
+    if (dbPool) {
+      const updateRes = await dbPool.query(
+        `UPDATE assessments 
+         SET status = $1,
+             coach_feedback = COALESCE($2, coach_feedback),
+             recommended_plan = COALESCE($3, recommended_plan),
+             coach_notes = COALESCE($4, coach_notes),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $5
+         RETURNING *`,
+        [status, coachFeedback || null, recommendedPlan || null, coachNotes || null, id]
+      );
+
+      if (updateRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Assessment not found' });
+      }
+
+      const r = updateRes.rows[0];
+
+      // Notify client when assessment is reviewed/completed with feedback
+      if ((status === 'Reviewed' || status === 'Completed') && (coachFeedback || recommendedPlan)) {
+        sendServerEmail({
+          to: r.client_email,
+          subject: `Your BxStrength Diagnostic Assessment Has Been Reviewed!`,
+          html: `
+            <div style="font-family: sans-serif; background: #0a0a0a; color: #ffffff; padding: 24px; border-radius: 8px;">
+              <h2 style="color: #CCFF00; margin-top: 0;">Your Athletic Assessment Feedback is Ready</h2>
+              <p>Hello <strong>${r.client_name}</strong>,</p>
+              <p>Our coaching staff has reviewed your diagnostic assessment for <strong>${r.primary_goal}</strong>.</p>
+              <div style="background: #141416; padding: 16px; border-left: 4px solid #CCFF00; margin: 16px 0;">
+                <p><strong>Assigned Coach:</strong> ${r.assigned_coach_name || 'BxStrength Coaching Staff'}</p>
+                ${recommendedPlan ? `<p><strong>Recommended Training Protocol:</strong> ${recommendedPlan}</p>` : ''}
+                ${coachFeedback ? `<p><strong>Coach Feedback:</strong> ${coachFeedback}</p>` : ''}
+              </div>
+              <p>Log in to your Client Portal to view your complete diagnostic recommendations and begin training.</p>
+            </div>
+          `
+        }).catch(() => {});
+      }
+
+      return res.json({
+        success: true,
+        assessment: {
+          id: r.id,
+          clientName: r.client_name,
+          clientEmail: r.client_email,
+          clientPhone: r.client_phone,
+          primaryGoal: r.primary_goal,
+          status: r.status,
+          assignedCoachId: r.assigned_coach_id,
+          assignedCoachName: r.assigned_coach_name,
+          coachNotes: r.coach_notes,
+          coachFeedback: r.coach_feedback,
+          recommendedPlan: r.recommended_plan,
+          updatedAt: r.updated_at
+        }
+      });
+    }
+
+    res.status(500).json({ error: 'Database unavailable' });
+  } catch (err: any) {
+    console.error('Assessment status update error:', err.message);
+    res.status(500).json({ error: 'Failed to update assessment status' });
+  }
+});
+
+app.delete('/api/assessments/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (dbPool) {
+      await dbPool.query('DELETE FROM assessments WHERE id = $1', [id]);
+      return res.json({ success: true, message: 'Assessment deleted' });
+    }
+    res.status(500).json({ error: 'Database unavailable' });
+  } catch (err: any) {
+    console.error('Assessment delete error:', err.message);
+    res.status(500).json({ error: 'Failed to delete assessment' });
   }
 });
 
@@ -2784,6 +3107,37 @@ app.post('/api/consultations', enquiryLimiter, async (req, res) => {
     const date = sanitizeInput(preferredDate || '');
     const time = sanitizeInput(preferredTime || '');
     const additionalNotes = sanitizeInput(String(req.body.additionalNotes || '').slice(0, 1000));
+
+    // Eligibility check: Each client is allowed only 1 active or completed free demo
+    if (dbPool) {
+      try {
+        const existingCheck = await dbPool.query(
+          `SELECT id, status, client_email 
+           FROM consultations 
+           WHERE LOWER(client_email) = $1 AND status != 'Cancelled'
+           ORDER BY created_at DESC 
+           LIMIT 1`,
+          [leadEmail]
+        );
+
+        if (existingCheck.rows.length > 0) {
+          const prev = existingCheck.rows[0];
+          if (prev.status === 'Completed') {
+            return res.status(409).json({
+              error: 'You have already completed your complimentary 15-minute free demo. Each athlete is eligible for only one free consultation. Please explore our training packages or contact our coaching team.',
+              alreadyCompleted: true
+            });
+          } else {
+            return res.status(409).json({
+              error: `You already have an active Free Demo consultation request (#${prev.id}) currently in progress. Our coaching team will reach out to you shortly.`,
+              alreadyActive: true
+            });
+          }
+        }
+      } catch (checkErr: any) {
+        console.warn('Consultation eligibility check warning:', checkErr?.message);
+      }
+    }
 
     const bookingRef = `BX-CONS-${Math.floor(100000 + Math.random() * 900000)}`;
     const consultationMessage = `[FREE CONSULTATION BOOKED]\nRef: ${bookingRef}\nPrimary Exercise / Goal: ${leadGoal}\nSession Duration: ${leadDuration}\nScheduled Date & Time Slot: ${date} at ${time}\nAssigned Coach: ${coach}${additionalNotes ? `\nAdditional Notes: ${additionalNotes}` : ''}`;
@@ -2867,7 +3221,7 @@ app.post('/api/consultations', enquiryLimiter, async (req, res) => {
         await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS additional_notes TEXT');
         await dbPool.query(
           `INSERT INTO consultations (id, client_name, client_email, client_phone, goal, duration, additional_notes, preferred_date, preferred_time, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Confirmed')`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Pending')`,
           [bookingRef, leadName, leadEmail, leadPhone, leadGoal, leadDuration, additionalNotes || null, date, time]
         );
       } catch (e: any) { }
@@ -3023,16 +3377,222 @@ app.post('/api/email/test', async (req, res) => {
 
 app.get('/api/consultations', async (req, res) => {
   try {
+    const email = typeof req.query.email === 'string' ? req.query.email.trim().toLowerCase() : null;
     if (dbPool) {
       try {
-        const result = await dbPool.query('SELECT * FROM consultations ORDER BY created_at DESC');
-        return res.json(result.rows);
-      } catch { }
+        let query = 'SELECT * FROM consultations';
+        const params: any[] = [];
+        if (email) {
+          query += ' WHERE LOWER(client_email) = $1';
+          params.push(email);
+        }
+        query += ' ORDER BY created_at DESC';
+        const result = await dbPool.query(query, params);
+        const formatted = result.rows.map((r: any) => ({
+          id: r.id,
+          clientName: r.client_name,
+          clientEmail: r.client_email,
+          clientPhone: r.client_phone || '',
+          goal: r.goal || 'Fitness Boxing',
+          duration: r.duration || '15 Min',
+          preferredDate: r.preferred_date || 'To be scheduled',
+          preferredTime: r.preferred_time || 'To be scheduled',
+          additionalNotes: r.additional_notes || r.message || '',
+          status: r.status || 'Pending',
+          assignedCoachId: r.assigned_coach_id || null,
+          assignedCoachName: r.assigned_coach_name || null,
+          assignedBy: r.assigned_by || null,
+          assignedAt: r.assigned_at ? new Date(r.assigned_at).toISOString() : null,
+          meetingLink: r.meeting_link || '',
+          notes: r.notes || '',
+          createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString()
+        }));
+        return res.json(formatted);
+      } catch (e: any) {
+        console.error('Failed to query consultations from database:', e.message);
+      }
     }
-    const consultationEnquiries = enquiriesStore.filter(e => e.subject.includes('Consultation'));
+    let consultationEnquiries = enquiriesStore.filter(e => e.subject && e.subject.includes('Consultation'));
+    if (email) {
+      consultationEnquiries = consultationEnquiries.filter(e => e.email && e.email.toLowerCase() === email);
+    }
     res.json(consultationEnquiries);
   } catch (err: any) {
     res.json([]);
+  }
+});
+
+app.patch('/api/consultations/:id/assign', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { assignedCoachId, assignedCoachName, assignedBy, meetingLink, notes } = req.body;
+
+    if (!assignedCoachName) {
+      return res.status(400).json({ error: 'Assigned coach name is required' });
+    }
+
+    if (dbPool) {
+      const updateRes = await dbPool.query(
+        `UPDATE consultations 
+         SET assigned_coach_id = $1,
+             assigned_coach_name = $2,
+             assigned_by = $3,
+             assigned_at = CURRENT_TIMESTAMP,
+             meeting_link = COALESCE($4, meeting_link),
+             notes = COALESCE($5, notes),
+             status = 'Assigned',
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $6
+         RETURNING *`,
+        [assignedCoachId || null, assignedCoachName, assignedBy || 'Head Coach', meetingLink || null, notes || null, id]
+      );
+
+      if (updateRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Consultation not found' });
+      }
+
+      const r = updateRes.rows[0];
+      return res.json({
+        success: true,
+        consultation: {
+          id: r.id,
+          clientName: r.client_name,
+          clientEmail: r.client_email,
+          clientPhone: r.client_phone,
+          goal: r.goal,
+          duration: r.duration,
+          preferredDate: r.preferred_date,
+          preferredTime: r.preferred_time,
+          additionalNotes: r.additional_notes || r.message,
+          status: r.status,
+          assignedCoachId: r.assigned_coach_id,
+          assignedCoachName: r.assigned_coach_name,
+          assignedBy: r.assigned_by,
+          assignedAt: r.assigned_at,
+          meetingLink: r.meeting_link,
+          notes: r.notes,
+          createdAt: r.created_at
+        }
+      });
+    }
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('Assign consultation error:', err.message);
+    res.status(500).json({ error: 'Failed to assign consultation' });
+  }
+});
+
+app.patch('/api/consultations/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, meetingLink, notes } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ error: 'Status is required' });
+    }
+
+    if (dbPool) {
+      const updateRes = await dbPool.query(
+        `UPDATE consultations 
+         SET status = $1,
+             meeting_link = COALESCE($2, meeting_link),
+             notes = COALESCE($3, notes),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $4
+         RETURNING *`,
+        [status, meetingLink || null, notes || null, id]
+      );
+
+      if (updateRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Consultation not found' });
+      }
+
+      const r = updateRes.rows[0];
+
+      // Send meeting link invitation email to the client when a meeting link is provided or updated
+      if (meetingLink && meetingLink.trim()) {
+        try {
+          const coachName = r.assigned_coach_name || 'Your Assigned Performance Coach';
+          const cleanMeetingLink = meetingLink.trim();
+          const fullMeetingLink = cleanMeetingLink.startsWith('http') ? cleanMeetingLink : `https://${cleanMeetingLink}`;
+
+          sendServerEmail({
+            toEmail: r.client_email,
+            toName: r.client_name,
+            subject: `[BxStrength] Your Free 15-Min Strategy Session Meeting Link is Ready!`,
+            senderName: 'BxStrength Coaching Team',
+            htmlContent: `
+              <div style="font-family: Arial, sans-serif; background-color: #0d0d0f; color: #ffffff; padding: 32px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
+                <div style="text-align: center; border-bottom: 2px solid #CCFF00; padding-bottom: 16px; margin-bottom: 24px;">
+                  <h1 style="color: #CCFF00; margin: 0; font-size: 22px; text-transform: uppercase; font-weight: 900;">FREE 15-MIN STRATEGY SESSION</h1>
+                  <p style="color: #a1a1aa; font-size: 12px; margin-top: 6px;">Booking Ref: <strong style="color: #ffffff;">${r.id}</strong></p>
+                </div>
+
+                <p style="font-size: 15px; color: #e4e4e7;">Hi <strong>${r.client_name}</strong>,</p>
+                <p style="font-size: 14px; color: #a1a1aa; line-height: 1.6;">
+                  Your live 1-on-1 Free Strategy Session has been scheduled with <strong>${coachName}</strong>. Your video meeting room is now ready!
+                </p>
+
+                <div style="background-color: #18181b; border: 1px solid #27272a; padding: 20px; border-radius: 8px; margin: 24px 0;">
+                  <h3 style="color: #CCFF00; margin-top: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">SESSION DETAILS</h3>
+                  <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #e4e4e7;">
+                    <tr><td style="padding: 6px 0; color: #a1a1aa;">Assigned Coach:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${coachName}</td></tr>
+                    <tr><td style="padding: 6px 0; color: #a1a1aa;">Training Focus / Goal:</td><td style="padding: 6px 0; font-weight: bold; color: #CCFF00;">${r.goal || 'Fitness Boxing & Conditioning'}</td></tr>
+                    <tr><td style="padding: 6px 0; color: #a1a1aa;">Session Duration:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${r.duration || '15-20 Mins'}</td></tr>
+                    ${notes ? `<tr><td style="padding: 6px 0; color: #a1a1aa;">Coach Notes:</td><td style="padding: 6px 0; color: #e4e4e7;">${notes}</td></tr>` : ''}
+                  </table>
+                </div>
+
+                <div style="text-align: center; margin: 28px 0;">
+                  <a href="${fullMeetingLink}" style="background-color: #CCFF00; color: #000000; font-weight: 900; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; display: inline-block;">
+                    JOIN LIVE VIDEO CALL
+                  </a>
+                </div>
+
+                <div style="background-color: #121214; border-left: 4px solid #CCFF00; padding: 14px 18px; margin-bottom: 20px; border-radius: 4px;">
+                  <h4 style="color: #ffffff; margin: 0 0 6px 0; font-size: 12px; font-weight: bold;">SESSION PREPARATION:</h4>
+                  <ul style="margin: 0; padding-left: 18px; font-size: 12px; color: #a1a1aa; line-height: 1.5;">
+                    <li>Please join 2-3 minutes before scheduled start time.</li>
+                    <li>Ensure your camera and microphone are working.</li>
+                    <li>Have any fitness questions ready for your coach!</li>
+                  </ul>
+                </div>
+
+                <p style="font-size: 12px; color: #71717a; text-align: center; margin-top: 24px;">
+                  Direct link: <a href="${fullMeetingLink}" style="color: #CCFF00;">${fullMeetingLink}</a>
+                </p>
+
+                <div style="border-top: 1px solid #27272a; padding-top: 16px; margin-top: 24px; font-size: 11px; color: #71717a; text-align: center;">
+                  BXSTRENGTH Performance Coaching • Official Strategy Session
+                </div>
+              </div>
+            `
+          }).catch(err => console.error('[MEETING LINK EMAIL ERROR]:', err?.message));
+        } catch (e: any) {
+          console.warn('Failed to dispatch meeting link email:', e.message);
+        }
+      }
+
+      return res.json({ success: true, consultation: r });
+    }
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('Update consultation status error:', err.message);
+    res.status(500).json({ error: 'Failed to update consultation status' });
+  }
+});
+
+app.delete('/api/consultations/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (dbPool) {
+      await dbPool.query('DELETE FROM consultations WHERE id = $1', [id]);
+    }
+    res.json({ success: true, message: 'Consultation deleted' });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to delete consultation' });
   }
 });
 

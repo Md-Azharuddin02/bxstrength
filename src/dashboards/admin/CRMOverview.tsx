@@ -3,6 +3,7 @@ import { User, ClassSchedule, Subscription, AuditLog, Enquiry, LeadPipelineStage
 import { VelocityAPI, getApiUrl, apiFetch } from '../../services/api';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { AssignedTasksSection } from '../head-coach/AssignedTasksSection';
+import { normalizeRole } from '../../utils/auth';
 import { 
   Users, DollarSign, Dumbbell, ShieldCheck, Activity, TrendingUp, 
   ChevronRight, AlertCircle, BarChart3, Filter, PieChart, CheckCircle2, 
@@ -43,8 +44,9 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
   onNavigateTab
 }) => {
   const currentUser = VelocityAPI.getCurrentUser();
-  const isHeadCoach = currentUser?.role === 'headcoach' || (currentUser?.role === 'coach' && Boolean(
-    currentUser.coachPosition && (
+  const normRole = normalizeRole(currentUser?.role);
+  const isHeadCoach = normRole === 'headcoach' || (normRole === 'coach' && Boolean(
+    currentUser?.coachPosition && (
       currentUser.coachPosition.toLowerCase() === 'head coach' ||
       currentUser.coachPosition.toLowerCase() === 'headcoach' ||
       currentUser.coachPosition.toLowerCase() === 'chief athletic officer'

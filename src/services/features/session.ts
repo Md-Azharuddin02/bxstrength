@@ -177,8 +177,11 @@ export const sessionApi = {
           setToken(result.token);
         } else if (res.status === 401 || res.status === 403) {
           if (readCookie(CSRF_COOKIE) === csrfToken && !getToken()) this.clearSession();
+        } else if (res.status >= 500) {
+          throw new Error("SERVER_UNAVAILABLE");
         }
-      } catch {
+      } catch (err: any) {
+        if (err?.message === "SERVER_UNAVAILABLE") throw err;
       }
     };
 

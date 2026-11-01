@@ -1,4 +1,5 @@
-import {
+import { ConsultationBooking,
+  AthleteAssessment,
   User,
   UserRole,
   CoachPosition,
@@ -2358,10 +2359,135 @@ export const VelocityAPI = {
     return clean;
   },
 
+  async fetchConsultations(email?: string): Promise<ConsultationBooking[]> {
+    try {
+      const url = email 
+        ? getApiUrl(`/api/consultations?email=${encodeURIComponent(email)}`)
+        : getApiUrl('/api/consultations');
+      const res = await apiFetch(url);
+      if (res.ok) {
+        const raw = await res.json();
+        if (Array.isArray(raw)) {
+          return raw;
+        }
+      }
+    } catch (err: any) {
+      console.warn('Failed to fetch consultations from backend:', err?.message);
+    }
+    return [];
+  },
+
+  async assignConsultation(id: string, data: {
+    assignedCoachId?: string | null;
+    assignedCoachName: string;
+    assignedBy?: string;
+    meetingLink?: string;
+    notes?: string;
+  }): Promise<{ success: boolean; consultation?: ConsultationBooking }> {
+    const res = await apiFetch(getApiUrl(`/api/consultations/${id}/assign`), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to assign consultation');
+    }
+    return await res.json();
+  },
+
+  async updateConsultationStatus(id: string, data: {
+    status: string;
+    meetingLink?: string;
+    notes?: string;
+  }): Promise<{ success: boolean; consultation?: ConsultationBooking }> {
+    const res = await apiFetch(getApiUrl(`/api/consultations/${id}/status`), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to update consultation status');
+    }
+    return await res.json();
+  },
+
+  async fetchAssessments(params?: { email?: string; coachId?: string }): Promise<AthleteAssessment[]> {
+    try {
+      let url = getApiUrl('/api/assessments');
+      const q = new URLSearchParams();
+      if (params?.email) q.set('email', params.email);
+      if (params?.coachId) q.set('coachId', params.coachId);
+      const queryString = q.toString();
+      if (queryString) url += `?${queryString}`;
+
+      const res = await apiFetch(url);
+      if (res.ok) {
+        const raw = await res.json();
+        if (Array.isArray(raw)) {
+          return raw;
+        }
+      }
+    } catch (err: any) {
+      console.warn('Failed to fetch assessments from backend:', err?.message);
+    }
+    return [];
+  },
+
+  async assignAssessment(id: string, data: {
+    assignedCoachId?: string | null;
+    assignedCoachName: string;
+    assignedBy?: string;
+    notes?: string;
+  }): Promise<{ success: boolean; assessment?: AthleteAssessment }> {
+    const res = await apiFetch(getApiUrl(`/api/assessments/${id}/assign`), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to assign assessment');
+    }
+    return await res.json();
+  },
+
+  async updateAssessmentStatus(id: string, data: {
+    status: string;
+    coachFeedback?: string;
+    recommendedPlan?: string;
+    coachNotes?: string;
+  }): Promise<{ success: boolean; assessment?: AthleteAssessment }> {
+    const res = await apiFetch(getApiUrl(`/api/assessments/${id}/status`), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to update assessment status');
+    }
+    return await res.json();
+  },
+
+  async deleteAssessment(id: string): Promise<boolean> {
+    const res = await apiFetch(getApiUrl(`/api/assessments/${id}`), {
+      method: 'DELETE'
+    });
+    return res.ok;
+  },
+  async deleteConsultation(id: string): Promise<boolean> {
+    const res = await apiFetch(getApiUrl(`/api/consultations/${id}`), {
+      method: 'DELETE'
+    });
+    return res.ok;
+  },
+
   async fetchEnquiries(emailOrUserId?: string): Promise<Enquiry[]> {
     initStore();
     try {
-      const res = await fetch(getApiUrl('/api/enquiries'));
+      const res = await apiFetch(getApiUrl('/api/enquiries'));
       if (res.ok) {
         const raw = await res.json();
         if (Array.isArray(raw)) {

@@ -28,6 +28,12 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
     }
   };
 
+  // Filter out any free consultation enquiries so this view remains strictly for paid sessions & assessments
+  const assessmentEnquiries = enquiries.filter(e => 
+    !e.subject?.toLowerCase().includes('consultation') && 
+    !e.message?.toLowerCase().includes('[free consultation booked]')
+  );
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -35,10 +41,10 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
         <div>
           <h2 className="text-xl font-black uppercase tracking-tight text-white flex items-center gap-2">
             <Calendar className="w-5 h-5 text-[#E52165]" />
-            MY BOOKED SESSIONS & SUBMITTED FORMS RECORD
+            MY BOOKED SESSIONS & SUBMITTED ASSESSMENTS
           </h2>
           <p className="text-xs text-gray-400 mt-1">
-            View all confirmed class reservations, assigned class schedules, self-assessments, and form submissions.
+            View all confirmed class reservations, assigned class schedules, paid packages, and self-assessments.
           </p>
         </div>
       </div>
@@ -146,7 +152,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                   <div className="mt-4 pt-4 border-t border-gray-800 flex justify-end">
                     <button
                       onClick={() => handleCancel(b.id, b.bookingCode)}
-                      className="text-xs font-bold text-red-400 hover:text-red-300 uppercase flex items-center gap-1"
+                      className="text-xs font-bold text-red-400 hover:text-red-300 uppercase flex items-center gap-1 cursor-pointer"
                     >
                       <XCircle className="w-4 h-4" /> Cancel Booking
                     </button>
@@ -158,21 +164,21 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
         )}
       </div>
 
-      {/* SECTION 2: CLIENT SUBMITTED FORMS, ASSESSMENTS & ENQUIRIES HISTORY */}
+      {/* SECTION 2: CLIENT SUBMITTED ASSESSMENTS & FORM RECORDS */}
       <div className="space-y-4 pt-4 border-t border-gray-800">
         <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2 border-b border-gray-800 pb-2">
           <FileText className="w-4 h-4 text-emerald-400" />
-          MY SUBMITTED ASSESSMENTS, SESSIONS & FORM RECORDS ({enquiries.length})
+          MY SUBMITTED ASSESSMENTS & FORM RECORDS ({assessmentEnquiries.length})
         </h3>
 
-        {enquiries.length === 0 ? (
+        {assessmentEnquiries.length === 0 ? (
           <div className="bg-[#111111] border border-gray-800 p-8 text-center text-xs text-gray-400">
             <Send className="w-8 h-8 text-gray-600 mx-auto mb-2" />
             <p>No submitted assessments or form records found under your email.</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {enquiries.map((enq) => (
+            {assessmentEnquiries.map((enq) => (
               <div key={enq.id} className="bg-[#111111] border border-gray-800 p-5 rounded-none space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-800/80 pb-2">
                   <div className="flex items-center gap-2">
@@ -206,7 +212,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
 
                 <div className="text-[10px] text-gray-500 flex items-center gap-2">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Received by BxStrength Lead Coach & Advisory Team</span>
+                  <span>Received by BxStrength Coaching Team</span>
                 </div>
               </div>
             ))}

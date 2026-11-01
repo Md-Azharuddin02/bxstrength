@@ -194,25 +194,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       createdAt: new Date().toISOString()
     };
 
-    // Store in Local Enquiries & DB
-    try {
-      VelocityAPI.createEnquiry({
-        name: userName,
-        email: userEmail,
-        phone: userPhone,
-        subject: `Free Consultation (${durationText}): ${goal}`,
-        message: `[FREE CONSULTATION BOOKED]\nRef: ${newBooking.id}\nGoal/Exercise: ${goal}\nDuration: ${durationText}\nPreferred schedule: To be arranged by the coaching team\nAssigned Coach: ${selectedTrainer}`
-          + (additionalNotes.trim() ? `\nAdditional Notes: ${additionalNotes.trim()}` : '')
-      });
-    } catch (err) {
-      console.error('Consultation enquiry save error:', err);
-    }
-
-    // Sync to the backend (best-effort). The lead is already captured locally above,
-    // and the app is offline-first, so a network error / server outage (5xx / 503)
-    // must NOT block the user — it syncs later. Only a genuine server rejection of the
-    // submitted data (4xx) counts as a real failure.
+    // Submit consultation request to server with eligibility verification
     let status = 0;
+    let serverError = '';
     try {
       const res = await apiFetch(getApiUrl('/api/consultations'), {
         method: 'POST',
@@ -230,17 +214,36 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         })
       });
       status = res.status;
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        serverError = errorData.error || '';
+      }
     } catch (e: any) {
-      status = 0; // network / offline — handled as a soft success below
+      status = 0;
       console.error('[Consultation submit] network error:', e?.message);
     }
 
+    // If client is ineligible (already completed a demo or has active demo in progress)
     if (status >= 400 && status < 500) {
-      console.error('[Consultation submit rejected] HTTP', status);
-      setSubmitError(status === 429
+      console.error('[Consultation submit rejected] HTTP', status, serverError);
+      setSubmitError(serverError || (status === 429
         ? 'Too many attempts. Please wait a moment and try again.'
-        : 'We couldn’t submit your request. Please double-check your details and try again.');
+        : 'We could not submit your request. Please double-check your details and try again.'));
       return;
+    }
+
+    // Store in Local Enquiries & DB only after server accepts request
+    try {
+      VelocityAPI.createEnquiry({
+        name: userName,
+        email: userEmail,
+        phone: userPhone,
+        subject: `Free Consultation (${durationText}): ${goal}`,
+        message: `[FREE CONSULTATION BOOKED]\nRef: ${newBooking.id}\nGoal/Exercise: ${goal}\nDuration: ${durationText}\nPreferred schedule: To be arranged by the coaching team\nAssigned Coach: ${selectedTrainer}`
+          + (additionalNotes.trim() ? `\nAdditional Notes: ${additionalNotes.trim()}` : '')
+      });
+    } catch (err) {
+      console.error('Consultation enquiry save error:', err);
     }
 
     // Send confirmation email + admin notification (best-effort).
@@ -260,6 +263,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     setSubmitError(null);
     resetForm();
     setConfirmedBooking(newBooking);
+    try {
+      window.dispatchEvent(new CustomEvent('bxstrength_consultations_updated'));
+    } catch (_) {}
   };
 
   const resetAndClose = () => {

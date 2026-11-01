@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, BodyStat, Booking, WorkoutProgram, NutritionPlan, Announcement, Subscription, Enquiry, InAppNotification, ClassSchedule } from '../../types';
+import { User, BodyStat, Booking, WorkoutProgram, NutritionPlan, Announcement, Subscription, Enquiry, InAppNotification, ClassSchedule, ConsultationBooking, AthleteAssessment } from '../../types';
 import { VelocityAPI } from '../../services/api';
 import { DashboardOverview } from './DashboardOverview';
 import { ProfileManagement } from './ProfileManagement';
@@ -9,9 +9,11 @@ import { NutritionPlanView } from './NutritionPlanView';
 import { MyBookingsView } from './MyBookingsView';
 import { SubscriptionView } from './SubscriptionView';
 import { SupportTicketsView } from './SupportTicketsView';
+import { FreeDemoView } from './FreeDemoView';
+import { MyAssessmentsView } from './MyAssessmentsView';
 import {
   LayoutDashboard, UserCheck, Scale, Dumbbell, Utensils,
-  Calendar, Award, CreditCard, LogOut, CheckCircle2, X, LifeBuoy, Bell, ExternalLink, ShieldCheck, Menu
+  Calendar, Award, CreditCard, LogOut, CheckCircle2, X, LifeBuoy, Bell, ExternalLink, ShieldCheck, Menu, Sparkles, ClipboardCheck
 } from 'lucide-react';
 
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
@@ -21,12 +23,15 @@ interface ClientDashboardProps {
   onLogout: () => void;
   onNavigateHome: () => void;
   onOpenBooking?: () => void;
+  onOpenAssessment?: () => void;
 }
 
 export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   user,
   onLogout,
-  onNavigateHome
+  onNavigateHome,
+  onOpenBooking,
+  onOpenAssessment
 }) => {
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -43,6 +48,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
   const [notifications, setNotifications] = useState<InAppNotification[]>([]);
+  const [consultations, setConsultations] = useState<ConsultationBooking[]>([]);
+  const [assessments, setAssessments] = useState<AthleteAssessment[]>([]);
   const [showNotificationsMenu, setShowNotificationsMenu] = useState<boolean>(false);
 
   const loadDashboardData = async (isInitial = false) => {
@@ -95,6 +102,13 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     setSubscriptions(subData);
 
     const enqData = VelocityAPI.getEnquiries(user.email);
+
+    try {
+      const consData = await VelocityAPI.fetchConsultations(user.email);
+      setConsultations(consData);
+    } catch {
+      setConsultations([]);
+    }
     setEnquiries(enqData);
 
     try {
@@ -116,6 +130,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     window.addEventListener('bxstrength_nutrition_updated', handleSync);
     window.addEventListener('bxstrength_assignments_updated', handleSync);
     window.addEventListener('bxstrength_notifications_updated', handleSync);
+    window.addEventListener('bxstrength_consultations_updated', handleSync);
+    window.addEventListener('bxstrength_assessments_updated', handleSync);
 
     const interval = setInterval(() => { if (!document.hidden) loadDashboardData(false); }, 30000);
 
@@ -124,6 +140,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       window.removeEventListener('bxstrength_nutrition_updated', handleSync);
       window.removeEventListener('bxstrength_assignments_updated', handleSync);
       window.removeEventListener('bxstrength_notifications_updated', handleSync);
+      window.removeEventListener('bxstrength_consultations_updated', handleSync);
+      window.removeEventListener('bxstrength_assessments_updated', handleSync);
       clearInterval(interval);
     };
   }, [user.id]);
@@ -144,6 +162,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
   const navItems = [
     { id: 'overview', label: 'OVERVIEW', icon: LayoutDashboard },
+    { id: 'free-demo', label: 'FREE DEMO (15-MIN)', icon: Sparkles },
+    { id: 'assessments', label: 'MY ASSESSMENT', icon: ClipboardCheck },
     { id: 'stats', label: 'BODY STATS & BMI', icon: Scale },
     ...(permissions.showUserWorkoutLogger !== false ? [{ id: 'workouts', label: 'WORKOUT PLANS', icon: Dumbbell }] : []),
     ...(permissions.showUserNutritionTracker !== false ? [{ id: 'nutrition', label: 'NUTRITION DIET', icon: Utensils }] : []),
@@ -358,6 +378,27 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 nutritionPlan={nutritionPlans.find(n => n.assignedToUserId === user.id) || nutritionPlans[0]}
                 announcements={announcements}
                 enquiries={enquiries}
+                consultations={consultations}
+
+
+                onNavigateTab={(tab) => setActiveTab(tab)}
+              />
+            )}
+
+                        {activeTab === 'free-demo' && (
+              <FreeDemoView
+                user={user}
+                consultation={consultations.find(c => c.status !== 'Cancelled') || null}
+                onOpenBooking={onOpenBooking}
+                onNavigateTab={(tab) => setActiveTab(tab)}
+              />
+            )}
+
+            {activeTab === 'assessments' && (
+              <MyAssessmentsView
+                user={user}
+                assessments={assessments}
+                onOpenAssessment={onOpenAssessment}
                 onNavigateTab={(tab) => setActiveTab(tab)}
               />
             )}

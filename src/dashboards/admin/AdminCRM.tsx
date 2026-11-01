@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, ClassSchedule, Subscription, AuditLog, Enquiry, WorkoutProgram, NutritionPlan, Announcement } from '../../types';
 import { VelocityAPI, getApiUrl } from '../../services/api';
+import { normalizeRole } from '../../utils/auth';
 import { CRMOverview } from './CRMOverview';
 import { UserManagement } from './UserManagement';
 import { ClassScheduleManager } from '../head-coach/ClassScheduleManager';
@@ -13,9 +14,11 @@ import { AuditLogsAndSettings } from './AuditLogsAndSettings';
 import { TicketManagement } from '../customer-support/TicketManagement';
 import { SupportDashboardView } from '../customer-support/SupportDashboardView';
 import { CoachesManager } from './CoachesManager';
+import { FreeConsultationsView } from '../head-coach/FreeConsultationsView';
+import { FreeAssessmentsView } from '../head-coach/FreeAssessmentsView';
 import {
   LayoutDashboard, Users, Calendar, Dumbbell, Utensils,
-  CreditCard, Mail, ShieldAlert, ShieldCheck, LogOut, CheckCircle2, X, LifeBuoy, UserCheck, Headphones, FileText, Menu
+  CreditCard, Mail, ShieldAlert, ShieldCheck, LogOut, CheckCircle2, X, LifeBuoy, UserCheck, Headphones, FileText, Menu, Video, ClipboardCheck
 } from 'lucide-react';
 
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
@@ -97,23 +100,25 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
     setTimeout(() => setToastMsg(null), 4000);
   };
 
-  const isAdmin = user.role === 'admin';
-  const isHeadCoach = user.role === 'headcoach' || (user.role === 'coach' && Boolean(
+  const normRole = normalizeRole(user.role);
+  const isAdmin = normRole === 'admin';
+  const isHeadCoach = normRole === 'headcoach' || (normRole === 'coach' && Boolean(
     user.coachPosition && (
       user.coachPosition.toLowerCase() === 'head coach' ||
       user.coachPosition.toLowerCase() === 'headcoach' ||
       user.coachPosition.toLowerCase() === 'chief athletic officer'
     )
   ));
-  const isCoach = user.role === 'coach' || isHeadCoach;
+  const isCoach = normRole === 'coach' || isHeadCoach;
 
   const coachPerms = VelocityAPI.getCoachPermissions();
   const allowedCoachTabs: string[] = [];
 
   if (isHeadCoach) {
-    allowedCoachTabs.push('overview', 'users', 'schedule', 'programs', 'nutrition', 'enquiries', 'cs_dashboard', 'tickets', 'announcements');
+    allowedCoachTabs.push('overview', 'free_consultations', 'free_assessments', 'users', 'schedule', 'programs', 'nutrition', 'enquiries', 'cs_dashboard', 'tickets', 'announcements');
     if (coachPerms.allowFinancials) allowedCoachTabs.push('subscriptions');
   } else if (isCoach) {
+    allowedCoachTabs.push('free_consultations', 'free_assessments');
     if (coachPerms.allowLeadPipeline) allowedCoachTabs.push('overview');
     if (coachPerms.allowClientRoster) allowedCoachTabs.push('users');
     if (coachPerms.allowClassSchedules) allowedCoachTabs.push('schedule');
@@ -122,11 +127,13 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
     allowedCoachTabs.push('enquiries');
     if (coachPerms.allowFinancials) allowedCoachTabs.push('subscriptions');
   } else {
-    allowedCoachTabs.push('overview', 'users', 'schedule', 'programs', 'nutrition', 'subscriptions', 'enquiries', 'cs_dashboard', 'tickets', 'announcements', 'audit');
+    allowedCoachTabs.push('overview', 'free_consultations', 'free_assessments', 'users', 'schedule', 'programs', 'nutrition', 'subscriptions', 'enquiries', 'cs_dashboard', 'tickets', 'announcements', 'audit');
   }
 
   const allNavItems = [
     { id: 'overview', label: isHeadCoach ? 'HEAD COACH DASHBOARD' : (isCoach ? 'COACH DASHBOARD' : 'CRM OVERVIEW'), icon: LayoutDashboard },
+    { id: 'free_consultations', label: isCoach && !isHeadCoach ? 'MY ASSIGNED DEMOS' : 'FREE DEMO / CONSULTATIONS', icon: Video },
+    { id: 'free_assessments', label: isCoach && !isHeadCoach ? 'MY ASSIGNED ASSESSMENTS' : 'ATHLETE ASSESSMENTS', icon: ClipboardCheck },
     { id: 'users', label: isCoach ? 'CLIENT ROSTER' : 'USER DIRECTORY', icon: Users },
     { id: 'schedule', label: 'CLASS SCHEDULES', icon: Calendar },
     { id: 'programs', label: 'WORKOUT PROGRAMS', icon: Dumbbell },
@@ -148,6 +155,8 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
       category: 'CORE MANAGEMENT',
       items: [
         { id: 'overview', label: isCoach ? 'COACH DASHBOARD' : 'CRM OVERVIEW', icon: LayoutDashboard },
+        { id: 'free_consultations', label: isCoach && !isHeadCoach ? 'MY ASSIGNED DEMOS' : 'FREE DEMO / CONSULTATIONS', icon: Video },
+        { id: 'free_assessments', label: isCoach && !isHeadCoach ? 'MY ASSIGNED ASSESSMENTS' : 'ATHLETE ASSESSMENTS', icon: ClipboardCheck },
         { id: 'users', label: isCoach ? 'CLIENT ROSTER' : 'USER DIRECTORY', icon: Users },
       ]
     },
@@ -186,7 +195,10 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
     }
   }, [isCoach, activeTab, allowedCoachTabs]);
 
-  const coaches = users.filter((u) => u.role === 'coach' || u.role === 'headcoach' || u.role === 'admin');
+  const coaches = users.filter((u) => {
+    const r = normalizeRole(u.role);
+    return r === 'coach' || r === 'headcoach' || r === 'admin';
+  });
   const clients = users.filter((u) => u.role === 'client');
 
   return (
@@ -320,6 +332,22 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
                 enquiries={enquiries}
                 isCoach={isCoach}
                 onNavigateTab={(tab) => setActiveTab(tab)}
+              />
+            )}
+
+            {activeTab === 'free_consultations' && (
+              <FreeConsultationsView
+                user={user}
+                coaches={coaches}
+                onShowToast={showToast}
+              />
+            )}
+
+            {activeTab === 'free_assessments' && (
+              <FreeAssessmentsView
+                user={user}
+                coaches={coaches}
+                onShowToast={showToast}
               />
             )}
 

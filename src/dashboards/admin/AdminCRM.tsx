@@ -16,9 +16,10 @@ import { SupportDashboardView } from '../customer-support/SupportDashboardView';
 import { CoachesManager } from './CoachesManager';
 import { FreeConsultationsView } from '../head-coach/FreeConsultationsView';
 import { FreeAssessmentsView } from '../head-coach/FreeAssessmentsView';
+import { PaidBookingsView } from '../head-coach/PaidBookingsView';
 import {
   LayoutDashboard, Users, Calendar, Dumbbell, Utensils,
-  CreditCard, Mail, ShieldAlert, ShieldCheck, LogOut, CheckCircle2, X, LifeBuoy, UserCheck, Headphones, FileText, Menu, Video, ClipboardCheck
+  CreditCard, Mail, ShieldAlert, ShieldCheck, LogOut, CheckCircle2, X, LifeBuoy, UserCheck, Headphones, FileText, Menu, Video, ClipboardCheck, Award
 } from 'lucide-react';
 
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
@@ -115,10 +116,10 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
   const allowedCoachTabs: string[] = [];
 
   if (isHeadCoach) {
-    allowedCoachTabs.push('overview', 'free_consultations', 'free_assessments', 'users', 'schedule', 'programs', 'nutrition', 'enquiries', 'cs_dashboard', 'tickets', 'announcements');
+    allowedCoachTabs.push('overview', 'paid_bookings', 'free_consultations', 'free_assessments', 'users', 'schedule', 'programs', 'nutrition', 'enquiries', 'cs_dashboard', 'tickets', 'announcements');
     if (coachPerms.allowFinancials) allowedCoachTabs.push('subscriptions');
   } else if (isCoach) {
-    allowedCoachTabs.push('free_consultations');
+    allowedCoachTabs.push('paid_bookings', 'free_consultations');
     if (coachPerms.allowLeadPipeline) allowedCoachTabs.push('overview');
     if (coachPerms.allowClientRoster) allowedCoachTabs.push('users');
     if (coachPerms.allowClassSchedules) allowedCoachTabs.push('schedule');
@@ -127,11 +128,12 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
     allowedCoachTabs.push('enquiries');
     if (coachPerms.allowFinancials) allowedCoachTabs.push('subscriptions');
   } else {
-    allowedCoachTabs.push('overview', 'free_consultations', 'free_assessments', 'users', 'schedule', 'programs', 'nutrition', 'subscriptions', 'enquiries', 'cs_dashboard', 'tickets', 'announcements', 'audit');
+    allowedCoachTabs.push('overview', 'paid_bookings', 'free_consultations', 'free_assessments', 'users', 'schedule', 'programs', 'nutrition', 'subscriptions', 'enquiries', 'cs_dashboard', 'tickets', 'announcements', 'audit');
   }
 
   const allNavItems = [
     { id: 'overview', label: isHeadCoach ? 'HEAD COACH DASHBOARD' : (isCoach ? 'COACH DASHBOARD' : 'CRM OVERVIEW'), icon: LayoutDashboard },
+        { id: 'paid_bookings', label: isCoach && !isHeadCoach ? 'MY PAID SESSIONS' : 'PAID SESSIONS & PACKAGES', icon: Award },
     { id: 'free_consultations', label: isCoach && !isHeadCoach ? 'MY ASSIGNED DEMOS' : 'FREE DEMO / CONSULTATIONS', icon: Video },
     { id: 'free_assessments', label: 'ATHLETE ASSESSMENTS', icon: ClipboardCheck },
     { id: 'users', label: isCoach ? 'CLIENT ROSTER' : 'USER DIRECTORY', icon: Users },

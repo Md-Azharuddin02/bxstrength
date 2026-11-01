@@ -1818,6 +1818,36 @@ if (dbPool) {
         `);
 
         await ensureTrainerColumnsExist();
+        await dbPool.query(`
+          CREATE TABLE IF NOT EXISTS paid_bookings (
+            id VARCHAR(100) PRIMARY KEY,
+            order_id VARCHAR(100),
+            payment_id VARCHAR(100),
+            user_id VARCHAR(100),
+            client_name VARCHAR(255) NOT NULL,
+            client_email VARCHAR(255) NOT NULL,
+            client_phone VARCHAR(50),
+            package_name VARCHAR(255) NOT NULL,
+            package_type VARCHAR(50) DEFAULT 'standard',
+            total_price NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+            currency VARCHAR(10) DEFAULT 'GBP',
+            total_sessions INTEGER NOT NULL DEFAULT 1,
+            completed_sessions INTEGER NOT NULL DEFAULT 0,
+            duration_minutes INTEGER DEFAULT 45,
+            validity_days INTEGER DEFAULT 30,
+            customized_details JSONB,
+            session_focus_list JSONB,
+            status VARCHAR(50) DEFAULT 'Active',
+            assigned_coach_id VARCHAR(100),
+            assigned_coach_name VARCHAR(255),
+            assigned_by VARCHAR(255),
+            assigned_at TIMESTAMP WITH TIME ZONE,
+            meeting_link TEXT,
+            coach_notes TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
+        `).catch(() => {});
       } catch {
         // Table initialization complete
       }
@@ -3593,6 +3623,432 @@ app.delete('/api/consultations/:id', async (req, res) => {
     res.json({ success: true, message: 'Consultation deleted' });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to delete consultation' });
+  }
+});
+
+
+// =========================================================================
+// PAID PACKAGE BOOKINGS (TRAIN YOUR WAY, PERSONALISED SUPPORT, COMMIT & SAVE)
+// =========================================================================
+interface ServerPaidBooking {
+  id: string;
+  orderId?: string;
+  paymentId?: string;
+  userId?: string;
+  clientName: string;
+  clientEmail: string;
+  clientPhone?: string;
+  packageName: string;
+  packageType: 'standard' | 'weekly' | 'monthly' | 'custom';
+  totalPrice: number;
+  currency: string;
+  totalSessions: number;
+  completedSessions: number;
+  durationMinutes: number;
+  validityDays: number;
+  customizedDetails?: any;
+  sessionFocusList?: string[];
+  status: 'Active' | 'Scheduled' | 'Completed' | 'Cancelled';
+  assignedCoachId?: string | null;
+  assignedCoachName?: string | null;
+  assignedBy?: string | null;
+  assignedAt?: string | null;
+  meetingLink?: string | null;
+  coachNotes?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+const paidBookingsStore: ServerPaidBooking[] = [];
+
+const formatPaidBookingRow = (r: any): ServerPaidBooking => ({
+  id: r.id,
+  orderId: r.order_id || undefined,
+  paymentId: r.payment_id || undefined,
+  userId: r.user_id || undefined,
+  clientName: r.client_name,
+  clientEmail: r.client_email,
+  clientPhone: r.client_phone || '',
+  packageName: r.package_name,
+  packageType: (r.package_type || 'standard') as any,
+  totalPrice: Number(r.total_price) || 0,
+  currency: r.currency || 'GBP',
+  totalSessions: Number(r.total_sessions) || 1,
+  completedSessions: Number(r.completed_sessions) || 0,
+  durationMinutes: Number(r.duration_minutes) || 45,
+  validityDays: Number(r.validity_days) || 30,
+  customizedDetails: typeof r.customized_details === 'string' ? JSON.parse(r.customized_details) : (r.customized_details || {}),
+  sessionFocusList: Array.isArray(r.session_focus_list) ? r.session_focus_list : (typeof r.session_focus_list === 'string' ? JSON.parse(r.session_focus_list) : []),
+  status: (r.status || 'Active') as any,
+  assignedCoachId: r.assigned_coach_id || null,
+  assignedCoachName: r.assigned_coach_name || null,
+  assignedBy: r.assigned_by || null,
+  assignedAt: r.assigned_at ? new Date(r.assigned_at).toISOString() : null,
+  meetingLink: r.meeting_link || null,
+  coachNotes: r.coach_notes || null,
+  createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+  updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString()
+});
+
+app.post('/api/paid-bookings', async (req, res) => {
+  try {
+    const {
+      orderId,
+      paymentId,
+      userId,
+      clientName,
+      clientEmail,
+      clientPhone,
+      packageName,
+      packageType,
+      totalPrice,
+      currency,
+      totalSessions,
+      durationMinutes,
+      validityDays,
+      customizedDetails,
+      sessionFocusList
+    } = req.body;
+
+    if (!clientEmail || !packageName) {
+      return res.status(400).json({ error: 'Client email and package name are required' });
+    }
+
+    const cleanEmail = sanitizeInput(clientEmail).toLowerCase();
+    const cleanName = sanitizeInput(clientName || 'Valued Athlete');
+    const cleanPhone = sanitizeInput(clientPhone || '');
+    const cleanPkgName = sanitizeInput(packageName);
+    const cleanPkgType = ['standard', 'weekly', 'monthly', 'custom'].includes(packageType) ? packageType : 'standard';
+    const price = Number(totalPrice) || 0;
+    const curr = sanitizeInput(currency || 'GBP');
+    const sessions = Math.max(1, Number(totalSessions) || (cleanPkgType === 'weekly' ? 3 : cleanPkgType === 'monthly' ? 12 : 1));
+    const duration = Number(durationMinutes) || 45;
+    const validity = Number(validityDays) || 30;
+
+    const bookingId = orderId && orderId.length > 5 ? (orderId.startsWith('BX-') ? orderId : `BX-BOOK-${orderId.slice(-8)}`) : `BX-BOOK-${Date.now()}`;
+
+    if (dbPool) {
+      try {
+        const existing = await dbPool.query(
+          'SELECT * FROM paid_bookings WHERE id = $1 OR order_id = $2 LIMIT 1',
+          [bookingId, orderId || bookingId]
+        );
+        if (existing.rows.length > 0) {
+          return res.status(200).json({
+            success: true,
+            booking: formatPaidBookingRow(existing.rows[0]),
+            message: 'Booking already recorded'
+          });
+        }
+
+        const insertRes = await dbPool.query(
+          `INSERT INTO paid_bookings (
+            id, order_id, payment_id, user_id, client_name, client_email, client_phone,
+            package_name, package_type, total_price, currency, total_sessions, completed_sessions,
+            duration_minutes, validity_days, customized_details, session_focus_list, status,
+            created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 0, $13, $14, $15, $16, 'Active', NOW(), NOW())
+          RETURNING *`,
+          [
+            bookingId,
+            orderId || null,
+            paymentId || null,
+            userId || null,
+            cleanName,
+            cleanEmail,
+            cleanPhone,
+            cleanPkgName,
+            cleanPkgType,
+            price,
+            curr,
+            sessions,
+            duration,
+            validity,
+            JSON.stringify(customizedDetails || {}),
+            JSON.stringify(sessionFocusList || [])
+          ]
+        );
+
+        const savedBooking = formatPaidBookingRow(insertRes.rows[0]);
+
+        const senderEmail = process.env.VITE_SENDER_EMAIL || process.env.BREVO_SENDER_EMAIL || 'support@bxstrength.com';
+        const adminEmail = process.env.VITE_ADMIN_EMAIL || 'support@bxstrength.com';
+
+        sendServerEmail({
+          toEmail: cleanEmail,
+          toName: cleanName,
+          subject: `[CONFIRMED] Your BxStrength Training Package Booking (${bookingId})`,
+          senderName: 'BxStrength Performance Coaching',
+          htmlContent: `
+            <div style="font-family: Arial, sans-serif; color: #ffffff; background-color: #0b0c10; padding: 24px; border-radius: 8px;">
+              <h2 style="color: #CCFF00; margin: 0 0 8px 0; text-transform: uppercase;">Payment Confirmed & Package Activated!</h2>
+              <p style="color: #cccccc; font-size: 14px; margin: 0 0 16px 0;">Hi <strong>${cleanName}</strong>, thank you for booking with BxStrength. Your training package is now active.</p>
+              
+              <div style="background-color: #16181f; padding: 16px; border: 1px solid #232733; border-radius: 6px; margin-bottom: 20px;">
+                <p style="margin: 4px 0; font-size: 13px; color: #aaaaaa;">Booking Reference: <strong style="color: #ffffff;">${bookingId}</strong></p>
+                <p style="margin: 4px 0; font-size: 13px; color: #aaaaaa;">Package: <strong style="color: #CCFF00;">${cleanPkgName}</strong> (${cleanPkgType.toUpperCase()})</p>
+                <p style="margin: 4px 0; font-size: 13px; color: #aaaaaa;">Total Sessions: <strong style="color: #ffffff;">${sessions} Sessions</strong></p>
+                <p style="margin: 4px 0; font-size: 13px; color: #aaaaaa;">Duration: <strong style="color: #ffffff;">${duration} Mins / Session</strong></p>
+                <p style="margin: 4px 0; font-size: 13px; color: #aaaaaa;">Total Paid: <strong style="color: #CCFF00;">£${price}</strong></p>
+              </div>
+
+              <p style="color: #cccccc; font-size: 13px; line-height: 1.5;">Our Head Coach will review your selections and assign your specialist coach. You can monitor your remaining sessions and live meeting link anytime in your <strong>Client Dashboard &gt; MY BOOKINGS</strong>.</p>
+            </div>
+          `
+        }).catch(e => console.warn('Paid booking client email warning:', e?.message));
+
+        sendServerEmail({
+          toEmail: adminEmail,
+          toName: 'Head Coach / Admin',
+          subject: `[NEW PAID BOOKING] £${price} - ${cleanPkgName} by ${cleanName}`,
+          senderName: 'BxStrength Automated Booking Desk',
+          htmlContent: `
+            <div style="font-family: Arial, sans-serif; color: #ffffff; background-color: #0b0c10; padding: 20px;">
+              <h3 style="color: #CCFF00;">NEW PAID TRAINING PACKAGE PURCHASED</h3>
+              <p>Client: <strong>${cleanName}</strong> (${cleanEmail}, ${cleanPhone})</p>
+              <p>Package: <strong>${cleanPkgName}</strong> (£${price}, ${sessions} sessions)</p>
+              <p>Ref: <strong>${bookingId}</strong></p>
+              <p>Please open the <strong>Head Coach / Admin Desk &gt; PAID BOOKINGS & SESSIONS</strong> to assign a coach and provide the meeting link.</p>
+            </div>
+          `
+        }).catch(e => console.warn('Paid booking admin email warning:', e?.message));
+
+        return res.status(201).json({ success: true, booking: savedBooking });
+      } catch (dbErr: any) {
+        console.error('Paid booking DB insert error:', dbErr);
+        return res.status(500).json({ error: 'Database error saving paid booking' });
+      }
+    }
+
+    const memBooking: ServerPaidBooking = {
+      id: bookingId,
+      orderId,
+      paymentId,
+      userId,
+      clientName: cleanName,
+      clientEmail: cleanEmail,
+      clientPhone: cleanPhone,
+      packageName: cleanPkgName,
+      packageType: cleanPkgType as any,
+      totalPrice: price,
+      currency: curr,
+      totalSessions: sessions,
+      completedSessions: 0,
+      durationMinutes: duration,
+      validityDays: validity,
+      customizedDetails,
+      sessionFocusList,
+      status: 'Active',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    paidBookingsStore.unshift(memBooking);
+    res.status(201).json({ success: true, booking: memBooking });
+  } catch (err: any) {
+    console.error('Create paid booking error:', err);
+    res.status(500).json({ error: 'Failed to create paid booking' });
+  }
+});
+
+app.get('/api/paid-bookings', async (req, res) => {
+  try {
+    const email = typeof req.query.email === 'string' ? req.query.email.trim().toLowerCase() : null;
+    const coachId = typeof req.query.coachId === 'string' ? req.query.coachId.trim() : null;
+
+    if (dbPool) {
+      try {
+        let query = 'SELECT * FROM paid_bookings';
+        const params: any[] = [];
+        const conditions: string[] = [];
+
+        if (email) {
+          params.push(email);
+          conditions.push(`LOWER(client_email) = ${params.length}`);
+        }
+
+        if (coachId) {
+          params.push(coachId);
+          conditions.push(`assigned_coach_id = ${params.length}`);
+        }
+
+        if (conditions.length > 0) {
+          query += ' WHERE ' + conditions.join(' AND ');
+        }
+
+        query += ' ORDER BY created_at DESC';
+
+        const result = await dbPool.query(query, params);
+        const formatted = result.rows.map(formatPaidBookingRow);
+        return res.json(formatted);
+      } catch (dbErr: any) {
+        console.error('Fetch paid bookings DB error:', dbErr.message);
+        return res.status(500).json({ error: 'Database unavailable' });
+      }
+    }
+
+    let filtered = [...paidBookingsStore];
+    if (email) filtered = filtered.filter(b => b.clientEmail.toLowerCase() === email);
+    if (coachId) filtered = filtered.filter(b => b.assignedCoachId === coachId);
+    res.json(filtered);
+  } catch (err: any) {
+    console.error('Fetch paid bookings error:', err);
+    res.status(500).json({ error: 'Failed to fetch paid bookings' });
+  }
+});
+
+app.patch('/api/paid-bookings/:id/assign', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { assignedCoachId, assignedCoachName, assignedBy, meetingLink, coachNotes } = req.body;
+
+    if (!assignedCoachName) {
+      return res.status(400).json({ error: 'Assigned coach name is required' });
+    }
+
+    if (dbPool) {
+      try {
+        const updateRes = await dbPool.query(
+          `UPDATE paid_bookings 
+           SET assigned_coach_id = $1,
+               assigned_coach_name = $2,
+               assigned_by = $3,
+               assigned_at = NOW(),
+               meeting_link = COALESCE($4, meeting_link),
+               coach_notes = COALESCE($5, coach_notes),
+               status = 'Scheduled',
+               updated_at = NOW()
+           WHERE id = $6
+           RETURNING *`,
+          [assignedCoachId || null, assignedCoachName, assignedBy || 'Head Coach', meetingLink || null, coachNotes || null, id]
+        );
+
+        if (updateRes.rows.length === 0) {
+          return res.status(404).json({ error: 'Paid booking not found' });
+        }
+
+        const updated = formatPaidBookingRow(updateRes.rows[0]);
+
+        if (meetingLink && updated.clientEmail) {
+          sendServerEmail({
+            toEmail: updated.clientEmail,
+            toName: updated.clientName,
+            subject: `[COACH ASSIGNED] Your BxStrength Live Session Details (${updated.id})`,
+            senderName: 'BxStrength Coaching',
+            htmlContent: `
+              <div style="font-family: Arial, sans-serif; color: #ffffff; background-color: #0b0c10; padding: 24px; border-radius: 8px;">
+                <h2 style="color: #CCFF00; margin: 0 0 10px 0;">Coach Assigned & Session Scheduled</h2>
+                <p>Hi <strong>${updated.clientName}</strong>, your specialist coach has been assigned for <strong>${updated.packageName}</strong>.</p>
+                <div style="background-color: #16181f; padding: 16px; border: 1px solid #232733; border-radius: 6px; margin: 16px 0;">
+                  <p style="margin: 4px 0; color: #aaaaaa;">Assigned Coach: <strong style="color: #ffffff;">${updated.assignedCoachName}</strong></p>
+                  <p style="margin: 4px 0; color: #aaaaaa;">Live Meeting Link: <a href="${meetingLink}" target="_blank" style="color: #CCFF00; font-weight: bold; text-decoration: underline;">Join Video Session</a></p>
+                </div>
+                <p style="font-size: 13px; color: #cccccc;">You can also access your live session anytime inside your BxStrength Dashboard under MY BOOKINGS.</p>
+              </div>
+            `
+          }).catch(e => console.warn('Coach assignment client email error:', e?.message));
+        }
+
+        return res.json({ success: true, booking: updated });
+      } catch (dbErr: any) {
+        console.error('Assign paid booking DB error:', dbErr.message);
+        return res.status(500).json({ error: 'Database update failed' });
+      }
+    }
+
+    const idx = paidBookingsStore.findIndex(b => b.id === id);
+    if (idx === -1) return res.status(404).json({ error: 'Booking not found' });
+    paidBookingsStore[idx].assignedCoachId = assignedCoachId;
+    paidBookingsStore[idx].assignedCoachName = assignedCoachName;
+    paidBookingsStore[idx].assignedBy = assignedBy || 'Head Coach';
+    paidBookingsStore[idx].assignedAt = new Date().toISOString();
+    if (meetingLink) paidBookingsStore[idx].meetingLink = meetingLink;
+    if (coachNotes) paidBookingsStore[idx].coachNotes = coachNotes;
+    paidBookingsStore[idx].status = 'Scheduled';
+    paidBookingsStore[idx].updatedAt = new Date().toISOString();
+
+    res.json({ success: true, booking: paidBookingsStore[idx] });
+  } catch (err: any) {
+    console.error('Assign paid booking error:', err);
+    res.status(500).json({ error: 'Failed to assign coach' });
+  }
+});
+
+app.patch('/api/paid-bookings/:id/session', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action, completedSessions, coachNotes, status } = req.body;
+
+    if (dbPool) {
+      try {
+        const curRes = await dbPool.query('SELECT * FROM paid_bookings WHERE id = $1', [id]);
+        if (curRes.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+
+        const row = curRes.rows[0];
+        let newCount = Number(row.completed_sessions) || 0;
+        const total = Number(row.total_sessions) || 1;
+
+        if (action === 'increment') {
+          newCount = Math.min(total, newCount + 1);
+        } else if (action === 'decrement') {
+          newCount = Math.max(0, newCount - 1);
+        } else if (typeof completedSessions === 'number') {
+          newCount = Math.min(total, Math.max(0, completedSessions));
+        }
+
+        const newStatus = status ? status : (newCount >= total ? 'Completed' : 'Active');
+
+        const updateRes = await dbPool.query(
+          `UPDATE paid_bookings
+           SET completed_sessions = $1,
+               status = $2,
+               coach_notes = COALESCE($3, coach_notes),
+               updated_at = NOW()
+           WHERE id = $4
+           RETURNING *`,
+          [newCount, newStatus, coachNotes || null, id]
+        );
+
+        return res.json({ success: true, booking: formatPaidBookingRow(updateRes.rows[0]) });
+      } catch (dbErr: any) {
+        console.error('Update paid booking session DB error:', dbErr.message);
+        return res.status(500).json({ error: 'Database update failed' });
+      }
+    }
+
+    const idx = paidBookingsStore.findIndex(b => b.id === id);
+    if (idx === -1) return res.status(404).json({ error: 'Booking not found' });
+
+    let newCount = paidBookingsStore[idx].completedSessions || 0;
+    const total = paidBookingsStore[idx].totalSessions || 1;
+
+    if (action === 'increment') newCount = Math.min(total, newCount + 1);
+    else if (action === 'decrement') newCount = Math.max(0, newCount - 1);
+    else if (typeof completedSessions === 'number') newCount = Math.min(total, Math.max(0, completedSessions));
+
+    paidBookingsStore[idx].completedSessions = newCount;
+    paidBookingsStore[idx].status = status ? status : (newCount >= total ? 'Completed' : 'Active');
+    if (coachNotes) paidBookingsStore[idx].coachNotes = coachNotes;
+    paidBookingsStore[idx].updatedAt = new Date().toISOString();
+
+    res.json({ success: true, booking: paidBookingsStore[idx] });
+  } catch (err: any) {
+    console.error('Update paid booking session error:', err);
+    res.status(500).json({ error: 'Failed to update session progress' });
+  }
+});
+
+app.delete('/api/paid-bookings/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (dbPool) {
+      await dbPool.query('DELETE FROM paid_bookings WHERE id = $1', [id]);
+    }
+    const idx = paidBookingsStore.findIndex(b => b.id === id);
+    if (idx !== -1) paidBookingsStore.splice(idx, 1);
+    res.json({ success: true, message: 'Paid booking deleted' });
+  } catch (err: any) {
+    console.error('Delete paid booking error:', err);
+    res.status(500).json({ error: 'Failed to delete paid booking' });
   }
 });
 

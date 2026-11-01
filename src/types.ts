@@ -587,6 +587,35 @@ export interface ConsultationBooking {
   createdAt: string;
 }
 
+export interface PaidPackageBooking {
+  id: string;
+  orderId?: string;
+  paymentId?: string;
+  userId?: string;
+  clientName: string;
+  clientEmail: string;
+  clientPhone?: string;
+  packageName: string;
+  packageType: 'standard' | 'weekly' | 'monthly' | 'custom';
+  totalPrice: number;
+  currency: string;
+  totalSessions: number;
+  completedSessions: number;
+  durationMinutes: number;
+  validityDays: number;
+  customizedDetails?: Record<string, any>;
+  sessionFocusList?: string[];
+  status: 'Active' | 'Scheduled' | 'Completed' | 'Cancelled';
+  assignedCoachId?: string | null;
+  assignedCoachName?: string | null;
+  assignedBy?: string | null;
+  assignedAt?: string | null;
+  meetingLink?: string | null;
+  coachNotes?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface CoachVerification {
   id: string;
   coachName: string;

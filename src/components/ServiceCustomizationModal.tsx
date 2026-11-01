@@ -700,6 +700,69 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
           setIsSuccessAnimationVisible(true);
 
           // The server creates the subscription when it verifies the payment; pull it into the local cache
+          // Record the dynamic Paid Package Booking in database
+          try {
+            const pkgType = isCustomPlan ? 'custom' : isWeeklyPlan ? 'weekly' : isMonthlyPlan ? 'monthly' : 'standard';
+            const totalSess = isWeeklyPlan ? 3 : isMonthlyPlan ? 12 : isCustomPlan ? 1 : 1;
+            const durationMin = isCustomPlan ? customPlanTotalMinutes : (isWeeklyPlan ? 30 : isMonthlyPlan ? 45 : 30);
+
+            const customizedDetailsObj = isCustomPlan
+              ? {
+                  elements: CUSTOM_ELEMENTS.filter(e => (elementQuantities[e.id] || 0) > 0).map(e => ({
+                    id: e.id,
+                    name: e.name,
+                    quantity: elementQuantities[e.id],
+                    unitMinutes: e.durationMin
+                  })),
+                  totalMinutes: customPlanTotalMinutes,
+                  elementQuantities
+                }
+              : isWeeklyPlan
+              ? {
+                  structure: 'Guided Warm-Up + 1 Focus per session',
+                  sessions: weeklySessions.map((s, idx) => ({ sessionNumber: idx + 1, warmUp: 'Guided Warm-Up', focus: s }))
+                }
+              : isMonthlyPlan
+              ? {
+                  structure: '12 Warm-Ups + 12 Core Services + 12 Cool-Downs',
+                  sessions: monthlySessions.map((s, idx) => ({ sessionNumber: idx + 1, warmUp: 'Guided Warm-Up', core: s, coolDown: 'Cool-Down & Recovery' }))
+                }
+              : {
+                  structure: packageDetails.totalDurationLabel,
+                  items: packageDetails.items.map(item => ({ name: item.name, duration: item.duration, price: item.price }))
+                };
+
+            const focusList = isCustomPlan
+              ? getCustomExerciseNames(elementQuantities)
+              : isWeeklyPlan
+              ? weeklySessions
+              : isMonthlyPlan
+              ? monthlySessions
+              : packageDetails.items.map(item => item.name);
+
+            VelocityAPI.createPaidBooking({
+              orderId: res.razorpay_order_id,
+              paymentId: res.razorpay_payment_id,
+              userId: user?.id,
+              clientName,
+              clientEmail,
+              clientPhone,
+              packageName: service.title,
+              packageType: pkgType,
+              totalPrice: displayTotalPrice,
+              currency: 'GBP',
+              totalSessions: totalSess,
+              durationMinutes: durationMin,
+              validityDays: isMonthlyPlan ? 60 : 30,
+              customizedDetails: customizedDetailsObj,
+              sessionFocusList: focusList
+            }).catch(err => console.warn('Paid booking creation error:', err));
+
+            window.dispatchEvent(new CustomEvent('bxstrength_paid_bookings_updated'));
+          } catch (createErr) {
+            console.warn('Failed to build paid booking payload:', createErr);
+          }
+
           VelocityAPI.fetchSubscriptions().catch(() => {});
         },
         onFailure: (err) => {

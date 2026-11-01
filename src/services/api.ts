@@ -1,4 +1,5 @@
-import { ConsultationBooking,
+import { PaidPackageBooking,
+  ConsultationBooking,
   AthleteAssessment,
   User,
   UserRole,
@@ -2476,6 +2477,109 @@ export const VelocityAPI = {
       method: 'DELETE'
     });
     return res.ok;
+  },
+
+  async createPaidBooking(payload: {
+    orderId?: string;
+    paymentId?: string;
+    userId?: string;
+    clientName: string;
+    clientEmail: string;
+    clientPhone?: string;
+    packageName: string;
+    packageType?: 'standard' | 'weekly' | 'monthly' | 'custom';
+    totalPrice: number;
+    currency?: string;
+    totalSessions?: number;
+    durationMinutes?: number;
+    validityDays?: number;
+    customizedDetails?: Record<string, any>;
+    sessionFocusList?: string[];
+  }): Promise<{ success: boolean; booking?: PaidPackageBooking; error?: string }> {
+    try {
+      const res = await apiFetch(getApiUrl('/api/paid-bookings'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (err: any) {
+      console.error('Failed to create paid booking:', err);
+      return { success: false, error: err?.message || 'Failed to create paid booking' };
+    }
+  },
+
+  async fetchPaidBookings(params?: { email?: string; coachId?: string }): Promise<PaidPackageBooking[]> {
+    try {
+      let url = getApiUrl('/api/paid-bookings');
+      const q = new URLSearchParams();
+      if (params?.email) q.set('email', params.email);
+      if (params?.coachId) q.set('coachId', params.coachId);
+      const queryString = q.toString();
+      if (queryString) url += `?${queryString}`;
+
+      const res = await apiFetch(url);
+      if (res.ok) {
+        const raw = await res.json();
+        if (Array.isArray(raw)) {
+          return raw;
+        }
+      }
+    } catch (err: any) {
+      console.warn('Failed to fetch paid bookings from backend:', err?.message);
+    }
+    return [];
+  },
+
+  async assignPaidBooking(id: string, data: {
+    assignedCoachId?: string | null;
+    assignedCoachName: string;
+    assignedBy?: string;
+    meetingLink?: string;
+    coachNotes?: string;
+  }): Promise<{ success: boolean; booking?: PaidPackageBooking; error?: string }> {
+    try {
+      const res = await apiFetch(getApiUrl(`/api/paid-bookings/${encodeURIComponent(id)}/assign`), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      console.error('Failed to assign paid booking:', err);
+      return { success: false, error: err?.message || 'Failed to assign coach' };
+    }
+  },
+
+  async updatePaidBookingSession(id: string, data: {
+    action: 'increment' | 'decrement' | 'set';
+    completedSessions?: number;
+    coachNotes?: string;
+    status?: string;
+  }): Promise<{ success: boolean; booking?: PaidPackageBooking; error?: string }> {
+    try {
+      const res = await apiFetch(getApiUrl(`/api/paid-bookings/${encodeURIComponent(id)}/session`), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    } catch (err: any) {
+      console.error('Failed to update session progress:', err);
+      return { success: false, error: err?.message || 'Failed to update session' };
+    }
+  },
+
+  async deletePaidBooking(id: string): Promise<boolean> {
+    try {
+      const res = await apiFetch(getApiUrl(`/api/paid-bookings/${encodeURIComponent(id)}`), {
+        method: 'DELETE'
+      });
+      return res.ok;
+    } catch (err: any) {
+      console.error('Failed to delete paid booking:', err);
+      return false;
+    }
   },
   async deleteConsultation(id: string): Promise<boolean> {
     const res = await apiFetch(getApiUrl(`/api/consultations/${id}`), {

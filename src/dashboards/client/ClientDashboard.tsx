@@ -428,6 +428,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
             {activeTab === 'bookings' && (
               <MyBookingsView
+                user={user}
                 bookings={bookings}
                 enquiries={enquiries}
                 classSchedules={classSchedules}

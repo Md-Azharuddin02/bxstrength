@@ -13,6 +13,7 @@ import { FloatingActionWidget } from './components/ui/FloatingActionWidget';
 import { ChatbotWidget } from './components/ui/ChatbotWidget';
 import { Preloader } from './components/ui/Preloader';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
+import { clearAssessmentDraft } from './utils/assessmentDraft';
 import { CheckCircle2, X, WifiOff, AlertTriangle } from 'lucide-react';
 
 // Dashboards load on demand so public visitors don't download staff code
@@ -199,6 +200,7 @@ function AppContent() {
   // The portal (dashboard) for the logged-in user, chosen by role.
   // Route guards in AppRoutes decide who may reach it.
   const signOut = (label: string) => () => {
+    clearAssessmentDraft();
     navigate("/", { replace: true });
     logout();
     showToast(`Signed Out of ${label}`);
@@ -331,6 +333,7 @@ function AppContent() {
       {/* Interactive 5-Step Lead Diagnostic Self Assessment Modal */}
       <KeepAfterOpen open={assessmentModalOpen}>
         <SelfAssessmentModal
+          key={user?.id ?? 'guest'}
           isOpen={assessmentModalOpen}
           onClose={() => setAssessmentModalOpen(false)}
           onCompleteAndBookConsultation={handleAssessmentCompleteAndBook}

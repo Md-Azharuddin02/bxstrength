@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { User, UserRole } from '../types';
 import { VelocityAPI } from '../services/api';
+import { clearAssessmentDraft } from '../utils/assessmentDraft';
 
 interface AuthContextType {
   user: User | null;
@@ -195,6 +196,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const logout = () => {
+    clearAssessmentDraft();
     VelocityAPI.logout();
     signedOut();
   };

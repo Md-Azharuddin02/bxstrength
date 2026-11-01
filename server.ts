@@ -3863,12 +3863,12 @@ app.get('/api/paid-bookings', async (req, res) => {
 
         if (email) {
           params.push(email);
-          conditions.push(`LOWER(client_email) = ${params.length}`);
+          conditions.push(`LOWER(client_email) = $${params.length}`);
         }
 
         if (coachId) {
           params.push(coachId);
-          conditions.push(`assigned_coach_id = ${params.length}`);
+          conditions.push(`assigned_coach_id = $${params.length}`);
         }
 
         if (conditions.length > 0) {

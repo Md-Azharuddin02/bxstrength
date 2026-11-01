@@ -133,7 +133,7 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
 
   const allNavItems = [
     { id: 'overview', label: isHeadCoach ? 'HEAD COACH DASHBOARD' : (isCoach ? 'COACH DASHBOARD' : 'CRM OVERVIEW'), icon: LayoutDashboard },
-        { id: 'paid_bookings', label: isCoach && !isHeadCoach ? 'MY PAID SESSIONS' : 'PAID SESSIONS & PACKAGES', icon: Award },
+    { id: 'paid_bookings', label: isCoach && !isHeadCoach ? 'MY PAID SESSIONS' : 'PAID SESSIONS & PACKAGES', icon: Award },
     { id: 'free_consultations', label: isCoach && !isHeadCoach ? 'MY ASSIGNED DEMOS' : 'FREE DEMO / CONSULTATIONS', icon: Video },
     { id: 'free_assessments', label: 'ATHLETE ASSESSMENTS', icon: ClipboardCheck },
     { id: 'users', label: isCoach ? 'CLIENT ROSTER' : 'USER DIRECTORY', icon: Users },
@@ -157,6 +157,7 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
       category: 'CORE MANAGEMENT',
       items: [
         { id: 'overview', label: isCoach ? 'COACH DASHBOARD' : 'CRM OVERVIEW', icon: LayoutDashboard },
+        { id: 'paid_bookings', label: isCoach && !isHeadCoach ? 'MY PAID SESSIONS' : 'PAID SESSIONS & PACKAGES', icon: Award },
         { id: 'free_consultations', label: isCoach && !isHeadCoach ? 'MY ASSIGNED DEMOS' : 'FREE DEMO / CONSULTATIONS', icon: Video },
         { id: 'free_assessments', label: 'ATHLETE ASSESSMENTS', icon: ClipboardCheck },
         { id: 'users', label: isCoach ? 'CLIENT ROSTER' : 'USER DIRECTORY', icon: Users },

@@ -29,6 +29,25 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   onNavigateTab
 }) => {
   const [activeJourney, setActiveJourney] = React.useState<any>(null);
+  const [latestPaidPackage, setLatestPaidPackage] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    if (!user?.email) return;
+    const fetchPaid = () => {
+      fetch(getApiUrl(`/api/paid-bookings?email=${encodeURIComponent(user.email)}`))
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            setLatestPaidPackage(data[0]);
+          }
+        })
+        .catch(() => {});
+    };
+    fetchPaid();
+    const handleUpdate = () => fetchPaid();
+    window.addEventListener('bxstrength_paid_bookings_updated', handleUpdate);
+    return () => window.removeEventListener('bxstrength_paid_bookings_updated', handleUpdate);
+  }, [user?.email]);
 
   React.useEffect(() => {
     if (!user?.email) return;
@@ -111,6 +130,57 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ACTIVE PURCHASED TRAINING PACKAGE BANNER */}
+      {latestPaidPackage && (
+        <div className="bg-gradient-to-r from-lime-500/10 via-[#141814] to-zinc-950 border-2 border-[#CCFF00]/50 p-5 sm:p-6 rounded-xl shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-72 h-full bg-gradient-to-l from-[#CCFF00]/10 to-transparent pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-[#CCFF00]/20 border border-[#CCFF00]/40 flex items-center justify-center shrink-0">
+                <Award className="w-6 h-6 text-[#CCFF00]" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded bg-[#CCFF00]/20 text-[#CCFF00] border border-[#CCFF00]/40">
+                    ACTIVE {latestPaidPackage.packageType} PACKAGE
+                  </span>
+                  <span className="text-[10px] font-mono text-zinc-400">REF: {latestPaidPackage.id}</span>
+                </div>
+                <h3 className="text-xl font-black uppercase tracking-tight text-white mt-1">
+                  {latestPaidPackage.packageName}
+                </h3>
+                <p className="text-xs text-zinc-300 mt-1">
+                  Session Delivery: <strong className="text-white">{latestPaidPackage.completedSessions || 0} / {latestPaidPackage.totalSessions || 1} Sessions</strong>
+                  {latestPaidPackage.assignedCoachName && (
+                    <span> • Coach: <strong className="text-[#CCFF00]">{latestPaidPackage.assignedCoachName}</strong></span>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+              {latestPaidPackage.meetingLink && (
+                <a
+                  href={latestPaidPackage.meetingLink.startsWith('http') ? latestPaidPackage.meetingLink : `https://${latestPaidPackage.meetingLink}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase px-4 py-3 rounded-lg flex items-center justify-center gap-2 shadow-lg transition-all"
+                >
+                  <Video className="w-4 h-4" /> Join Live Session
+                </a>
+              )}
+              <button
+                onClick={() => onNavigateTab('bookings')}
+                className="bg-black/60 hover:bg-zinc-800 text-white border border-[#CCFF00]/40 font-black text-xs uppercase px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <span>View in My Bookings</span>
+                <ChevronRight className="w-4 h-4 text-[#CCFF00]" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 15-MIN COMPLIMENTARY STRATEGY SESSION / FREE DEMO BANNER */}
       {hasNoConsultation && (

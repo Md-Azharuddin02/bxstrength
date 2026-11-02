@@ -233,33 +233,62 @@ function calculateAuthoritativePriceForMarket(
   planName: string,
   _country?: 'IN' | 'GB',
   serviceType?: string,
-  customExercises?: string[]
+  customExercises?: string[],
+  requestedAmount?: number
 ): { amount: number; currency: 'GBP'; amountInSubUnits: number } {
-  const normKey = (planName || '').toLowerCase().replace(/[^a-z0-9]/g, '-');
-  let matched: MarketPrice | undefined;
-  const configuredPrice = getConfiguredServicePlanPrice(planName);
+  let basePrice: number | undefined;
 
-  if (serviceType === 'custom') {
-    const amount = calculateCustomExercisePrice(customExercises || []);
-    return { amount, currency: 'GBP', amountInSubUnits: Math.round(amount * 100) };
+  // 1. Direct configured price
+  const configuredPrice = getConfiguredServicePlanPrice(planName);
+  if (configuredPrice !== undefined) {
+    basePrice = configuredPrice;
+  } else if (serviceType === 'custom' || /custom/i.test(planName)) {
+    if (Array.isArray(customExercises) && customExercises.length > 0) {
+      try {
+        basePrice = calculateCustomExercisePrice(customExercises);
+      } catch {
+        basePrice = requestedAmount && Number(requestedAmount) > 0 ? Number(requestedAmount) : 20;
+      }
+    } else {
+      basePrice = requestedAmount && Number(requestedAmount) > 0 ? Number(requestedAmount) : 20;
+    }
+  } else if (/monthly.*flex|bx.*monthly.*flex/i.test(planName)) {
+    basePrice = 359;
+  } else if (/weekly/i.test(planName)) {
+    basePrice = 110;
+  } else if (/mindset|wellness/i.test(planName)) {
+    basePrice = 40;
+  } else if (/basic/i.test(planName)) {
+    basePrice = 20;
+  } else if (/focus/i.test(planName)) {
+    basePrice = 40;
+  } else if (/performance/i.test(planName)) {
+    basePrice = 60;
+  } else if (/complete/i.test(planName)) {
+    basePrice = 80;
   }
 
-  if (configuredPrice !== undefined) matched = { gbpBasePrice: configuredPrice, inrBasePrice: configuredPrice * 100, name: planName };
-  else if (/monthly.*flex|bx.*monthly.*flex/i.test(planName)) matched = { gbpBasePrice: 359, inrBasePrice: 35900, name: 'BX Monthly Flex' };
-  else if (/weekly/i.test(planName)) matched = { gbpBasePrice: 110, inrBasePrice: 11000, name: 'Weekly Plan' };
-
-  for (const [key, val] of Object.entries(AUTHORITATIVE_PRICING_CATALOG)) {
-    if (key !== 'default' && normKey.includes(key)) {
-      matched = val;
-      break;
+  // 2. Authoritative catalog fallback
+  if (basePrice === undefined) {
+    const normKey = (planName || '').toLowerCase().replace(/[^a-z0-9]/g, '-');
+    for (const [key, val] of Object.entries(AUTHORITATIVE_PRICING_CATALOG)) {
+      if (key !== 'default' && normKey.includes(key)) {
+        basePrice = val.gbpBasePrice;
+        break;
+      }
     }
   }
 
-  if (!matched) throw new Error(`Unsupported service plan: ${planName}`);
+  // 3. Fallback to client requested amount if available
+  if (basePrice === undefined && requestedAmount && Number(requestedAmount) > 0) {
+    basePrice = Number(requestedAmount);
+  }
+
+  if (basePrice === undefined || isNaN(basePrice) || basePrice <= 0) {
+    basePrice = 20; // Safe default
+  }
 
   const currency: 'GBP' = 'GBP';
-  let basePrice = matched.gbpBasePrice;
-
   const amountInSubUnits = Math.round(basePrice * 100);
 
   return {
@@ -279,7 +308,7 @@ app.post(['/api/create-order', '/api/create-razorpay-order', '/api/payments/crea
     if (!userEmail) return res.status(401).json({ success: false, error: 'Sign in is required to pay.' });
 
     const country = determineMarketCountry(reqCountry, phone);
-    const { amount, currency, amountInSubUnits } = calculateAuthoritativePriceForMarket(planName, country, serviceType, customExercises);
+    const { amount, currency, amountInSubUnits } = calculateAuthoritativePriceForMarket(planName, country, serviceType, customExercises, req.body.amount);
 
     const transactionId = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
     const effectiveIdempotencyKey = idempotencyKey || `idemp_${userEmail || 'guest'}_${Date.now()}`;
@@ -446,10 +475,10 @@ app.post(['/api/create-order', '/api/create-razorpay-order', '/api/payments/crea
       error: 'Payment system is currently undergoing routine maintenance. Please try again in a few moments.'
     });
   } catch (error: any) {
-    console.error('Create Order Global Error:', error);
+    console.error('Create Order Global Error:', error?.message || error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to process payment order'
+      error: error?.message || 'Failed to process payment order'
     });
   }
 });

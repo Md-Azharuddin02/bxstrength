@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { SupportTicket, TicketStatus, TicketPriority, TicketCategory, TicketSource, User, Booking, Subscription } from '../../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { SupportTicket, TicketStatus, TicketPriority, TicketCategory, TicketSource, User, Booking, Subscription, PaidPackageBooking } from '../../types';
+import { PaidBookingsView } from '../head-coach/PaidBookingsView';
+import { CoachAvailabilityRoster } from './CoachAvailabilityRoster';
+import { normalizeRole } from '../../utils/auth';
 import { VelocityAPI, getApiUrl } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
@@ -9,14 +12,14 @@ import {
   LifeBuoy, CheckCircle2, Clock, AlertCircle, MessageSquare, Search, Filter, ShieldAlert, 
   Send, Trash2, UserCheck, ArrowUpRight, Phone, Mail, Globe, Tag, ChevronRight, RefreshCw, 
   BarChart2, Lock, AlertTriangle, Plus, FileText, Check, ShieldCheck, X, Zap, CornerUpRight,
-  User as UserIcon, Settings, LogOut, Home, ClipboardCheck
+  User as UserIcon, Settings, LogOut, Home, ClipboardCheck, Package, Users
 } from 'lucide-react';
 
 interface SupportDashboardViewProps {
   onShowToast?: (msg: string) => void;
   onNavigateHome?: () => void;
   onLogout?: () => void;
-  initialTab?: 'inbox' | 'analytics' | 'audit_logs' | 'account_settings' | 'assessments';
+  initialTab?: 'inbox' | 'analytics' | 'audit_logs' | 'account_settings' | 'assessments' | 'paid_bookings' | 'coaches_workload';
 }
 
 export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({ 
@@ -32,7 +35,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     user?.role === 'admin' ? 'admin' : ((user?.role === 'headcoach' || user?.role === 'coach') ? user.role : 'customer_support')
   );
 
-  const [activeTab, setActiveTab] = useState<'inbox' | 'analytics' | 'audit_logs' | 'account_settings' | 'assessments'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'inbox' | 'analytics' | 'audit_logs' | 'account_settings' | 'assessments' | 'paid_bookings' | 'coaches_workload'>(initialTab);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -84,6 +87,49 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     }
     if (isInitial) setIsLoading(false);
   };
+
+  // Live Coaches & Paid Bookings state for Customer Support Oversight
+  const [coaches, setCoaches] = useState<User[]>([]);
+  const [paidBookings, setPaidBookings] = useState<PaidPackageBooking[]>(() => {
+    try {
+      const raw = localStorage.getItem('bxstrength_paid_bookings');
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [];
+  });
+
+  const loadCoachesAndBookings = async () => {
+    try {
+      const [uList, bookings] = await Promise.all([
+        VelocityAPI.fetchUsers(),
+        VelocityAPI.fetchPaidBookings()
+      ]);
+      const staff = uList.filter(u => {
+        const r = normalizeRole(u.role);
+        return r === 'coach' || r === 'headcoach';
+      });
+      setCoaches(staff);
+      setPaidBookings(bookings);
+      try { localStorage.setItem('bxstrength_paid_bookings', JSON.stringify(bookings)); } catch {}
+    } catch (e) {
+      console.warn('Failed to load coaches/bookings in CS:', e);
+    }
+  };
+
+  const unassignedCount = useMemo(() => {
+    return paidBookings.filter(b => 
+      !b.assignedCoachName || 
+      b.assignedCoachName.toLowerCase() === 'unassigned' ||
+      !b.assignedCoachId
+    ).length;
+  }, [paidBookings]);
+
+  useEffect(() => {
+    loadCoachesAndBookings();
+    const handleBookingsUpdate = () => loadCoachesAndBookings();
+    window.addEventListener('bxstrength_paid_bookings_updated', handleBookingsUpdate);
+    return () => window.removeEventListener('bxstrength_paid_bookings_updated', handleBookingsUpdate);
+  }, []);
 
   useEffect(() => {
     fetchTickets(true);
@@ -375,19 +421,57 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">TODAY'S INQUIRIES</span>
             <span className="text-xl font-black text-[#CCFF00] mt-1 block">{analytics.todaysEnquiries}</span>
           </div>
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">TODAY'S BOOKINGS</span>
-            <span className="text-xl font-black text-purple-400 mt-1 block">{analytics.todaysBookings}</span>
+          <div
+            onClick={() => setActiveTab('paid_bookings')}
+            className={`p-3 rounded-xl border transition-all cursor-pointer ${
+              unassignedCount > 0
+                ? 'bg-amber-950/50 border-amber-500/80 hover:bg-amber-900/60 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
+                : 'bg-[#18181b] border-zinc-800 hover:border-zinc-700'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">UNASSIGNED BOOKINGS</span>
+              {unassignedCount > 0 && <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>}
+            </div>
+            <span className="text-xl font-black text-amber-400 mt-1 block font-mono">{unassignedCount}</span>
           </div>
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">UNREAD CONVS</span>
-            <span className="text-xl font-black text-indigo-400 mt-1 block">{analytics.unreadCount}</span>
+          <div
+            onClick={() => setActiveTab('paid_bookings')}
+            className="bg-[#18181b] border border-zinc-800 hover:border-zinc-700 p-3 rounded-xl cursor-pointer transition-all"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">TOTAL PAID BOOKINGS</span>
+            <span className="text-xl font-black text-purple-400 mt-1 block font-mono">{paidBookings.length}</span>
+          </div>
+          <div
+            onClick={() => setActiveTab('coaches_workload')}
+            className="bg-[#18181b] border border-zinc-800 hover:border-zinc-700 p-3 rounded-xl cursor-pointer transition-all"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">COACHES ROSTER</span>
+            <span className="text-xl font-black text-sky-400 mt-1 block font-mono">{coaches.length} Available</span>
           </div>
         </div>
 
         {/* WORKSPACE MAIN TABS */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setActiveTab('paid_bookings')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === 'paid_bookings' ? 'bg-[#CCFF00] text-black shadow-lg scale-102' : 'bg-[#18181b] text-zinc-400 hover:text-white border border-zinc-800'
+              }`}
+            >
+              <Package className="w-4 h-4 text-purple-400" />
+              <span>📦 PAID BOOKINGS &amp; DISPATCH {unassignedCount > 0 ? `(${unassignedCount} UNASSIGNED)` : `(${paidBookings.length})`}</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('coaches_workload')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === 'coaches_workload' ? 'bg-[#CCFF00] text-black shadow-lg scale-102' : 'bg-[#18181b] text-zinc-400 hover:text-white border border-zinc-800'
+              }`}
+            >
+              <Users className="w-4 h-4 text-sky-400" />
+              <span>👥 COACH AVAILABILITY &amp; WORKLOAD ({coaches.length})</span>
+            </button>
             <button
               onClick={() => setActiveTab('inbox')}
               className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
@@ -434,6 +518,29 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
             </button>
           </div>
         </div>
+
+        {/* TAB 0A: LIVE PAID BOOKINGS & DISPATCH DESK */}
+        {activeTab === 'paid_bookings' && user && (
+          <div className="space-y-4">
+            <PaidBookingsView
+              user={user}
+              coaches={coaches}
+              onShowToast={onShowToast}
+            />
+          </div>
+        )}
+
+        {/* TAB 0B: COACH AVAILABILITY & WORKLOAD ROSTER */}
+        {activeTab === 'coaches_workload' && (
+          <div className="space-y-4">
+            <CoachAvailabilityRoster
+              coaches={coaches}
+              paidBookings={paidBookings}
+              onBookingsUpdated={loadCoachesAndBookings}
+              onShowToast={onShowToast}
+            />
+          </div>
+        )}
 
         {/* TAB 1: CENTRAL TICKET INBOX & 360 WORKSPACE */}
         {activeTab === 'inbox' && (

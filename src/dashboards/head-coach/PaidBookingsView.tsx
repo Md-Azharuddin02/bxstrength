@@ -5,11 +5,12 @@ import { normalizeRole } from '../../utils/auth';
 import {
   Calendar, Clock, UserCheck, CheckCircle2, Phone, Mail, Award,
   Search, RefreshCw, X, ExternalLink, Video, Lock,
-  Trash2, AlertCircle, Plus, Minus, Layers, DollarSign, RotateCcw,
+  Trash2, AlertCircle, Plus, Minus, Layers, DollarSign, RotateCcw, Zap,
   ChevronDown, ChevronUp, MessageCircle
 } from 'lucide-react';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { PlanCustomizationBreakdown } from '../../components/bookings/PlanCustomizationBreakdown';
+import { sendBrevoCoachAssignmentAlertToAdmin } from '../../services/emailService';
 
 interface PaidBookingsViewProps {
   user: User;
@@ -31,6 +32,37 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
     )
   ));
   const isCoach = normRole === 'coach' && !isHeadCoach;
+  const isCustomerSupport = normRole === 'customer_support' || normRole === 'support' || normRole === 'customersupport';
+
+  const handleNotifyHeadCoach = async (b: PaidPackageBooking) => {
+    try {
+      await sendBrevoCoachAssignmentAlertToAdmin({
+        bookingId: b.id,
+        clientName: b.clientName,
+        clientEmail: b.clientEmail,
+        clientPhone: b.clientPhone || '',
+        serviceTitle: b.packageName,
+        serviceType: b.packageType,
+        amountPaid: b.totalPrice,
+        customExercises: b.sessionFocusList
+      }).catch(() => {});
+
+      await VelocityAPI.createInAppNotification({
+        userId: 'admin-head-coach',
+        userEmail: 'headcoach@bxstrength.com',
+        title: `⚡ Action Required: Assign Coach for ${b.clientName}`,
+        message: `Customer Support flagged booking ${b.id} (${b.packageName}, £${b.totalPrice}). Client: ${b.clientName} (${b.clientEmail}). Please assign a coach or confirm schedule.`,
+        contentType: 'consultation',
+        coachName: 'Customer Support',
+        linkTab: 'paid-bookings',
+        isRead: false
+      });
+
+      onShowToast(`Priority alert dispatched to Head Coach & Admin for ${b.clientName}!`);
+    } catch (err: any) {
+      onShowToast(err?.message || 'Failed to dispatch alert to Head Coach');
+    }
+  };
 
   const [bookings, setBookings] = useState<PaidPackageBooking[]>(() => {
     try {
@@ -594,21 +626,33 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                   <div className="flex items-center gap-2 flex-wrap">
                     {!b.assignedCoachId ? (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => handleTakeMyself(b)}
-                          className="px-3 py-1.5 bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(204,255,0,0.2)]"
-                        >
-                          <UserCheck className="w-3.5 h-3.5" />
-                          Take Myself
-                        </button>
+                        {isCustomerSupport ? (
+                          <button
+                            type="button"
+                            onClick={() => handleNotifyHeadCoach(b)}
+                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(245,158,11,0.3)] transition-all"
+                            title="Alert Head Coach and Admin about this unassigned booking"
+                          >
+                            <Zap className="w-3.5 h-3.5 fill-black" />
+                            Alert Head Coach
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleTakeMyself(b)}
+                            className="px-3 py-1.5 bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(204,255,0,0.2)]"
+                          >
+                            <UserCheck className="w-3.5 h-3.5" />
+                            Take Myself
+                          </button>
+                        )}
 
                         <button
                           type="button"
                           onClick={() => openAssignModal(b)}
-                          className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 cursor-pointer border border-zinc-700"
+                          className="px-3 py-1.5 bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(204,255,0,0.2)] border border-[#CCFF00]"
                         >
-                          <UserCheck className="w-3.5 h-3.5" />
+                          <UserCheck className="w-3.5 h-3.5 stroke-[2.5]" />
                           Assign Coach & Link
                         </button>
                       </>
@@ -630,15 +674,17 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                       </>
                     ) : (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => handleTakeMyself(b)}
-                          className="px-2.5 py-1.5 bg-[#CCFF00]/20 hover:bg-[#CCFF00]/30 text-[#CCFF00] font-bold text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 cursor-pointer border border-[#CCFF00]/40"
-                          title="Reassign to yourself"
-                        >
-                          <UserCheck className="w-3.5 h-3.5" />
-                          Take Over (Me)
-                        </button>
+                        {!isCustomerSupport && (
+                          <button
+                            type="button"
+                            onClick={() => handleTakeMyself(b)}
+                            className="px-2.5 py-1.5 bg-[#CCFF00]/20 hover:bg-[#CCFF00]/30 text-[#CCFF00] font-bold text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 cursor-pointer border border-[#CCFF00]/40"
+                            title="Reassign to yourself"
+                          >
+                            <UserCheck className="w-3.5 h-3.5" />
+                            Take Over (Me)
+                          </button>
+                        )}
 
                         <button
                           type="button"

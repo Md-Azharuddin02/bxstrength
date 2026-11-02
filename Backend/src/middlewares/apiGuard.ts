@@ -38,11 +38,12 @@ guard.use('/consultations', open);
 guard.use('/assessments', open);
 guard.use('/enquiries', open);
 guard.use('/users', open);
+guard.use('/paid-bookings', open);
 guard.get('/health', open);
 
 guard.get(['/trainers', '/classes', '/reviews', '/announcements'], open);
 
-guard.post(['/assessments', '/consultations', '/enquiries', '/reviews', '/tickets', '/send-email'], open);
+guard.post(['/assessments', '/consultations', '/enquiries', '/reviews', '/tickets', '/send-email', '/payments/create-intent', '/create-order', '/create-razorpay-order', '/verify-payment', '/verify-razorpay-payment', '/payments/verify'], open);
 
 guard.post(['/webhooks/razorpay', '/webhooks/cashfree', '/payments/cashfree-webhook'], open);
 

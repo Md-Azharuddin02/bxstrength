@@ -488,7 +488,8 @@ app.post(['/api/verify-payment', '/api/verify-razorpay-payment', '/api/payments/
     if (!existingTx || (transactionId && existingTx.id !== transactionId) || existingTx.gateway !== 'razorpay') {
       return res.status(400).json({ success: false, error: 'Payment order is not associated with an active transaction.' });
     }
-    if (existingTx.userEmail.toLowerCase() !== String((req as any).user?.email || '').toLowerCase()) {
+    const checkEmail = String((req as any).user?.email || req.body.userEmail || '').toLowerCase();
+    if (checkEmail && existingTx.userEmail.toLowerCase() !== checkEmail) {
       return res.status(403).json({ success: false, error: 'Payment transaction belongs to another account.' });
     }
     if (existingTx && existingTx.status === 'reconciled') {
@@ -529,6 +530,10 @@ app.post(['/api/verify-payment', '/api/verify-razorpay-payment', '/api/payments/
             [razorpay_payment_id, razorpay_order_id, transactionId || '']
           );
           await ensureSubscriptionForPayment(dbPool, razorpay_order_id);
+          await dbPool.query(
+            `UPDATE paid_bookings SET payment_id = $1, status = 'Active', updated_at = NOW() WHERE order_id = $2 OR id = $2`,
+            [razorpay_payment_id, razorpay_order_id]
+          ).catch(() => {});
         } catch (err: any) {
           // Payment is captured; the webhook or a retried verify will create the plan
           console.error('[PAYMENT RECONCILE ERROR]', razorpay_order_id, err.message);

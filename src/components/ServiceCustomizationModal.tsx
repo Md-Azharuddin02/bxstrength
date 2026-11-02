@@ -1963,16 +1963,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                         <span>{isProcessing ? 'Processing...' : `Pay £${displayTotalPrice}`}</span>
                         <ArrowRight className="w-4 h-4 stroke-[3]" />
                   </button>
-                  {canTestMockPayment && (
-                        <button
-                          type="button"
-                          disabled={isProcessing}
-                          onClick={() => void handleProceedToPayment(true)}
-                          className="w-full border border-amber-400/60 bg-amber-400/10 hover:bg-amber-400/20 disabled:opacity-50 text-amber-200 font-bold text-xs uppercase tracking-wider py-3 rounded-xl transition-colors"
-                        >
-                          Simulate successful payment (test only)
-                        </button>
-                  )}
+                  
 
                   {/* Security indicator */}
                   <div className="flex items-center justify-center gap-1.5 text-[10px] sm:text-[11px] text-zinc-400 text-center">

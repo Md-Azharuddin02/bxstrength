@@ -38,7 +38,13 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
   onBookingsUpdated,
   onShowToast
 }) => {
-  const [paidBookings, setPaidBookings] = useState<PaidPackageBooking[]>([]);
+  const [paidBookings, setPaidBookings] = useState<PaidPackageBooking[]>(() => {
+    try {
+      const raw = localStorage.getItem(`bxstrength_paid_bookings_${user?.email || 'guest'}`);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [];
+  });
   const [isLoadingPaid, setIsLoadingPaid] = useState<boolean>(false);
   const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
 
@@ -48,6 +54,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
     try {
       const data = await VelocityAPI.fetchPaidBookings({ email: user.email });
       setPaidBookings(data);
+      try { localStorage.setItem(`bxstrength_paid_bookings_${user?.email || 'guest'}`, JSON.stringify(data)); } catch {}
     } catch (err: any) {
       console.warn('Failed to load user paid bookings:', err?.message);
     } finally {

@@ -339,7 +339,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
       setIsSuccessAnimationVisible(false);
       setIsPaymentSuccess(true);
       setMainStage(4);
-    }, 2000);
+    }, 450);
 
     return () => window.clearTimeout(timeoutId);
   }, [isSuccessAnimationVisible]);

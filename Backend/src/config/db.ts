@@ -17,7 +17,7 @@ export const dbPool = process.env.DATABASE_URL
     connectionString: dbUrl,
     ssl: isLocalDb ? false : { rejectUnauthorized: false },
     max: 20,
-    idleTimeoutMillis: 15000,
+    idleTimeoutMillis: 300000,
     connectionTimeoutMillis: 10000,
     keepAlive: true,
     keepAliveInitialDelayMillis: 10000

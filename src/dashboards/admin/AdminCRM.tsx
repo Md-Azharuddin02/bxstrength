@@ -33,21 +33,21 @@ interface AdminCRMProps {
 export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHome }) => {
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(() => VelocityAPI.getUsers().length === 0);
   const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false);
 
   // Loaded data state
-  const [users, setUsers] = useState<User[]>([]);
-  const [classes, setClasses] = useState<ClassSchedule[]>([]);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
-  const [programs, setPrograms] = useState<WorkoutProgram[]>([]);
-  const [nutritionPlans, setNutritionPlans] = useState<NutritionPlan[]>([]);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  // Loaded data state - Instant Stale-While-Revalidate render from local cache
+  const [users, setUsers] = useState<User[]>(() => VelocityAPI.getUsers());
+  const [classes, setClasses] = useState<ClassSchedule[]>(() => VelocityAPI.getClasses());
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => VelocityAPI.getSubscriptions());
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => VelocityAPI.getAuditLogs());
+  const [enquiries, setEnquiries] = useState<Enquiry[]>(() => VelocityAPI.getEnquiries());
+  const [programs, setPrograms] = useState<WorkoutProgram[]>(() => VelocityAPI.getPrograms());
+  const [nutritionPlans, setNutritionPlans] = useState<NutritionPlan[]>(() => VelocityAPI.getNutritionPlans());
+  const [announcements, setAnnouncements] = useState<Announcement[]>(() => VelocityAPI.getAnnouncements());
 
   const loadCRMData = async () => {
-    setIsLoading(true);
     try {
       const [
         fetchedUsers,
@@ -69,8 +69,8 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
         VelocityAPI.fetchAnnouncements()
       ]);
 
-      setUsers(fetchedUsers);
-      setClasses(fetchedClasses);
+      if (fetchedUsers?.length) setUsers(fetchedUsers);
+      if (fetchedClasses?.length) setClasses(fetchedClasses);
       setSubscriptions(fetchedSubs);
       setAuditLogs(fetchedAudit);
       setEnquiries(fetchedEnq);

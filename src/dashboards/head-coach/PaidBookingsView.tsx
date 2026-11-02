@@ -4,7 +4,7 @@ import { VelocityAPI } from '../../services/api';
 import { normalizeRole } from '../../utils/auth';
 import {
   Calendar, Clock, UserCheck, CheckCircle2, Phone, Mail, Award,
-  Search, RefreshCw, X, ExternalLink, Video,
+  Search, RefreshCw, X, ExternalLink, Video, Lock,
   Trash2, AlertCircle, Plus, Minus, Layers, DollarSign, RotateCcw,
   ChevronDown, ChevronUp, MessageCircle
 } from 'lucide-react';
@@ -32,8 +32,14 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
   ));
   const isCoach = normRole === 'coach' && !isHeadCoach;
 
-  const [bookings, setBookings] = useState<PaidPackageBooking[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [bookings, setBookings] = useState<PaidPackageBooking[]>(() => {
+    try {
+      const raw = localStorage.getItem('bxstrength_paid_bookings');
+      if (raw) return JSON.parse(raw);
+    } catch { }
+    return [];
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(() => bookings.length === 0);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterTab, setFilterTab] = useState<'all' | 'active' | 'scheduled' | 'completed' | 'custom'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -85,11 +91,13 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
   }, [coaches, dbCoaches]);
 
   const loadBookings = useCallback(async () => {
-    setIsLoading(true);
     try {
       const params = isCoach ? { coachId: user.id } : undefined;
       const data = await VelocityAPI.fetchPaidBookings(params);
       setBookings(data);
+      if (!isCoach) {
+        try { localStorage.setItem('bxstrength_paid_bookings', JSON.stringify(data)); } catch { }
+      }
     } catch (err: any) {
       console.warn('Failed to load paid bookings:', err?.message);
       onShowToast('Could not load paid bookings from server');
@@ -206,6 +214,17 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
 
   // Handle Quick Session Increment / Decrement
   const handleQuickSessionUpdate = async (b: PaidPackageBooking, action: 'increment' | 'decrement') => {
+    const isAssigned = Boolean(
+      b.assignedCoachName &&
+      b.assignedCoachName.trim() &&
+      b.assignedCoachName.toLowerCase() !== 'unassigned'
+    );
+
+    if (action === 'increment' && !isAssigned) {
+      onShowToast('Please assign a coach or click "Take Myself" before recording a session.');
+      return;
+    }
+
     try {
       const res = await VelocityAPI.updatePaidBookingSession(b.id, { action });
       if (res.success) {
@@ -352,6 +371,11 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
             const remainingSess = Math.max(0, totalSess - completedSess);
             const progressPercent = Math.min(100, Math.round((completedSess / totalSess) * 100));
             const isExpanded = expandedId === b.id;
+            const isAssigned = Boolean(
+              b.assignedCoachName &&
+              b.assignedCoachName.trim() &&
+              b.assignedCoachName.toLowerCase() !== 'unassigned'
+            );
 
             return (
               <div
@@ -476,8 +500,23 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                     </div>
 
                     {/* Action buttons */}
-                    <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-                      {completedSess < totalSess ? (
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 self-start sm:self-auto shrink-0">
+                      {!isAssigned ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled
+                            className="px-3 py-1.5 bg-zinc-900/90 text-zinc-500 border border-zinc-700/60 font-black text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 cursor-not-allowed opacity-60 select-none"
+                            title="Assign a coach or click 'Take Myself' before recording sessions"
+                          >
+                            <Lock className="w-3.5 h-3.5 text-zinc-500" />
+                            Record Session {completedSess + 1} Done (Locked)
+                          </button>
+                          <span className="text-[11px] text-amber-400 font-semibold flex items-center gap-1 bg-amber-950/40 border border-amber-800/60 px-2 py-0.5 rounded">
+                            <AlertCircle className="w-3 h-3" /> Assign coach first
+                          </span>
+                        </div>
+                      ) : completedSess < totalSess ? (
                         <button
                           type="button"
                           onClick={() => handleQuickSessionUpdate(b, 'increment')}
@@ -494,7 +533,7 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                         </span>
                       )}
 
-                      {completedSess > 0 && (
+                      {completedSess > 0 && isAssigned && (
                         <button
                           type="button"
                           onClick={() => handleQuickSessionUpdate(b, 'decrement')}

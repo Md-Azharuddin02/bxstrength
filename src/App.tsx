@@ -55,7 +55,13 @@ function AppContent() {
   const isPortal = currentPage !== null && PORTAL_PAGES.includes(currentPage);
 
   const setCurrentPage = (page: ViewPage) => navigate(PAGE_PATHS[page]);
-  const [isLoadingSplash, setIsLoadingSplash] = useState<boolean>(true);
+  const [isLoadingSplash, setIsLoadingSplash] = useState<boolean>(() => {
+    try {
+      return !sessionStorage.getItem('bxstrength_splash_shown');
+    } catch {
+      return false;
+    }
+  });
   const [bookingModalOpen, setBookingModalOpen] = useState<boolean>(false);
   const [pendingBooking, setPendingBooking] = useState<null | (() => void)>(null);
   const [assessmentModalOpen, setAssessmentModalOpen] = useState<boolean>(false);
@@ -262,7 +268,14 @@ function AppContent() {
 
     
       {/* 3-5 Sec Animated Preloader Splash Screen */}
-      {isLoadingSplash && <Preloader onComplete={() => setIsLoadingSplash(false)} />}
+      {isLoadingSplash && (
+        <Preloader
+          onComplete={() => {
+            setIsLoadingSplash(false);
+            try { sessionStorage.setItem('bxstrength_splash_shown', 'true'); } catch {}
+          }}
+        />
+      )}
 
       {/* Network Status Banner */}
       {!network.isOnline ? (

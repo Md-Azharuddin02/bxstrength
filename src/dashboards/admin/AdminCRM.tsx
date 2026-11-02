@@ -338,6 +338,14 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
               />
             )}
 
+            {activeTab === 'paid_bookings' && (
+              <PaidBookingsView
+                user={user}
+                coaches={coaches}
+                onShowToast={showToast}
+              />
+            )}
+
             {activeTab === 'free_consultations' && (
               <FreeConsultationsView
                 user={user}

@@ -34,33 +34,52 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
   const isCoach = normRole === 'coach' && !isHeadCoach;
   const isCustomerSupport = normRole === 'customer_support' || normRole === 'support' || normRole === 'customersupport';
 
-  const handleNotifyHeadCoach = async (b: PaidPackageBooking) => {
+  const handleOpenAlertModal = (b: PaidPackageBooking) => {
+    setAlertTarget(b);
+    setAlertCustomNote('');
+  };
+
+  const handleConfirmAlertHeadCoach = async () => {
+    if (!alertTarget) return;
+    setIsSendingAlert(true);
     try {
       await sendBrevoCoachAssignmentAlertToAdmin({
-        bookingId: b.id,
-        clientName: b.clientName,
-        clientEmail: b.clientEmail,
-        clientPhone: b.clientPhone || '',
-        serviceTitle: b.packageName,
-        serviceType: b.packageType,
-        amountPaid: b.totalPrice,
-        customExercises: b.sessionFocusList
+        bookingId: alertTarget.id,
+        clientName: alertTarget.clientName,
+        clientEmail: alertTarget.clientEmail,
+        clientPhone: alertTarget.clientPhone || '',
+        serviceTitle: alertTarget.packageName,
+        serviceType: alertTarget.packageType,
+        amountPaid: alertTarget.totalPrice,
+        customExercises: alertTarget.sessionFocusList
       }).catch(() => {});
 
-      await VelocityAPI.createInAppNotification({
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const customMsg = alertCustomNote.trim()
+        ? `Note from Customer Support: "${alertCustomNote.trim()}". Client: ${alertTarget.clientName} (${alertTarget.clientEmail}).`
+        : `Customer Support flagged booking ${alertTarget.id} (${alertTarget.packageName}, £${alertTarget.totalPrice}). Client: ${alertTarget.clientName} (${alertTarget.clientEmail}). Please assign a coach or confirm schedule.`;
+
+      VelocityAPI.createInAppNotification({
         userId: 'admin-head-coach',
         userEmail: 'headcoach@bxstrength.com',
-        title: `⚡ Action Required: Assign Coach for ${b.clientName}`,
-        message: `Customer Support flagged booking ${b.id} (${b.packageName}, £${b.totalPrice}). Client: ${b.clientName} (${b.clientEmail}). Please assign a coach or confirm schedule.`,
+        title: `⚡ Urgent: Assign Coach for ${alertTarget.clientName}`,
+        message: customMsg,
         contentType: 'consultation',
         coachName: 'Customer Support',
         linkTab: 'paid-bookings',
         isRead: false
       });
 
-      onShowToast(`Priority alert dispatched to Head Coach & Admin for ${b.clientName}!`);
+      const updatedMap = { ...alertedBookings, [alertTarget.id]: timeStr };
+      setAlertedBookings(updatedMap);
+      try { localStorage.setItem('bxstrength_alerted_bookings', JSON.stringify(updatedMap)); } catch {}
+
+      onShowToast(`Priority email & in-app alert sent to Head Coach and Admin for ${alertTarget.clientName}!`);
+      setAlertTarget(null);
     } catch (err: any) {
       onShowToast(err?.message || 'Failed to dispatch alert to Head Coach');
+    } finally {
+      setIsSendingAlert(false);
     }
   };
 
@@ -94,6 +113,18 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [dbCoaches, setDbCoaches] = useState<User[]>([]);
+
+  // Alert Head Coach Modal State
+  const [alertTarget, setAlertTarget] = useState<PaidPackageBooking | null>(null);
+  const [alertCustomNote, setAlertCustomNote] = useState<string>('');
+  const [isSendingAlert, setIsSendingAlert] = useState<boolean>(false);
+  const [alertedBookings, setAlertedBookings] = useState<Record<string, string>>(() => {
+    try {
+      const raw = localStorage.getItem('bxstrength_alerted_bookings');
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return {};
+  });
 
   useEffect(() => {
     VelocityAPI.fetchUsers().then(uList => {
@@ -200,28 +231,52 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
   // Open Assign Modal
   const openAssignModal = (b: PaidPackageBooking) => {
     setAssignTarget(b);
-    const coachId = b.assignedCoachId || user.id;
-    const coachName = b.assignedCoachName || (b.assignedCoachId === user.id ? user.name : (b.assignedCoachName || user.name || 'Head Coach'));
-    setSelectedCoachId(coachId);
-    setSelectedCoachName(coachName);
+    const hasAssignedCoach = Boolean(
+      b.assignedCoachId &&
+      b.assignedCoachName &&
+      b.assignedCoachName.toLowerCase() !== 'unassigned'
+    );
+
+    if (hasAssignedCoach) {
+      setSelectedCoachId(b.assignedCoachId || '');
+      setSelectedCoachName(b.assignedCoachName || '');
+      setIsReassigning(false);
+    } else {
+      // Unassigned booking:
+      // For Customer Support: leave empty so they select from staff directory
+      // For Head Coach: can default to available coach or self
+      if (isCustomerSupport) {
+        setSelectedCoachId('');
+        setSelectedCoachName('');
+      } else {
+        setSelectedCoachId(user.id);
+        setSelectedCoachName(user.name);
+      }
+      setIsReassigning(true);
+    }
+
     setMeetingLink(b.meetingLink || '');
     setCoachNotes(b.coachNotes || '');
-    setIsReassigning(false);
   };
 
   const handleSaveAssign = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!assignTarget) return;
 
-    const finalCoachId = selectedCoachId || user.id;
-    const finalCoachName = selectedCoachName || user.name || 'Head Coach';
+    if (!selectedCoachId || !selectedCoachName) {
+      onShowToast('Please select a specialist coach from the staff directory.');
+      return;
+    }
+
+    const finalCoachId = selectedCoachId;
+    const finalCoachName = selectedCoachName;
 
     setIsSubmittingAssign(true);
     try {
       const res = await VelocityAPI.assignPaidBooking(assignTarget.id, {
         assignedCoachId: finalCoachId || null,
         assignedCoachName: finalCoachName,
-        assignedBy: user.name || 'Head Coach',
+        assignedBy: user.name || (isCustomerSupport ? 'Customer Support' : 'Head Coach'),
         meetingLink: meetingLink.trim() || undefined,
         coachNotes: coachNotes.trim() || undefined
       });
@@ -432,6 +487,11 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                       <span className="text-[10px] text-gray-500">
                         • {new Date(b.createdAt).toLocaleDateString()}
                       </span>
+                      {alertedBookings[b.id] && (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold flex items-center gap-1">
+                          <Zap className="w-3 h-3 fill-amber-300" /> Head Coach Alerted ({alertedBookings[b.id]})
+                        </span>
+                      )}
                     </div>
 
                     <h3 className="text-lg font-black uppercase text-white mt-1">
@@ -531,8 +591,9 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                       </p>
                     </div>
 
-                    {/* Action buttons */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 self-start sm:self-auto shrink-0">
+                    {/* Action buttons - Hidden for Customer Support (Only coaches deliver & record sessions) */}
+                    {!isCustomerSupport && (
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 self-start sm:self-auto shrink-0">
                       {!isAssigned ? (
                         <div className="flex items-center gap-2">
                           <button
@@ -577,7 +638,8 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                         </button>
                       )}
                     </div>
-                  </div>
+                  )}
+                </div>
 
                   {/* Progress visual bar */}
                   <div className="space-y-1">
@@ -629,7 +691,7 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                         {isCustomerSupport ? (
                           <button
                             type="button"
-                            onClick={() => handleNotifyHeadCoach(b)}
+                            onClick={() => handleOpenAlertModal(b)}
                             className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(245,158,11,0.3)] transition-all"
                             title="Alert Head Coach and Admin about this unassigned booking"
                           >
@@ -762,9 +824,96 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
         </div>
       )}
 
+      {/* ALERT HEAD COACH MODAL */}
+      {alertTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-[#111111] border border-amber-500/80 rounded-2xl w-full max-w-lg p-6 space-y-5 shadow-2xl relative">
+            <button
+              onClick={() => setAlertTarget(null)}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <span className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                <Zap className="w-6 h-6 fill-amber-400" />
+              </span>
+              <div>
+                <h3 className="text-base font-black uppercase text-white tracking-wider">
+                  Alert Head Coach &amp; Admin
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  Send immediate priority email and in-app notification to Head Coach &amp; Admin.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-black/60 border border-zinc-800 p-4 rounded-xl space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Athlete:</span>
+                <span className="font-bold text-white">{alertTarget.clientName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Service:</span>
+                <span className="font-bold text-[#CCFF00]">{alertTarget.packageName} (£{alertTarget.totalPrice})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Status:</span>
+                <span className="font-bold text-amber-400">Awaiting Coach Assignment</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Email Recipients:</span>
+                <span className="text-zinc-300 font-mono">Head Coach (mdazharuddin1502@gmail.com), Admin</span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase text-zinc-300">
+                Add Coordination Note for Head Coach (Optional)
+              </label>
+              <textarea
+                value={alertCustomNote}
+                onChange={(e) => setAlertCustomNote(e.target.value)}
+                placeholder="e.g. Client requested evening training slots or needs custom diet review..."
+                rows={3}
+                className="w-full bg-[#18181b] border border-zinc-700 rounded-xl p-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setAlertTarget(null)}
+                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSendingAlert}
+                onClick={handleConfirmAlertHeadCoach}
+                className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-black text-xs font-black uppercase tracking-wider rounded-xl shadow-lg flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Zap className="w-4 h-4 fill-black" />
+                {isSendingAlert ? 'Dispatching Alert...' : 'Dispatch Priority Alert'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ASSIGN COACH & MEETING LINK MODAL */}
       {assignTarget && (() => {
-        const isAssignedToMe = (assignTarget.assignedCoachId === user.id) || (selectedCoachId === user.id && !isReassigning);
+        const hasAssignedCoach = Boolean(
+          assignTarget.assignedCoachId &&
+          assignTarget.assignedCoachName &&
+          assignTarget.assignedCoachName.toLowerCase() !== 'unassigned'
+        );
+        const isAssignedToMe = !isCustomerSupport && hasAssignedCoach && (
+          (assignTarget.assignedCoachId === user.id) ||
+          (selectedCoachId === user.id && !isReassigning)
+        );
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -846,55 +995,57 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedCoachId(user.id);
-                          setSelectedCoachName(user.name);
-                          setIsReassigning(false);
-                        }}
-                        className={`p-3 rounded-lg border text-left cursor-pointer transition-all ${
-                          selectedCoachId === user.id && !isReassigning
-                            ? 'bg-[#CCFF00]/15 border-[#CCFF00] text-white shadow-[0_0_12px_rgba(204,255,0,0.2)]'
-                            : 'bg-black/60 border-zinc-800 text-zinc-400 hover:text-white'
-                        }`}
-                      >
-                        <p className="text-xs font-bold uppercase flex items-center gap-1.5">
-                          <UserCheck className="w-3.5 h-3.5 text-[#CCFF00]" /> Coach Myself
-                        </p>
-                        <p className="text-[10px] text-zinc-400 mt-0.5 truncate">{user.name}</p>
-                      </button>
+                    {!isCustomerSupport && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCoachId(user.id);
+                            setSelectedCoachName(user.name);
+                            setIsReassigning(false);
+                          }}
+                          className={`p-3 rounded-lg border text-left cursor-pointer transition-all ${
+                            selectedCoachId === user.id && !isReassigning
+                              ? 'bg-[#CCFF00]/15 border-[#CCFF00] text-white shadow-[0_0_12px_rgba(204,255,0,0.2)]'
+                              : 'bg-black/60 border-zinc-800 text-zinc-400 hover:text-white'
+                          }`}
+                        >
+                          <p className="text-xs font-bold uppercase flex items-center gap-1.5">
+                            <UserCheck className="w-3.5 h-3.5 text-[#CCFF00]" /> Coach Myself
+                          </p>
+                          <p className="text-[10px] text-zinc-400 mt-0.5 truncate">{user.name}</p>
+                        </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsReassigning(true);
-                          if (selectedCoachId === user.id) {
-                            const firstOther = availableCoaches.find(c => c.id !== user.id);
-                            if (firstOther) {
-                              setSelectedCoachId(firstOther.id);
-                              setSelectedCoachName(firstOther.name);
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsReassigning(true);
+                            if (selectedCoachId === user.id) {
+                              const firstOther = availableCoaches.find(c => c.id !== user.id);
+                              if (firstOther) {
+                                setSelectedCoachId(firstOther.id);
+                                setSelectedCoachName(firstOther.name);
+                              }
                             }
-                          }
-                        }}
-                        className={`p-3 rounded-lg border text-left cursor-pointer transition-all ${
-                          isReassigning
-                            ? 'bg-[#CCFF00]/15 border-[#CCFF00] text-white shadow-[0_0_12px_rgba(204,255,0,0.2)]'
-                            : 'bg-black/60 border-zinc-800 text-zinc-400 hover:text-white'
-                        }`}
-                      >
-                        <p className="text-xs font-bold uppercase flex items-center gap-1.5">
-                          <Layers className="w-3.5 h-3.5 text-[#CCFF00]" /> Delegate Coach
-                        </p>
-                        <p className="text-[10px] text-zinc-400 mt-0.5">Assign to team member</p>
-                      </button>
-                    </div>
+                          }}
+                          className={`p-3 rounded-lg border text-left cursor-pointer transition-all ${
+                            isReassigning
+                              ? 'bg-[#CCFF00]/15 border-[#CCFF00] text-white shadow-[0_0_12px_rgba(204,255,0,0.2)]'
+                              : 'bg-black/60 border-zinc-800 text-zinc-400 hover:text-white'
+                          }`}
+                        >
+                          <p className="text-xs font-bold uppercase flex items-center gap-1.5">
+                            <Layers className="w-3.5 h-3.5 text-[#CCFF00]" /> Delegate Coach
+                          </p>
+                          <p className="text-[10px] text-zinc-400 mt-0.5">Assign to team member</p>
+                        </button>
+                      </div>
+                    )}
 
-                    {isReassigning && (
-                      <div className="space-y-1 pt-1 animate-in fade-in duration-200">
+                    {(isCustomerSupport || isReassigning || selectedCoachId !== user.id) && (
+                      <div className="space-y-1.5 pt-1 animate-in fade-in duration-200">
                         <label className="block text-[11px] font-bold text-gray-400 uppercase">
-                          Choose Team Member:
+                          Select Specialist Coach from Staff Directory <span className="text-red-400">*</span>:
                         </label>
                         <select
                           value={selectedCoachId}
@@ -903,14 +1054,15 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                             setSelectedCoachId(e.target.value);
                             setSelectedCoachName(found ? found.name : '');
                           }}
-                          className="w-full bg-black/80 border border-gray-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
+                          required
+                          className="w-full bg-black/80 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
                         >
                           <option value="">-- Choose Coach from Staff Directory --</option>
                           {availableCoaches
-                            .filter(c => c.id !== user.id)
+                            .filter(c => !c.position.toLowerCase().includes('support'))
                             .map((c) => (
                               <option key={c.id} value={c.id}>
-                                {c.name} ({c.position})
+                                {c.name} — {c.position}
                               </option>
                             ))}
                         </select>

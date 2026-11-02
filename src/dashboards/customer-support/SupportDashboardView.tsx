@@ -26,7 +26,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
   onShowToast = () => {},
   onNavigateHome,
   onLogout,
-  initialTab = 'inbox'
+  initialTab = 'paid_bookings'
 }) => {
   const { user } = useAuth();
 
@@ -450,6 +450,40 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
             <span className="text-xl font-black text-sky-400 mt-1 block font-mono">{coaches.length} Available</span>
           </div>
         </div>
+
+        {/* PRIORITY ACTION BANNER: NEW INCOMING UNASSIGNED BOOKINGS */}
+        {unassignedCount > 0 && (
+          <div className="bg-gradient-to-r from-amber-950/70 via-zinc-900 to-black border-2 border-amber-500/80 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_0_30px_rgba(245,158,11,0.25)] animate-in fade-in">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-amber-400 shrink-0 shadow-inner">
+                <Zap className="w-6 h-6 fill-amber-400 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-black uppercase text-amber-300 tracking-wider">
+                    ⚡ ACTION REQUIRED: {unassignedCount} NEW INCOMING PAID {unassignedCount === 1 ? 'BOOKING' : 'BOOKINGS'}
+                  </h2>
+                  <span className="bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
+                    COACH UNASSIGNED
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-300 mt-0.5">
+                  New paid booking received! Assign a specialist coach from the staff directory or alert the Head Coach immediately.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+              <button
+                onClick={() => setActiveTab('paid_bookings')}
+                className="w-full sm:w-auto px-5 py-2.5 bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(204,255,0,0.3)] transition-all active:scale-95"
+              >
+                <Package className="w-4 h-4 text-black" />
+                <span>DISPATCH &amp; ASSIGN NOW</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* WORKSPACE MAIN TABS */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 border-b border-zinc-800 pb-3">

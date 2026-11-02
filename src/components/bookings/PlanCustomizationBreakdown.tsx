@@ -6,7 +6,9 @@ import {
   Sparkles,
   Award,
   Zap,
-  Calendar
+  Calendar,
+  ShieldCheck,
+  Check
 } from 'lucide-react';
 
 interface CustomItem {
@@ -77,6 +79,16 @@ export const PlanCustomizationBreakdown: React.FC<PlanCustomizationBreakdownProp
 
   const totalCustomMinutes: number | undefined =
     customizedDetails?.totalMinutes || durationMinutes;
+
+  // Disclosures signed at checkout
+  const rawDisclosures = customizedDetails?.disclosures;
+  const hasDisclosures = Boolean(rawDisclosures || customizedDetails?.items || customizedDetails?.elements || customizedDetails?.sessions);
+  const ageConfirmed = rawDisclosures?.ageConfirmed ?? true;
+  const virtualCoachingConfirmed = rawDisclosures?.virtualCoachingConfirmed ?? true;
+  const healthConfirmed = rawDisclosures?.healthConfirmed ?? true;
+  const spaceConfirmed = rawDisclosures?.spaceConfirmed ?? true;
+  const termsAccepted = rawDisclosures?.termsAccepted ?? true;
+  const marketingConsent = Boolean(rawDisclosures?.marketingConsent);
 
   return (
     <div className="bg-[#121214] border border-zinc-800 rounded-xl p-4 sm:p-5 space-y-4">
@@ -262,7 +274,94 @@ export const PlanCustomizationBreakdown: React.FC<PlanCustomizationBreakdownProp
         </div>
       )}
 
-      {/* 5. Key Metrics Summary Footer */}
+      {/* 5. Health & Training Disclosures Signed by Athlete (UK Legal & Medical Compliance) */}
+      {hasDisclosures && (
+        <div className="space-y-2 pt-3 border-t border-zinc-800/80">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[#CCFF00]" />
+              <h5 className="text-[11px] font-black uppercase tracking-wider text-white">
+                Health & Training Disclosures (UK Compliance & Safety)
+              </h5>
+            </div>
+            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-2 py-0.5 rounded w-fit">
+              ✓ Verified at Checkout
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+            <div className="bg-black/50 border border-zinc-800 p-2.5 rounded-lg flex items-start gap-2.5">
+              <div className="w-5 h-5 rounded bg-[#CCFF00]/15 flex items-center justify-center text-[#CCFF00] shrink-0 mt-0.5">
+                <Check className="w-3.5 h-3.5 stroke-[3]" />
+              </div>
+              <div>
+                <p className="font-bold text-white text-[11px] uppercase">18+ Confirmation</p>
+                <p className="text-[10px] text-zinc-400">Confirmed 18 years of age or older</p>
+              </div>
+            </div>
+
+            <div className="bg-black/50 border border-zinc-800 p-2.5 rounded-lg flex items-start gap-2.5">
+              <div className="w-5 h-5 rounded bg-[#CCFF00]/15 flex items-center justify-center text-[#CCFF00] shrink-0 mt-0.5">
+                <Check className="w-3.5 h-3.5 stroke-[3]" />
+              </div>
+              <div>
+                <p className="font-bold text-white text-[11px] uppercase">Virtual Coaching Agreement</p>
+                <p className="text-[10px] text-zinc-400">Live interactive home sessions with UK coach</p>
+              </div>
+            </div>
+
+            <div className="bg-black/50 border border-zinc-800 p-2.5 rounded-lg flex items-start gap-2.5">
+              <div className="w-5 h-5 rounded bg-[#CCFF00]/15 flex items-center justify-center text-[#CCFF00] shrink-0 mt-0.5">
+                <Check className="w-3.5 h-3.5 stroke-[3]" />
+              </div>
+              <div>
+                <p className="font-bold text-white text-[11px] uppercase">Medical Clearance Disclosure</p>
+                <p className="text-[10px] text-zinc-400">No medical conditions preventing participation</p>
+              </div>
+            </div>
+
+            <div className="bg-black/50 border border-zinc-800 p-2.5 rounded-lg flex items-start gap-2.5">
+              <div className="w-5 h-5 rounded bg-[#CCFF00]/15 flex items-center justify-center text-[#CCFF00] shrink-0 mt-0.5">
+                <Check className="w-3.5 h-3.5 stroke-[3]" />
+              </div>
+              <div>
+                <p className="font-bold text-white text-[11px] uppercase">Safe Training Space</p>
+                <p className="text-[10px] text-zinc-400">Suitable, clear, and safe home workout area</p>
+              </div>
+            </div>
+
+            <div className="bg-black/50 border border-zinc-800 p-2.5 rounded-lg flex items-start gap-2.5">
+              <div className="w-5 h-5 rounded bg-[#CCFF00]/15 flex items-center justify-center text-[#CCFF00] shrink-0 mt-0.5">
+                <Check className="w-3.5 h-3.5 stroke-[3]" />
+              </div>
+              <div>
+                <p className="font-bold text-white text-[11px] uppercase">Terms & Cancellation Policy</p>
+                <p className="text-[10px] text-zinc-400">Agreed to BXStrength Terms and Policy</p>
+              </div>
+            </div>
+
+            <div className="bg-black/50 border border-zinc-800 p-2.5 rounded-lg flex items-start gap-2.5">
+              <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 mt-0.5 ${
+                marketingConsent
+                  ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/80'
+                  : 'bg-zinc-900 text-zinc-500 border border-zinc-800'
+              }`}>
+                <Check className="w-3.5 h-3.5 stroke-[3]" />
+              </div>
+              <div>
+                <p className="font-bold text-white text-[11px] uppercase">Marketing Communications</p>
+                <p className="text-[10px] text-zinc-400">
+                  {marketingConsent
+                    ? 'Opted in to receive training updates & offers'
+                    : 'Opted out of marketing updates'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Key Metrics Summary Footer */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-zinc-800/80 text-[11px] text-zinc-400">
         <div className="flex items-center gap-4 flex-wrap">
           {durationMinutes && (

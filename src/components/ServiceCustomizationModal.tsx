@@ -35,6 +35,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { VelocityAPI } from '../services/api';
 import { openRazorpayCheckout } from '../services/razorpayService';
+import { sendBrevoPaymentReceiptEmail, sendBrevoCoachAssignmentAlertToAdmin } from '../services/emailService';
 import { canUseMockPayments } from '../services/mockPayment';
 import { calculateCustomPlanTotals, CUSTOM_SERVICE_PRICING, getCustomExerciseNames, getServicePlanType, SERVICE_PLAN_PRICES } from '../services/servicePricing';
 import type { User } from '../types';
@@ -706,6 +707,15 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
             const totalSess = isWeeklyPlan ? 3 : isMonthlyPlan ? 12 : isCustomPlan ? 1 : 1;
             const durationMin = isCustomPlan ? customPlanTotalMinutes : (isWeeklyPlan ? 30 : isMonthlyPlan ? 45 : 30);
 
+            const disclosuresObj = {
+              ageConfirmed: Boolean(ageConfirmed),
+              virtualCoachingConfirmed: Boolean(virtualCoachingConfirmed),
+              healthConfirmed: Boolean(healthConfirmed),
+              spaceConfirmed: Boolean(spaceConfirmed),
+              termsAccepted: Boolean(termsAccepted),
+              marketingConsent: Boolean(marketingConsent)
+            };
+
             const customizedDetailsObj = isCustomPlan
               ? {
                   elements: CUSTOM_ELEMENTS.filter(e => (elementQuantities[e.id] || 0) > 0).map(e => ({
@@ -715,21 +725,25 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                     unitMinutes: e.durationMin
                   })),
                   totalMinutes: customPlanTotalMinutes,
-                  elementQuantities
+                  elementQuantities,
+                  disclosures: disclosuresObj
                 }
               : isWeeklyPlan
               ? {
                   structure: 'Guided Warm-Up + 1 Focus per session',
-                  sessions: weeklySessions.map((s, idx) => ({ sessionNumber: idx + 1, warmUp: 'Guided Warm-Up', focus: s }))
+                  sessions: weeklySessions.map((s, idx) => ({ sessionNumber: idx + 1, warmUp: 'Guided Warm-Up', focus: s })),
+                  disclosures: disclosuresObj
                 }
               : isMonthlyPlan
               ? {
                   structure: '12 Warm-Ups + 12 Core Services + 12 Cool-Downs',
-                  sessions: monthlySessions.map((s, idx) => ({ sessionNumber: idx + 1, warmUp: 'Guided Warm-Up', core: s, coolDown: 'Cool-Down & Recovery' }))
+                  sessions: monthlySessions.map((s, idx) => ({ sessionNumber: idx + 1, warmUp: 'Guided Warm-Up', core: s, coolDown: 'Cool-Down & Recovery' })),
+                  disclosures: disclosuresObj
                 }
               : {
                   structure: packageDetails.totalDurationLabel,
-                  items: packageDetails.items.map(item => ({ name: item.name, duration: item.duration, price: item.price }))
+                  items: packageDetails.items.map(item => ({ name: item.name, duration: item.duration, price: item.price })),
+                  disclosures: disclosuresObj
                 };
 
             const focusList = isCustomPlan
@@ -757,6 +771,30 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
               customizedDetails: customizedDetailsObj,
               sessionFocusList: focusList
             }).catch(err => console.warn('Paid booking creation error:', err));
+
+            // Dispatch customer payment receipt & admin notification emails
+            sendBrevoPaymentReceiptEmail({
+              orderId: res.razorpay_order_id,
+              clientName,
+              clientEmail,
+              planName: service.title,
+              serviceType: pkgType,
+              amountPaid: displayTotalPrice,
+              expiryDate: new Date(Date.now() + (isMonthlyPlan ? 60 : 30) * 86400000).toLocaleDateString(),
+              selectedExercises: focusList,
+              paymentMethod: 'Razorpay'
+            }).catch(e => console.warn('Payment receipt email dispatch notice:', e?.message));
+
+            sendBrevoCoachAssignmentAlertToAdmin({
+              bookingId: res.razorpay_order_id,
+              clientName,
+              clientEmail,
+              clientPhone: clientPhone || '',
+              serviceTitle: service.title,
+              serviceType: pkgType,
+              amountPaid: displayTotalPrice,
+              customExercises: focusList
+            }).catch(e => console.warn('Admin coach alert email dispatch notice:', e?.message));
 
             window.dispatchEvent(new CustomEvent('bxstrength_paid_bookings_updated'));
           } catch (createErr) {

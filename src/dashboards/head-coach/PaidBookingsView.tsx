@@ -5,7 +5,7 @@ import { normalizeRole } from '../../utils/auth';
 import {
   Calendar, Clock, UserCheck, CheckCircle2, Phone, Mail, Award,
   Search, RefreshCw, X, ExternalLink, Video,
-  Trash2, AlertCircle, Plus, Minus, Layers, DollarSign,
+  Trash2, AlertCircle, Plus, Minus, Layers, DollarSign, RotateCcw,
   ChevronDown, ChevronUp, MessageCircle
 } from 'lucide-react';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
@@ -441,43 +441,79 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                   </div>
                 </div>
 
-                {/* Session Progress Bar & Controls */}
-                <div className="bg-black/60 border border-gray-800 p-3.5 rounded-lg space-y-2">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2">
-                    <span className="font-bold text-gray-300 flex items-center gap-1.5">
-                      <Layers className="w-3.5 h-3.5 text-[#CCFF00]" />
-                      Session Delivery Progress: {completedSess} of {totalSess} Sessions ({remainingSess} remaining)
-                    </span>
+                {/* Session Delivery & Attendance Tracking Desk */}
+                <div className="bg-black/70 border border-zinc-800 p-4 rounded-xl space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Layers className="w-4 h-4 text-[#CCFF00]" />
+                        <span className="text-xs font-black uppercase text-white tracking-wider">
+                          Session Delivery & Attendance Tracking
+                        </span>
+                        <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
+                          completedSess >= totalSess
+                            ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800'
+                            : completedSess > 0
+                            ? 'bg-sky-950/80 text-sky-400 border-sky-800'
+                            : 'bg-amber-950/80 text-amber-400 border-amber-800'
+                        }`}>
+                          {completedSess >= totalSess
+                            ? '✓ All Sessions Delivered (Package Completed)'
+                            : completedSess > 0
+                            ? `In Progress (${remainingSess} remaining)`
+                            : `Pending First Session (${totalSess} to conduct)`}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-400 mt-1">
+                        Track live 1-on-1 coaching sessions completed with the client. When a session is held, record it below to update the client's balance.
+                      </p>
+                    </div>
 
-                    {/* Quick increment / decrement buttons */}
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleQuickSessionUpdate(b, 'decrement')}
-                        disabled={completedSess <= 0}
-                        className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white rounded text-xs flex items-center gap-1 cursor-pointer"
-                        title="Decrement completed session count"
-                      >
-                        <Minus className="w-3 h-3" /> -1
-                      </button>
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                      {completedSess < totalSess ? (
+                        <button
+                          type="button"
+                          onClick={() => handleQuickSessionUpdate(b, 'increment')}
+                          className="px-3 py-1.5 bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(204,255,0,0.25)] transition-all"
+                          title="Record that a coaching session has been completed"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 stroke-[2.5]" />
+                          Record Session {completedSess + 1} Done
+                        </button>
+                      ) : (
+                        <span className="px-3 py-1.5 bg-emerald-950 text-emerald-400 border border-emerald-800 text-xs font-black uppercase rounded-lg flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Package Fulfilled
+                        </span>
+                      )}
 
-                      <button
-                        type="button"
-                        onClick={() => handleQuickSessionUpdate(b, 'increment')}
-                        disabled={completedSess >= totalSess}
-                        className="px-2.5 py-1 bg-[#CCFF00] hover:bg-[#b8e600] disabled:opacity-40 text-black font-black rounded text-xs flex items-center gap-1 cursor-pointer"
-                        title="Mark 1 session completed"
-                      >
-                        <Plus className="w-3 h-3 stroke-[3]" /> Log Session Done (+1)
-                      </button>
+                      {completedSess > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => handleQuickSessionUpdate(b, 'decrement')}
+                          className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Revert last session if recorded by mistake"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          Undo
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
-                    <div
-                      className="bg-gradient-to-r from-[#CCFF00] to-emerald-400 h-full transition-all duration-300 rounded-full"
-                      style={{ width: `${progressPercent}%` }}
-                    />
+                  {/* Progress visual bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px] font-mono text-zinc-400">
+                      <span>Conducted: <strong className="text-white">{completedSess} of {totalSess} Sessions</strong></span>
+                      <span>{progressPercent}% Delivered</span>
+                    </div>
+                    <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-[#CCFF00] to-emerald-400 h-full transition-all duration-300 rounded-full"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
 

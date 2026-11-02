@@ -13,7 +13,7 @@ import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { CORS_ORIGINS } from './Backend/src/config/env.ts';
 import { dbPool } from './Backend/src/config/db.ts';
-import { sanitizeInput } from './Backend/src/utils/sanitize.ts';
+import { sanitizeInput, decodeHtmlEntities } from './Backend/src/utils/sanitize.ts';
 import { sendServerEmail } from './Backend/src/services/emailService.ts';
 import { calculateCustomExercisePrice, getConfiguredServicePlanPrice } from './src/services/servicePricing.ts';
 import { ensureSubscriptionForPayment } from './Backend/src/services/subscriptionService.ts';

@@ -1,3 +1,4 @@
+import { decodeHtmlEntities } from '../../services/api';
 import React from 'react';
 import {
   CheckCircle2,
@@ -142,7 +143,7 @@ export const PlanCustomizationBreakdown: React.FC<PlanCustomizationBreakdownProp
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-white truncate leading-tight">
-                        {item.name}
+                        {decodeHtmlEntities(item.name)}
                       </p>
                       {item.duration && (
                         <p className="text-[10px] text-zinc-400 mt-0.5 flex items-center gap-1">
@@ -192,7 +193,7 @@ export const PlanCustomizationBreakdown: React.FC<PlanCustomizationBreakdownProp
                     <CheckCircle2 className="w-3.5 h-3.5" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-white">{el.name}</p>
+                    <p className="text-xs font-bold text-white">{decodeHtmlEntities(el.name)}</p>
                     <p className="text-[10px] text-zinc-400 mt-0.5">
                       {el.quantity || 1} Block{(el.quantity || 1) > 1 ? 's' : ''} •{' '}
                       {(el.quantity || 1) * (el.unitMinutes || 15)} Minutes

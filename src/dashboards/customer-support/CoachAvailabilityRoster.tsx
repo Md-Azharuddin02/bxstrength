@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { PaidPackageBooking, User } from '../../types';
-import { VelocityAPI } from '../../services/api';
+import { VelocityAPI, decodeHtmlEntities } from '../../services/api';
 import { normalizeRole } from '../../utils/auth';
 import {
   UserCheck, CheckCircle2, AlertCircle, Clock, Video, ExternalLink,
@@ -371,7 +371,7 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
                             </div>
 
                             <div className="flex items-center justify-between text-[11px] text-zinc-400">
-                              <span>{b.packageName}</span>
+                              <span>{decodeHtmlEntities(b.packageName)}</span>
                               <span className="font-mono text-zinc-300">
                                 {b.completedSessions || 0} / {b.totalSessions || 1} Sessions Done
                               </span>
@@ -489,7 +489,7 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
                   <option value="" disabled>-- Select athlete booking --</option>
                   {unassignedBookings.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.clientName} — {b.packageName} (£{b.totalPrice}) [Ref: {b.id}]
+                      {decodeHtmlEntities(b.clientName)} — {decodeHtmlEntities(b.packageName)} (£{b.totalPrice}) [Ref: {b.id}]
                     </option>
                   ))}
                 </select>

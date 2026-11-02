@@ -1,3 +1,4 @@
+import { decodeHtmlEntities } from '../../services/core/mappers';
 import React from 'react';
 import { User, BodyStat, Booking, WorkoutProgram, NutritionPlan, Announcement, Enquiry, ConsultationBooking } from '../../types';
 import { Scale, Activity, Calendar, Dumbbell, Award, ShieldAlert, CheckCircle2, ChevronRight, Zap, Mail, Video, Sparkles, Clock, ExternalLink } from 'lucide-react';
@@ -148,7 +149,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                   <span className="text-[10px] font-mono text-zinc-400">REF: {latestPaidPackage.id}</span>
                 </div>
                 <h3 className="text-xl font-black uppercase tracking-tight text-white mt-1">
-                  {latestPaidPackage.packageName}
+                  {decodeHtmlEntities(latestPaidPackage.packageName)}
                 </h3>
                 <p className="text-xs text-zinc-300 mt-1">
                   Session Delivery: <strong className="text-white">{latestPaidPackage.completedSessions || 0} / {latestPaidPackage.totalSessions || 1} Sessions</strong>

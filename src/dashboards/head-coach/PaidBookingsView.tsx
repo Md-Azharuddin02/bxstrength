@@ -1,3 +1,4 @@
+import { decodeHtmlEntities } from '../../services/core/mappers';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { PaidPackageBooking, User } from '../../types';
 import { VelocityAPI } from '../../services/api';
@@ -86,7 +87,18 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
   const [bookings, setBookings] = useState<PaidPackageBooking[]>(() => {
     try {
       const raw = localStorage.getItem('bxstrength_paid_bookings');
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed.map((b: PaidPackageBooking) => ({
+            ...b,
+            packageName: decodeHtmlEntities(b.packageName),
+            clientName: decodeHtmlEntities(b.clientName),
+            assignedCoachName: b.assignedCoachName ? decodeHtmlEntities(b.assignedCoachName) : b.assignedCoachName,
+            sessionFocusList: Array.isArray(b.sessionFocusList) ? b.sessionFocusList.map(decodeHtmlEntities) : b.sessionFocusList
+          }));
+        }
+      }
     } catch { }
     return [];
   });
@@ -495,7 +507,7 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                     </div>
 
                     <h3 className="text-lg font-black uppercase text-white mt-1">
-                      {b.packageName}
+                      {decodeHtmlEntities(b.packageName)}
                     </h3>
                   </div>
 
@@ -662,7 +674,7 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                     <span className="text-[10px] font-bold uppercase text-gray-400">Focuses:</span>
                     {b.sessionFocusList.map((f, idx) => (
                       <span key={idx} className="bg-zinc-800/90 text-zinc-300 border border-zinc-700/80 px-2 py-0.5 rounded text-[11px]">
-                        {f}
+                        {decodeHtmlEntities(f)}
                       </span>
                     ))}
                   </div>
@@ -936,7 +948,7 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                   {isAssignedToMe && !isReassigning ? 'Edit Live Meeting Link & Coaching Notes' : 'Assign Specialist Coach & Video Link'}
                 </h3>
                 <p className="text-xs text-gray-400">
-                  Package: <strong className="text-white">{assignTarget.packageName}</strong> • Client: <strong className="text-white">{assignTarget.clientName}</strong>
+                  Package: <strong className="text-white">{decodeHtmlEntities(assignTarget.packageName)}</strong> • Client: <strong className="text-white">{assignTarget.clientName}</strong>
                 </p>
               </div>
 

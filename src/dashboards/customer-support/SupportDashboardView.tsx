@@ -3,7 +3,7 @@ import { SupportTicket, TicketStatus, TicketPriority, TicketCategory, TicketSour
 import { PaidBookingsView } from '../head-coach/PaidBookingsView';
 import { CoachAvailabilityRoster } from './CoachAvailabilityRoster';
 import { normalizeRole } from '../../utils/auth';
-import { VelocityAPI, getApiUrl } from '../../services/api';
+import { VelocityAPI, getApiUrl, decodeHtmlEntities } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { ProfileManagement } from '../client/ProfileManagement';

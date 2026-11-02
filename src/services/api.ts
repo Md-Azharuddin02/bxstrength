@@ -2522,7 +2522,15 @@ export const VelocityAPI = {
       if (res.ok) {
         const raw = await res.json();
         if (Array.isArray(raw)) {
-          return raw;
+          return raw.map((b: PaidPackageBooking) => ({
+            ...b,
+            packageName: decodeHtmlEntities(b.packageName),
+            clientName: decodeHtmlEntities(b.clientName),
+            assignedCoachName: b.assignedCoachName ? decodeHtmlEntities(b.assignedCoachName) : b.assignedCoachName,
+            assignedBy: b.assignedBy ? decodeHtmlEntities(b.assignedBy) : b.assignedBy,
+            coachNotes: b.coachNotes ? decodeHtmlEntities(b.coachNotes) : b.coachNotes,
+            sessionFocusList: Array.isArray(b.sessionFocusList) ? b.sessionFocusList.map(decodeHtmlEntities) : b.sessionFocusList
+          }));
         }
       }
     } catch (err: any) {

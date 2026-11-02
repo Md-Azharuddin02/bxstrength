@@ -1,3 +1,4 @@
+import { decodeHtmlEntities } from '../../services/core/mappers';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Booking, Enquiry, ClassSchedule, PaidPackageBooking, User } from '../../types';
 import { VelocityAPI } from '../../services/api';
@@ -41,7 +42,18 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
   const [paidBookings, setPaidBookings] = useState<PaidPackageBooking[]>(() => {
     try {
       const raw = localStorage.getItem(`bxstrength_paid_bookings_${user?.email || 'guest'}`);
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed.map((b: PaidPackageBooking) => ({
+            ...b,
+            packageName: decodeHtmlEntities(b.packageName),
+            clientName: decodeHtmlEntities(b.clientName),
+            assignedCoachName: b.assignedCoachName ? decodeHtmlEntities(b.assignedCoachName) : b.assignedCoachName,
+            sessionFocusList: Array.isArray(b.sessionFocusList) ? b.sessionFocusList.map(decodeHtmlEntities) : b.sessionFocusList
+          }));
+        }
+      }
     } catch {}
     return [];
   });
@@ -176,7 +188,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                         )}
                       </div>
                       <h4 className="text-xl font-black uppercase text-white mt-1.5 tracking-tight flex items-center gap-2">
-                        {pkg.packageName}
+                        {decodeHtmlEntities(pkg.packageName)}
                       </h4>
                     </div>
 

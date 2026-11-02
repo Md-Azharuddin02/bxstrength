@@ -347,209 +347,375 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
   return (
     <div className="bg-[#0a0a0c] min-h-screen text-white font-sans border-b border-zinc-800">
 
-      {/* TOP WORKSPACE HEADER & LOGOUT BAR */}
-      <div className="bg-[#121214] border-b border-zinc-800 py-3.5 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            {user && (
-              <img
-                src={user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.name)}`}
-                alt={user.name}
-                className="w-10 h-10 rounded-full object-cover border-2 border-[#CCFF00]"
-              />
-            )}
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-sm font-black uppercase text-white tracking-wide">
-                  {user?.name || 'CUSTOMER SUPPORT AGENT'}
-                </h1>
-                <span className="bg-[#CCFF00]/10 text-[#CCFF00] border border-[#CCFF00]/30 text-[9px] font-black uppercase px-2 py-0.5 rounded-full">
-                  CS WORKSPACE
-                </span>
-              </div>
-              <p className="text-[11px] text-zinc-400 font-medium">
-                Logged in as <span className="text-zinc-200 font-bold">{user?.email}</span>
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
-            {onLogout && (
-              <button
-                onClick={onLogout}
-                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 hover:border-red-500/50 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-sm active:scale-95"
-                title="Sign Out of Customer Support Session"
-              >
-                <LogOut className="w-4 h-4 text-red-400" />
-                <span>LOGOUT SESSION</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* WORKSPACE CONTENT AREA */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-
-        {/* SECTION 1: DYNAMIC SUMMARY OVERVIEW CARDS (9 CARDS) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-3">
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">NEW ENQUIRIES</span>
-            <span className="text-xl font-black text-emerald-400 mt-1 block">{analytics.newEnquiries}</span>
-          </div>
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">OPEN TICKETS</span>
-            <span className="text-xl font-black text-white mt-1 block">{analytics.openTickets}</span>
-          </div>
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">IN PROGRESS</span>
-            <span className="text-xl font-black text-yellow-400 mt-1 block">{analytics.inProgress}</span>
-          </div>
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">AWAITING CLIENT</span>
-            <span className="text-xl font-black text-orange-400 mt-1 block">{analytics.waitingCustomer}</span>
-          </div>
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">RESOLVED</span>
-            <span className="text-xl font-black text-cyan-400 mt-1 block">{analytics.resolved}</span>
-          </div>
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">URGENT / ESCALATED</span>
-            <span className="text-xl font-black text-red-400 mt-1 block">{analytics.urgentEscalated}</span>
-          </div>
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">TODAY'S INQUIRIES</span>
-            <span className="text-xl font-black text-[#CCFF00] mt-1 block">{analytics.todaysEnquiries}</span>
-          </div>
-          <div
-            onClick={() => setActiveTab('paid_bookings')}
-            className={`p-3 rounded-xl border transition-all cursor-pointer ${
-              unassignedCount > 0
-                ? 'bg-amber-950/50 border-amber-500/80 hover:bg-amber-900/60 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
-                : 'bg-[#18181b] border-zinc-800 hover:border-zinc-700'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">UNASSIGNED BOOKINGS</span>
-              {unassignedCount > 0 && <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>}
-            </div>
-            <span className="text-xl font-black text-amber-400 mt-1 block font-mono">{unassignedCount}</span>
-          </div>
-          <div
-            onClick={() => setActiveTab('paid_bookings')}
-            className="bg-[#18181b] border border-zinc-800 hover:border-zinc-700 p-3 rounded-xl cursor-pointer transition-all"
-          >
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">TOTAL PAID BOOKINGS</span>
-            <span className="text-xl font-black text-purple-400 mt-1 block font-mono">{paidBookings.length}</span>
-          </div>
-          <div
-            onClick={() => setActiveTab('coaches_workload')}
-            className="bg-[#18181b] border border-zinc-800 hover:border-zinc-700 p-3 rounded-xl cursor-pointer transition-all"
-          >
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">COACHES ROSTER</span>
-            <span className="text-xl font-black text-sky-400 mt-1 block font-mono">{coaches.length} Available</span>
-          </div>
-        </div>
-
-        {/* PRIORITY ACTION BANNER: NEW INCOMING UNASSIGNED BOOKINGS */}
-        {unassignedCount > 0 && (
-          <div className="bg-gradient-to-r from-amber-950/70 via-zinc-900 to-black border-2 border-amber-500/80 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_0_30px_rgba(245,158,11,0.25)] animate-in fade-in">
-            <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-xl bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-amber-400 shrink-0 shadow-inner">
-                <Zap className="w-6 h-6 fill-amber-400 animate-pulse" />
-              </div>
+      {/* TOP WORKSPACE HEADER & NAVIGATION */}
+      <header className="bg-[#121214] border-b border-zinc-800 sticky top-0 z-40 backdrop-blur-md bg-opacity-95">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="py-3 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800/60">
+            {/* User Info */}
+            <div className="flex items-center gap-3">
+              {user && (
+                <img
+                  src={user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.name)}`}
+                  alt={user.name}
+                  className="w-10 h-10 rounded-full object-cover border-2 border-[#CCFF00]"
+                />
+              )}
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-black uppercase text-amber-300 tracking-wider">
-                    ⚡ ACTION REQUIRED: {unassignedCount} NEW INCOMING PAID {unassignedCount === 1 ? 'BOOKING' : 'BOOKINGS'}
-                  </h2>
-                  <span className="bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
-                    COACH UNASSIGNED
+                  <h1 className="text-sm font-black uppercase text-white tracking-wide">
+                    {user?.name || 'CUSTOMER SUPPORT AGENT'}
+                  </h1>
+                  <span className="bg-[#CCFF00]/10 text-[#CCFF00] border border-[#CCFF00]/30 text-[9px] font-black uppercase px-2 py-0.5 rounded-full">
+                    CS WORKSPACE
                   </span>
                 </div>
-                <p className="text-xs text-zinc-300 mt-0.5">
-                  New paid booking received! Assign a specialist coach from the staff directory or alert the Head Coach immediately.
+                <p className="text-[11px] text-zinc-400 font-medium">
+                  Logged in as <span className="text-zinc-200 font-bold">{user?.email}</span>
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+            {/* Header Actions */}
+            <div className="flex items-center gap-2.5">
               <button
-                onClick={() => setActiveTab('paid_bookings')}
-                className="w-full sm:w-auto px-5 py-2.5 bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(204,255,0,0.3)] transition-all active:scale-95"
+                onClick={() => setCreateTicketModalOpen(true)}
+                className="bg-[#CCFF00] hover:bg-[#b8e600] text-black text-xs font-black uppercase px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
               >
-                <Package className="w-4 h-4 text-black" />
-                <span>DISPATCH &amp; ASSIGN NOW</span>
+                <Plus className="w-4 h-4 text-black stroke-[3]" />
+                <span>Log New Inquiry</span>
               </button>
+
+              <button
+                onClick={() => {
+                  fetchTickets(false);
+                  loadCoachesAndBookings();
+                  onShowToast('Dashboard refreshed');
+                }}
+                className="text-xs font-bold text-zinc-300 hover:text-white flex items-center gap-1.5 bg-[#18181b] hover:bg-zinc-800 px-3 py-2 rounded-xl border border-zinc-800 cursor-pointer transition-all active:scale-95"
+                title="Refresh Live Data Feed"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-[#CCFF00]" />
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
+
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 hover:border-red-500/50 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-red-400" />
+                  <span className="hidden sm:inline">Logout</span>
+                </button>
+              )}
             </div>
           </div>
-        )}
 
-        {/* WORKSPACE MAIN TABS */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Clean Top Navigation Bar */}
+          <nav className="flex items-center gap-1 sm:gap-2 overflow-x-auto py-2.5 scrollbar-none">
             <button
               onClick={() => setActiveTab('paid_bookings')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
-                activeTab === 'paid_bookings' ? 'bg-[#CCFF00] text-black shadow-lg scale-102' : 'bg-[#18181b] text-zinc-400 hover:text-white border border-zinc-800'
+              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                activeTab === 'paid_bookings'
+                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
+                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
               }`}
             >
-              <Package className="w-4 h-4 text-purple-400" />
-              <span>📦 PAID BOOKINGS &amp; DISPATCH {unassignedCount > 0 ? `(${unassignedCount} UNASSIGNED)` : `(${paidBookings.length})`}</span>
+              <Package className="w-3.5 h-3.5" />
+              <span>Paid Bookings &amp; Dispatch</span>
+              {unassignedCount > 0 ? (
+                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full font-black ${
+                  activeTab === 'paid_bookings' ? 'bg-black text-[#CCFF00]' : 'bg-amber-500 text-black'
+                }`}>
+                  {unassignedCount} New
+                </span>
+              ) : (
+                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                  activeTab === 'paid_bookings' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
+                }`}>
+                  {paidBookings.length}
+                </span>
+              )}
             </button>
+
             <button
               onClick={() => setActiveTab('coaches_workload')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
-                activeTab === 'coaches_workload' ? 'bg-[#CCFF00] text-black shadow-lg scale-102' : 'bg-[#18181b] text-zinc-400 hover:text-white border border-zinc-800'
+              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                activeTab === 'coaches_workload'
+                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
+                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
               }`}
             >
-              <Users className="w-4 h-4 text-sky-400" />
-              <span>👥 COACH AVAILABILITY &amp; WORKLOAD ({coaches.length})</span>
+              <Users className="w-3.5 h-3.5" />
+              <span>Coach Availability &amp; Workload</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                activeTab === 'coaches_workload' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
+              }`}>
+                {coaches.length} Staff
+              </span>
             </button>
+
             <button
-              onClick={() => setActiveTab('inbox')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
-                activeTab === 'inbox' ? 'bg-[#CCFF00] text-black shadow-lg scale-102' : 'bg-[#18181b] text-zinc-400 hover:text-white border border-zinc-800'
+              onClick={() => {
+                setActiveTab('inbox');
+                setStatusFilter('all');
+                setPriorityFilter('all');
+              }}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                activeTab === 'inbox'
+                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
+                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
               }`}
             >
-              <Mail className="w-4 h-4 text-emerald-400" />
-              <span>📬 ALL ENQUIRIES &amp; TICKETS ({filteredTickets.length})</span>
+              <Mail className="w-3.5 h-3.5" />
+              <span>Support Enquiries &amp; Tickets</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                activeTab === 'inbox' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
+              }`}>
+                {filteredTickets.length}
+              </span>
             </button>
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
-                activeTab === 'analytics' ? 'bg-[#CCFF00] text-black shadow-lg scale-102' : 'bg-[#18181b] text-zinc-400 hover:text-white border border-zinc-800'
-              }`}
-            >
-              <BarChart2 className="w-4 h-4 text-blue-400" />
-              <span>📊 PERFORMANCE ANALYTICS</span>
-            </button>
+
             <button
               onClick={() => setActiveTab('assessments')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
-                activeTab === 'assessments' ? 'bg-[#CCFF00] text-black shadow-lg scale-102' : 'bg-[#18181b] text-zinc-400 hover:text-white border border-zinc-800'
+              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                activeTab === 'assessments'
+                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
+                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
               }`}
             >
-              <ClipboardCheck className="w-4 h-4 text-[#CCFF00]" />
-              <span>📋 ATHLETE ASSESSMENTS</span>
+              <ClipboardCheck className="w-3.5 h-3.5" />
+              <span>Athlete Assessments</span>
             </button>
+
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                activeTab === 'analytics'
+                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
+                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
+              }`}
+            >
+              <BarChart2 className="w-3.5 h-3.5" />
+              <span>Performance Analytics</span>
+            </button>
+          </nav>
+        </div>
+      </header>
+
+      {/* WORKSPACE CONTENT AREA */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-6">
+
+        {/* SECTION 1: INTERACTIVE WORKLOAD & METRICS DESK (10 CLEAN CLICKABLE CARDS) */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-2.5">
+          {/* 1. Unassigned Bookings */}
+          <div
+            onClick={() => setActiveTab('paid_bookings')}
+            className={`p-3 rounded-xl border transition-all cursor-pointer select-none text-left relative overflow-hidden group hover:-translate-y-0.5 ${
+              unassignedCount > 0
+                ? 'bg-amber-950/60 border-amber-500 hover:border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
+                : 'bg-[#18181b] border-zinc-800 hover:border-zinc-700'
+            } ${activeTab === 'paid_bookings' ? 'ring-1 ring-amber-500/50' : ''}`}
+            title="Click to view unassigned bookings requiring coach dispatch"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider truncate block">
+                UNASSIGNED
+              </span>
+              {unassignedCount > 0 && <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>}
+            </div>
+            <span className="text-xl font-black text-amber-400 mt-1 block font-mono">{unassignedCount}</span>
+            <span className="text-[9px] text-zinc-400 group-hover:text-amber-300 font-semibold block mt-0.5">
+              Bookings &rarr;
+            </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCreateTicketModalOpen(true)}
-              className="bg-[#CCFF00] hover:bg-[#b8e600] text-black text-xs font-black uppercase px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow active:scale-95"
-            >
-              <Plus className="w-4 h-4 text-black" />
-              <span>LOG NEW INQUIRY</span>
-            </button>
-            <button
-              onClick={() => fetchTickets(false)}
-              className="text-xs font-bold text-zinc-300 hover:text-white flex items-center gap-1.5 bg-[#18181b] hover:bg-zinc-800 px-3.5 py-2 rounded-xl border border-zinc-800 cursor-pointer transition-all active:scale-95"
-            >
-              <RefreshCw className="w-3.5 h-3.5 text-[#CCFF00]" />
-              <span className="hidden sm:inline">REFRESH LIVE FEED</span>
-            </button>
+          {/* 2. Total Paid Bookings */}
+          <div
+            onClick={() => setActiveTab('paid_bookings')}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'paid_bookings' ? 'border-[#CCFF00] bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to view all paid bookings"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              PAID BOOKINGS
+            </span>
+            <span className="text-xl font-black text-purple-400 mt-1 block font-mono">{paidBookings.length}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-zinc-300 font-semibold block mt-0.5">
+              Total active &rarr;
+            </span>
+          </div>
+
+          {/* 3. Coaches Roster */}
+          <div
+            onClick={() => setActiveTab('coaches_workload')}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'coaches_workload' ? 'border-[#CCFF00] bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to view coach availability and workloads"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              COACH ROSTER
+            </span>
+            <span className="text-xl font-black text-sky-400 mt-1 block font-mono">{coaches.length}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-sky-300 font-semibold block mt-0.5">
+              Available &rarr;
+            </span>
+          </div>
+
+          {/* 4. New Enquiries */}
+          <div
+            onClick={() => {
+              setActiveTab('inbox');
+              setStatusFilter('new');
+              setPriorityFilter('all');
+              setSearchTerm('');
+            }}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'inbox' && statusFilter === 'new' ? 'border-emerald-500 bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to filter new inquiries"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              NEW ENQUIRIES
+            </span>
+            <span className="text-xl font-black text-emerald-400 mt-1 block">{analytics.newEnquiries}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-emerald-300 font-semibold block mt-0.5">
+              Filter inbox &rarr;
+            </span>
+          </div>
+
+          {/* 5. Open Tickets */}
+          <div
+            onClick={() => {
+              setActiveTab('inbox');
+              setStatusFilter('open');
+              setPriorityFilter('all');
+              setSearchTerm('');
+            }}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'inbox' && statusFilter === 'open' ? 'border-white bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to filter open tickets"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              OPEN TICKETS
+            </span>
+            <span className="text-xl font-black text-white mt-1 block">{analytics.openTickets}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-zinc-300 font-semibold block mt-0.5">
+              Filter inbox &rarr;
+            </span>
+          </div>
+
+          {/* 6. In Progress */}
+          <div
+            onClick={() => {
+              setActiveTab('inbox');
+              setStatusFilter('in_progress');
+              setPriorityFilter('all');
+              setSearchTerm('');
+            }}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'inbox' && statusFilter === 'in_progress' ? 'border-yellow-500 bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to filter in-progress tickets"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              IN PROGRESS
+            </span>
+            <span className="text-xl font-black text-yellow-400 mt-1 block">{analytics.inProgress}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-yellow-300 font-semibold block mt-0.5">
+              Filter inbox &rarr;
+            </span>
+          </div>
+
+          {/* 7. Awaiting Client */}
+          <div
+            onClick={() => {
+              setActiveTab('inbox');
+              setStatusFilter('waiting_customer');
+              setPriorityFilter('all');
+              setSearchTerm('');
+            }}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'inbox' && statusFilter === 'waiting_customer' ? 'border-orange-500 bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to filter tickets awaiting client response"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              AWAITING CLIENT
+            </span>
+            <span className="text-xl font-black text-orange-400 mt-1 block">{analytics.waitingCustomer}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-orange-300 font-semibold block mt-0.5">
+              Filter inbox &rarr;
+            </span>
+          </div>
+
+          {/* 8. Resolved */}
+          <div
+            onClick={() => {
+              setActiveTab('inbox');
+              setStatusFilter('resolved');
+              setPriorityFilter('all');
+              setSearchTerm('');
+            }}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'inbox' && statusFilter === 'resolved' ? 'border-cyan-500 bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to filter resolved tickets"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              RESOLVED
+            </span>
+            <span className="text-xl font-black text-cyan-400 mt-1 block">{analytics.resolved}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-cyan-300 font-semibold block mt-0.5">
+              Filter inbox &rarr;
+            </span>
+          </div>
+
+          {/* 9. Urgent / Escalated */}
+          <div
+            onClick={() => {
+              setActiveTab('inbox');
+              setPriorityFilter('urgent');
+              setStatusFilter('all');
+              setSearchTerm('');
+            }}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'inbox' && priorityFilter === 'urgent' ? 'border-red-500 bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to filter urgent and escalated tickets"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              URGENT / ESCALATED
+            </span>
+            <span className="text-xl font-black text-red-400 mt-1 block">{analytics.urgentEscalated}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-red-300 font-semibold block mt-0.5">
+              Filter inbox &rarr;
+            </span>
+          </div>
+
+          {/* 10. Today's Inquiries */}
+          <div
+            onClick={() => {
+              setActiveTab('inbox');
+              setStatusFilter('all');
+              setPriorityFilter('all');
+              setSearchTerm('');
+            }}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'inbox' && statusFilter === 'all' && priorityFilter === 'all' ? 'border-[#CCFF00] bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to view all inquiries logged today"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              TODAY'S INQUIRIES
+            </span>
+            <span className="text-xl font-black text-[#CCFF00] mt-1 block">{analytics.todaysEnquiries}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-[#CCFF00] font-semibold block mt-0.5">
+              Show all &rarr;
+            </span>
           </div>
         </div>
 

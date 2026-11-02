@@ -5,11 +5,16 @@ import {
   ArrowRight, Video, Target, Zap, Activity, Info, RefreshCw, Layers, UserCheck,
   Compass, TrendingUp, Eye, Building, Mail, Phone, MapPin, FileText, Sparkles, Check
 } from 'lucide-react';
+import { cloudinaryImage } from '../utils/image';
 
 interface AboutViewProps {
   onNavigate: (page: ViewPage) => void;
   onOpenBooking: () => void;
 }
+
+// Replace this file with executive home-setup visual:
+// exercise mat, dumbbells / boxing gloves, and a tablet or laptop showing a live 1-on-1 coaching call.
+const ABOUT_HERO_IMAGE ='https://res.cloudinary.com/yuyxn5b0/image/upload/f_auto,q_auto,w_1200/v1793593508/about-hero-live-coaching.jpg';
 
 export const AboutView: React.FC<AboutViewProps> = ({ onNavigate, onOpenBooking }) => {
   const offersList = [
@@ -38,21 +43,16 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate, onOpenBooking 
       borderColor: 'border-sky-500/20'
     },
     {
-      title: 'Mobility',
-      description: 'Guided movement intended to improve usable range of motion, control and movement quality.',
+      title: 'Mobility & Flexibility',
+      description: 'Guided movement and structured stretching to improve range of motion, control, and recovery alongside your core training.',
       icon: HeartPulse,
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/10',
       borderColor: 'border-purple-500/20'
-    },
-    {
-      title: 'Flexibility',
-      description: 'Structured stretching and flexibility work that can complement strength, boxing and general fitness training.',
-      icon: RefreshCw,
-      color: 'text-rose-400',
-      bgColor: 'bg-rose-500/10',
-      borderColor: 'border-rose-500/20'
-    },
+    }
+  ];
+
+  const deliveryFormats = [
     {
       title: 'Private Coaching',
       description: 'Live one-to-one virtual sessions for clients who want more individual attention.',
@@ -131,7 +131,7 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate, onOpenBooking 
           </h4>
 
           <p className="text-zinc-300 text-sm sm:text-base max-w-3xl mx-auto leading-relaxed font-normal">
-            BXStrength is a live virtual fitness and performance platform built for people who want structured coaching without needing to organise their life around a gym. We bring coach-led fitness boxing, strength training, functional training, mobility and flexibility sessions directly to clients through live online coaching.
+            BXStrength provides 1-on-1 coaching engineered for the reality of your day and not the constraints of a commercial gym. We deliver real-time biomechanics, minimalist dumbbell strength, boxing conditioning and many more straight to your screen. No commute, no crowded floors, just precision.
           </p>
         </div>
       </div>
@@ -151,11 +151,11 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate, onOpenBooking 
               </h2>
 
               <p className="text-zinc-300 text-sm sm:text-base leading-relaxed font-normal">
-                Our purpose is simple: make quality coaching easier to access, easier to continue and easier to fit into real life. Many people want to become stronger, fitter and more confident, but work schedules, travel time, family responsibilities, location and limited access to suitable coaching can make consistency difficult.
+                Most fitness regimes fail for one reason: logistical friction. Packing a kit bag, battling evening traffic, and waiting for gym equipment adds two hours of overhead to a 45-minute workout.
               </p>
 
               <p className="text-zinc-300 text-sm sm:text-base leading-relaxed font-normal">
-                BXStrength is designed to reduce those barriers by bringing the coach to the client - virtually, in real time.
+                BXStrength strips the friction away. Your coach is live on your screen, analyzing your joint angles and posture in real time. We make consistency the path of least resistance.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
@@ -180,8 +180,8 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate, onOpenBooking 
             <div className="lg:col-span-5 flex justify-center">
               <div className="relative rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-900 shadow-2xl w-full max-w-md group">
                 <img
-                  src="https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&q=80&w=800"
-                  alt="BXStrength Live Virtual Coaching"
+                  src={ABOUT_HERO_IMAGE}
+                     alt="Athlete training on a mat at home while a BXStrength coach guides the session live on a laptop"
                   className="w-full h-[380px] sm:h-[420px] object-cover filter contrast-105 group-hover:scale-105 transition-transform duration-500"
                 />
                 <div className="p-4 bg-[#121215] border-t border-zinc-800 flex items-center justify-between">
@@ -223,7 +223,7 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate, onOpenBooking 
               </div>
               <h3 className="text-lg font-black uppercase text-white">Fitness Belongs in Everyday Life</h3>
               <p className="text-zinc-300 text-sm leading-relaxed font-normal">
-                Fitness is most useful when it can become part of everyday life. We created BXStrength around the idea that a client should be able to receive professional guidance from home, a suitable private space or another safe training environment without spending additional time travelling to and from a facility.
+                Training shouldn't require reorganising your entire day around a commute. We built BXStrength on a simple premise: professional biomechanics and high-intensity coaching belong in your living room, home office, or hotel suite, saving you hours of transit without compromising on coaching quality.
               </p>
             </div>
 
@@ -233,7 +233,7 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate, onOpenBooking 
               </div>
               <h3 className="text-lg font-black uppercase text-white">Human Interaction &amp; Accountability</h3>
               <p className="text-zinc-300 text-sm leading-relaxed font-normal">
-                Virtual coaching also allows clients to train with greater flexibility while still receiving human interaction, technique guidance, structured progression and accountability. Our goal is not simply to provide another workout. We want clients to understand what they are doing, why they are doing it and how to progress responsibly over time.
+                Generic fitness apps give you spreadsheets and silent videos; we provide live, two-way verbal feedback. Every repetition is observed, every joint angle is corrected, and your progressive overload is tracked in real time. You get the technical experience of an elite private gym from the comfort of home.
               </p>
             </div>
           </div>
@@ -266,7 +266,7 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate, onOpenBooking 
                     <PillarIcon className="w-5 h-5" />
                   </div>
                   <h3 className="text-base font-black uppercase text-white group-hover:text-[#CCFF00] transition-colors">
-                    • {pillar.title}
+                    {pillar.title}
                   </h3>
                   <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed font-normal">
                     {pillar.description}
@@ -312,7 +312,7 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate, onOpenBooking 
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {offersList.map((item, idx) => {
               const IconComp = item.icon;
               return (
@@ -341,6 +341,45 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate, onOpenBooking 
                 </div>
               );
             })}
+          </div>
+
+          {/* HOW YOU TRAIN - Delivery Formats */}
+          <div className="max-w-5xl mx-auto bg-[#0d0d10] border border-zinc-800 rounded-3xl p-6 sm:p-8 space-y-6">
+            <div className="text-center space-y-2">
+              <span className="text-xs font-black text-[#CCFF00] uppercase tracking-widest">
+                DELIVERY FORMATS
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-black uppercase text-white tracking-tight">
+                HOW YOU TRAIN
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {deliveryFormats.map((item, idx) => {
+                const IconComp = item.icon;
+                return (
+                  <div
+                    key={idx}
+                    className="bg-[#121215] border border-zinc-800 hover:border-zinc-700 p-6 rounded-2xl transition-all duration-300 group hover:-translate-y-1 shadow-xl space-y-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className={`w-11 h-11 rounded-xl ${item.bgColor} border ${item.borderColor} flex items-center justify-center ${item.color}`}>
+                        <IconComp className="w-6 h-6" />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-md">
+                        LIVE VIRTUAL
+                      </span>
+                    </div>
+                    <h4 className="text-xl font-black uppercase text-white group-hover:text-[#CCFF00] transition-colors">
+                      {item.title}
+                    </h4>
+                    <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed font-normal">
+                      {item.description}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Medical Disclaimer Banner */}
@@ -485,27 +524,11 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate, onOpenBooking 
                 <span className="text-zinc-500 font-bold uppercase block text-[11px]">Primary Operating Regions</span>
                 <span className="text-[#CCFF00] font-bold">United Kingdom</span>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 sm:col-span-2">
                 <span className="text-zinc-500 font-bold uppercase block text-[11px]">Customer Support Email</span>
                 <a href="mailto:support@bxstrength.com" className="text-white font-bold hover:text-[#CCFF00] transition-colors">
                   support@bxstrength.com
                 </a>
-              </div>
-              <div className="space-y-1">
-                <span className="text-zinc-500 font-bold uppercase block text-[11px]">Customer Support Phone</span>
-                <a href="tel:+918423594482" className="text-white font-black font-mono hover:text-[#CCFF00] transition-colors">
-                  +91-8423594482
-                </a>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-zinc-800 space-y-3 text-xs sm:text-sm">
-              <div className="flex items-start gap-2.5">
-                <MapPin className="w-4 h-4 text-[#CCFF00] shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-zinc-400 font-bold uppercase block text-[11px]">Headquarters Address</span>
-                  <span className="text-white font-medium">185/A, Street No. 3, Zakir Nagar, Okhla, New Delhi - 110025, India</span>
-                </div>
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewPage } from '../types';
-import { MapPin, Mail, ArrowRight, Instagram, Facebook, Youtube, X, Phone, MessageSquare } from 'lucide-react';
+import { Mail, ArrowRight, Instagram, Facebook, Youtube, X, Linkedin } from 'lucide-react';
 import { cloudinaryImage } from '../utils/image';
 
 interface FooterProps {
@@ -36,38 +36,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             </p>
 
             <div className="space-y-3.5 text-xs pt-1">
-              <p className="flex items-start gap-2.5 text-zinc-300">
-                <MapPin className="w-4 h-4 text-[#CCFF00] shrink-0 mt-0.5" />
-                <span className="leading-snug text-white font-semibold">185/A, Street no. 3, Zakir nagar, Okhla, New Delhi - 110025</span>
-              </p>
-              
               <p className="flex items-center gap-2.5 text-zinc-300">
                 <Mail className="w-4 h-4 text-[#CCFF00] shrink-0" />
                 <a href="mailto:support@bxstrength.com" className="hover:text-[#CCFF00] transition-colors font-bold text-white">support@bxstrength.com</a>
               </p>
-
-              {/* DEDICATED CALL & WHATSAPP ACTION BUTTONS */}
-              <div className="pt-2 grid grid-cols-2 gap-2.5">
-                <a
-                  href="tel:+918423594482"
-                  className="flex items-center justify-center gap-2 bg-[#18181b] hover:bg-zinc-800 border border-zinc-700 hover:border-[#CCFF00] px-3.5 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-sm group"
-                  title="Call BxStrength Customer Support"
-                >
-                  <Phone className="w-3.5 h-3.5 text-[#CCFF00] group-hover:scale-110 transition-transform" />
-                  <span>Call Us</span>
-                </a>
-
-                <a
-                  href="https://wa.me/918423594482"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 bg-[#18181b] hover:bg-emerald-950/40 border border-emerald-600/40 hover:border-emerald-400 px-3.5 py-2.5 rounded-xl text-xs font-bold text-emerald-400 transition-all shadow-sm group"
-                  title="Chat with BxStrength on WhatsApp"
-                >
-                  <MessageSquare className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
-                  <span>WhatsApp</span>
-                </a>
-              </div>
             </div>
           </div>
 
@@ -117,7 +89,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             <div className="grid grid-cols-2 gap-2 pt-1">
               {/* Instagram */}
               <a
-                href="https://www.instagram.com/bxstrength_"
+                href="https://www.instagram.com/bxstrength_/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2.5 bg-[#18181b] hover:bg-zinc-800/90 border border-zinc-800 hover:border-[#CCFF00]/60 p-2.5 rounded-xl transition-all group overflow-hidden"
@@ -180,6 +152,42 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-white group-hover:text-[#CCFF00] transition-colors truncate">X (Twitter)</p>
                   <p className="text-[10px] text-zinc-400 font-mono truncate">@Bxstrength_</p>
+                </div>
+              </a>
+
+              {/* LinkedIn */}
+              <a
+                href="https://www.linkedin.com/company/bxstrength/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 bg-[#18181b] hover:bg-zinc-800/90 border border-zinc-800 hover:border-[#CCFF00]/60 p-2.5 rounded-xl transition-all group overflow-hidden"
+                title="Follow BxStrength on LinkedIn"
+              >
+                <div className="w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 shrink-0 group-hover:scale-110 transition-transform">
+                  <Linkedin className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-white group-hover:text-[#CCFF00] transition-colors truncate">LinkedIn</p>
+                  <p className="text-[10px] text-zinc-400 font-mono truncate">/bxstrength</p>
+                </div>
+              </a>
+
+              {/* Pinterest */}
+              <a
+                href="https://www.pinterest.com/bxstrength/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 bg-[#18181b] hover:bg-zinc-800/90 border border-zinc-800 hover:border-[#CCFF00]/60 p-2.5 rounded-xl transition-all group overflow-hidden"
+                title="Follow BxStrength on Pinterest"
+              >
+                <div className="w-7 h-7 rounded-lg bg-red-600/10 border border-red-600/30 flex items-center justify-center text-red-500 shrink-0 group-hover:scale-110 transition-transform">
+                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.401.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.758-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 11.985-5.365 11.985-11.987C23.97 5.39 18.592.026 11.985.026L12.017 0z"/>
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-white group-hover:text-[#CCFF00] transition-colors truncate">Pinterest</p>
+                  <p className="text-[10px] text-zinc-400 font-mono truncate">/bxstrength</p>
                 </div>
               </a>
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Booking, Enquiry, ClassSchedule, PaidPackageBooking, User } from '../../types';
 import { VelocityAPI } from '../../services/api';
+import { PlanCustomizationBreakdown } from '../../components/bookings/PlanCustomizationBreakdown';
 import {
   Calendar,
   CheckCircle2,
@@ -298,12 +299,17 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                       </div>
 
                       {/* Expanded Details Breakdown */}
-                      {isExpanded && pkg.customizedDetails && (
-                        <div className="bg-black/60 border border-zinc-800 p-3.5 rounded-lg text-xs space-y-2 mt-2">
-                          <p className="font-bold text-white uppercase text-[11px]">Plan Structure & Custom Elements:</p>
-                          <pre className="text-[11px] text-zinc-300 font-mono whitespace-pre-wrap leading-relaxed">
-                            {JSON.stringify(pkg.customizedDetails, null, 2)}
-                          </pre>
+                      {isExpanded && (
+                        <div className="mt-3">
+                          <PlanCustomizationBreakdown
+                            customizedDetails={pkg.customizedDetails}
+                            packageName={pkg.packageName}
+                            packageType={pkg.packageType}
+                            durationMinutes={pkg.durationMinutes}
+                            totalSessions={pkg.totalSessions}
+                            totalPrice={pkg.totalPrice}
+                            sessionFocusList={pkg.sessionFocusList}
+                          />
                         </div>
                       )}
                     </div>

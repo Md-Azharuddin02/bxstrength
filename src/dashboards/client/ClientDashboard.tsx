@@ -162,12 +162,12 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
   const navItems = [
     { id: 'overview', label: 'OVERVIEW', icon: LayoutDashboard },
+    { id: 'bookings', label: 'MY BOOKINGS & SESSIONS', icon: Calendar },
     { id: 'free-demo', label: 'FREE DEMO (15-MIN)', icon: Sparkles },
     { id: 'assessments', label: 'MY ASSESSMENT', icon: ClipboardCheck },
     { id: 'stats', label: 'BODY STATS & BMI', icon: Scale },
     ...(permissions.showUserWorkoutLogger !== false ? [{ id: 'workouts', label: 'WORKOUT PLANS', icon: Dumbbell }] : []),
     ...(permissions.showUserNutritionTracker !== false ? [{ id: 'nutrition', label: 'NUTRITION DIET', icon: Utensils }] : []),
-    { id: 'bookings', label: 'MY BOOKINGS', icon: Calendar },
     { id: 'tickets', label: 'SUPPORT TICKETS', icon: LifeBuoy },
     ...(permissions.showUserBillingHistory !== false ? [{ id: 'subscription', label: 'SUBSCRIPTION', icon: CreditCard }] : []),
     { id: 'profile', label: 'MY PROFILE', icon: UserCheck }

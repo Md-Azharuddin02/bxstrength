@@ -9,6 +9,7 @@ import {
   ChevronDown, ChevronUp, MessageCircle
 } from 'lucide-react';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { PlanCustomizationBreakdown } from '../../components/bookings/PlanCustomizationBreakdown';
 
 interface PaidBookingsViewProps {
   user: User;
@@ -135,6 +136,25 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
       return true;
     });
   }, [bookings, searchTerm, filterTab]);
+
+  // Handle Take Myself (1-Click direct assignment to currently logged-in coach/head coach)
+  const handleTakeMyself = async (b: PaidPackageBooking) => {
+    try {
+      const res = await VelocityAPI.assignPaidBooking(b.id, {
+        assignedCoachId: user.id,
+        assignedCoachName: user.name || 'Head Coach',
+        assignedBy: user.name || 'Head Coach'
+      });
+      if (res.success) {
+        onShowToast(`Assigned ${b.clientName}'s booking to yourself (${user.name})!`);
+        loadBookings();
+      } else {
+        onShowToast(res.error || 'Failed to assign booking to yourself.');
+      }
+    } catch (err: any) {
+      onShowToast(err?.message || 'Error assigning booking');
+    }
+  };
 
   // Open Assign Modal
   const openAssignModal = (b: PaidPackageBooking) => {
@@ -474,36 +494,93 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                 )}
 
                 {/* Expandable Customization Breakdown */}
-                {isExpanded && b.customizedDetails && (
-                  <div className="bg-black/80 border border-zinc-800 p-4 rounded-lg text-xs space-y-2 mt-2">
-                    <p className="font-bold text-white uppercase text-[11px] flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-[#CCFF00]" /> Full Plan Customization Breakdown:
-                    </p>
-                    <pre className="text-[11px] text-zinc-300 font-mono whitespace-pre-wrap leading-relaxed bg-zinc-950 p-3 rounded border border-zinc-800">
-                      {JSON.stringify(b.customizedDetails, null, 2)}
-                    </pre>
+                {isExpanded && (
+                  <div className="mt-3">
+                    <PlanCustomizationBreakdown
+                      customizedDetails={b.customizedDetails}
+                      packageName={b.packageName}
+                      packageType={b.packageType}
+                      durationMinutes={b.durationMinutes}
+                      totalSessions={b.totalSessions}
+                      totalPrice={b.totalPrice}
+                      sessionFocusList={b.sessionFocusList}
+                    />
                   </div>
                 )}
 
                 {/* Actions Desk: Assign Coach, Direct Contact, View Details, Delete */}
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-800/80">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => openAssignModal(b)}
-                      className="px-3 py-1.5 bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(204,255,0,0.2)]"
-                    >
-                      <UserCheck className="w-3.5 h-3.5" />
-                      {b.assignedCoachName ? 'Reassign / Edit Link' : 'Assign Coach & Set Link'}
-                    </button>
+                    {!b.assignedCoachId ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleTakeMyself(b)}
+                          className="px-3 py-1.5 bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(204,255,0,0.2)]"
+                        >
+                          <UserCheck className="w-3.5 h-3.5" />
+                          Take Myself
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => openAssignModal(b)}
+                          className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 cursor-pointer border border-zinc-700"
+                        >
+                          <UserCheck className="w-3.5 h-3.5" />
+                          Assign Coach & Link
+                        </button>
+                      </>
+                    ) : b.assignedCoachId === user.id ? (
+                      <>
+                        <span className="px-2.5 py-1 bg-emerald-950/80 text-emerald-400 border border-emerald-800 text-[11px] font-bold rounded-lg flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Assigned to You
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => openAssignModal(b)}
+                          className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 cursor-pointer border border-zinc-700"
+                        >
+                          <Video className="w-3.5 h-3.5 text-[#CCFF00]" />
+                          Edit Link & Notes
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleTakeMyself(b)}
+                          className="px-2.5 py-1.5 bg-[#CCFF00]/20 hover:bg-[#CCFF00]/30 text-[#CCFF00] font-bold text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 cursor-pointer border border-[#CCFF00]/40"
+                          title="Reassign to yourself"
+                        >
+                          <UserCheck className="w-3.5 h-3.5" />
+                          Take Over (Me)
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => openAssignModal(b)}
+                          className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 cursor-pointer border border-zinc-700"
+                        >
+                          <UserCheck className="w-3.5 h-3.5" />
+                          Reassign / Edit Link
+                        </button>
+                      </>
+                    )}
 
                     <button
                       type="button"
                       onClick={() => setExpandedId(isExpanded ? null : b.id)}
-                      className="px-3 py-1.5 bg-black/60 hover:bg-zinc-800 text-gray-300 border border-gray-800 text-xs font-bold uppercase rounded-lg flex items-center gap-1 cursor-pointer"
+                      className={`px-3 py-1.5 text-xs font-bold uppercase rounded-lg flex items-center gap-1 cursor-pointer transition-colors ${
+                        isExpanded
+                          ? 'bg-[#CCFF00]/20 text-[#CCFF00] border border-[#CCFF00]/40'
+                          : 'bg-black/60 hover:bg-zinc-800 text-gray-300 border border-gray-800'
+                      }`}
                     >
                       {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                      {isExpanded ? 'Hide Details' : 'Details'}
+                      {isExpanded ? 'Hide Details' : 'View Full Details'}
                     </button>
                   </div>
 
@@ -585,9 +662,31 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
             </div>
 
             <form onSubmit={handleSaveAssign} className="space-y-4">
+              {/* Quick Self-Assignment Option */}
+              <div className="bg-zinc-900 border border-zinc-800 p-3 rounded-lg flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold text-white">Coach this athlete yourself?</p>
+                  <p className="text-[10px] text-zinc-400">Instantly assign to {user.name} ({normRole === 'headcoach' ? 'Head Coach' : 'Coach'})</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCoachId(user.id);
+                    setSelectedCoachName(user.name);
+                  }}
+                  className={`px-3 py-1.5 text-xs font-bold uppercase rounded-lg cursor-pointer transition-colors ${
+                    selectedCoachId === user.id
+                      ? 'bg-[#CCFF00] text-black font-black shadow-[0_0_10px_rgba(204,255,0,0.3)]'
+                      : 'bg-black/60 hover:bg-zinc-800 text-zinc-200 border border-zinc-700'
+                  }`}
+                >
+                  {selectedCoachId === user.id ? '✓ Selected (You)' : 'Assign To Me'}
+                </button>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-gray-300 uppercase mb-1">
-                  Select Specialist Coach *
+                  Or Delegate to a Team Coach
                 </label>
                 <select
                   value={selectedCoachId}
@@ -600,11 +699,13 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                   className="w-full bg-black/80 border border-gray-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
                 >
                   <option value="">-- Choose Coach from Staff Directory --</option>
-                  {availableCoaches.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.position})
-                    </option>
-                  ))}
+                  {availableCoaches
+                    .filter(c => c.id !== user.id)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.position})
+                      </option>
+                    ))}
                 </select>
               </div>
 

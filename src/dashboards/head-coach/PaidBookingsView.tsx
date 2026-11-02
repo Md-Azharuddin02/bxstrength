@@ -45,6 +45,7 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
   const [meetingLink, setMeetingLink] = useState<string>('');
   const [coachNotes, setCoachNotes] = useState<string>('');
   const [isSubmittingAssign, setIsSubmittingAssign] = useState<boolean>(false);
+  const [isReassigning, setIsReassigning] = useState<boolean>(false);
 
   // Session Progress Modal / Target
   const [sessionTarget, setSessionTarget] = useState<PaidPackageBooking | null>(null);
@@ -159,40 +160,45 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
   // Open Assign Modal
   const openAssignModal = (b: PaidPackageBooking) => {
     setAssignTarget(b);
-    setSelectedCoachId(b.assignedCoachId || '');
-    setSelectedCoachName(b.assignedCoachName || '');
+    const coachId = b.assignedCoachId || user.id;
+    const coachName = b.assignedCoachName || (b.assignedCoachId === user.id ? user.name : (b.assignedCoachName || user.name || 'Head Coach'));
+    setSelectedCoachId(coachId);
+    setSelectedCoachName(coachName);
     setMeetingLink(b.meetingLink || '');
     setCoachNotes(b.coachNotes || '');
+    setIsReassigning(false);
   };
 
   const handleSaveAssign = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!assignTarget) return;
 
-    if (!selectedCoachName) {
-      onShowToast('Please select a coach to assign.');
-      return;
-    }
+    const finalCoachId = selectedCoachId || user.id;
+    const finalCoachName = selectedCoachName || user.name || 'Head Coach';
 
     setIsSubmittingAssign(true);
     try {
       const res = await VelocityAPI.assignPaidBooking(assignTarget.id, {
-        assignedCoachId: selectedCoachId || null,
-        assignedCoachName: selectedCoachName,
+        assignedCoachId: finalCoachId || null,
+        assignedCoachName: finalCoachName,
         assignedBy: user.name || 'Head Coach',
         meetingLink: meetingLink.trim() || undefined,
         coachNotes: coachNotes.trim() || undefined
       });
 
       if (res.success) {
-        onShowToast(`Assigned ${selectedCoachName} to ${assignTarget.clientName}'s booking!`);
+        onShowToast(
+          meetingLink.trim()
+            ? `Meeting link & instructions saved for ${assignTarget.clientName}!`
+            : `Assigned ${finalCoachName} to ${assignTarget.clientName}'s booking!`
+        );
         setAssignTarget(null);
         loadBookings();
       } else {
-        onShowToast(res.error || 'Failed to assign coach');
+        onShowToast(res.error || 'Failed to save assignment');
       }
     } catch (err: any) {
-      onShowToast(err.message || 'Error assigning coach');
+      onShowToast(err.message || 'Error saving assignment');
     } finally {
       setIsSubmittingAssign(false);
     }
@@ -672,135 +678,221 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
       )}
 
       {/* ASSIGN COACH & MEETING LINK MODAL */}
-      {assignTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#111111] border border-gray-800 rounded-xl w-full max-w-lg p-6 space-y-5 shadow-2xl relative">
-            <button
-              onClick={() => setAssignTarget(null)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-            >
-              <X className="w-5 h-5" />
-            </button>
+      {assignTarget && (() => {
+        const isAssignedToMe = (assignTarget.assignedCoachId === user.id) || (selectedCoachId === user.id && !isReassigning);
 
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#CCFF00]/10 text-[#CCFF00] border border-[#CCFF00]/30 font-bold uppercase">
-                  {assignTarget.packageType}
-                </span>
-                <span className="text-[10px] font-mono text-gray-400">REF: {assignTarget.id}</span>
-              </div>
-              <h3 className="text-lg font-black uppercase text-white mt-1">
-                Assign Specialist Coach & Video Link
-              </h3>
-              <p className="text-xs text-gray-400">
-                Package: <strong className="text-white">{assignTarget.packageName}</strong> • Client: <strong className="text-white">{assignTarget.clientName}</strong>
-              </p>
-            </div>
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-[#111111] border border-gray-800 rounded-xl w-full max-w-lg p-6 space-y-5 shadow-2xl relative">
+              <button
+                onClick={() => setAssignTarget(null)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
 
-            <form onSubmit={handleSaveAssign} className="space-y-4">
-              {/* Quick Self-Assignment Option */}
-              <div className="bg-zinc-900 border border-zinc-800 p-3 rounded-lg flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold text-white">Coach this athlete yourself?</p>
-                  <p className="text-[10px] text-zinc-400">Instantly assign to {user.name} ({normRole === 'headcoach' ? 'Head Coach' : 'Coach'})</p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#CCFF00]/10 text-[#CCFF00] border border-[#CCFF00]/30 font-bold uppercase">
+                    {assignTarget.packageType}
+                  </span>
+                  <span className="text-[10px] font-mono text-gray-400">REF: {assignTarget.id}</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedCoachId(user.id);
-                    setSelectedCoachName(user.name);
-                  }}
-                  className={`px-3 py-1.5 text-xs font-bold uppercase rounded-lg cursor-pointer transition-colors ${
-                    selectedCoachId === user.id
-                      ? 'bg-[#CCFF00] text-black font-black shadow-[0_0_10px_rgba(204,255,0,0.3)]'
-                      : 'bg-black/60 hover:bg-zinc-800 text-zinc-200 border border-zinc-700'
-                  }`}
-                >
-                  {selectedCoachId === user.id ? '✓ Selected (You)' : 'Assign To Me'}
-                </button>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-300 uppercase mb-1">
-                  Or Delegate to a Team Coach
-                </label>
-                <select
-                  value={selectedCoachId}
-                  onChange={(e) => {
-                    const found = availableCoaches.find(c => c.id === e.target.value);
-                    setSelectedCoachId(e.target.value);
-                    setSelectedCoachName(found ? found.name : '');
-                  }}
-                  required
-                  className="w-full bg-black/80 border border-gray-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
-                >
-                  <option value="">-- Choose Coach from Staff Directory --</option>
-                  {availableCoaches
-                    .filter(c => c.id !== user.id)
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} ({c.position})
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-300 uppercase mb-1 flex items-center justify-between">
-                  <span>Live Video Meeting URL (Google Meet / Zoom)</span>
-                  <Video className="w-3.5 h-3.5 text-[#CCFF00]" />
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://meet.google.com/xyz-abcd-efg"
-                  value={meetingLink}
-                  onChange={(e) => setMeetingLink(e.target.value)}
-                  className="w-full bg-black/80 border border-gray-800 rounded-lg p-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#CCFF00]"
-                />
-                <p className="text-[10px] text-gray-500 mt-1">
-                  This link is instantly visible on the client's dashboard under MY BOOKINGS.
+                <h3 className="text-lg font-black uppercase text-white mt-1">
+                  {isAssignedToMe && !isReassigning ? 'Edit Live Meeting Link & Coaching Notes' : 'Assign Specialist Coach & Video Link'}
+                </h3>
+                <p className="text-xs text-gray-400">
+                  Package: <strong className="text-white">{assignTarget.packageName}</strong> • Client: <strong className="text-white">{assignTarget.clientName}</strong>
                 </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-300 uppercase mb-1">
-                  Coaching Notes / Instructions (Optional)
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Notes on client focus, warmup emphasis, injury considerations..."
-                  value={coachNotes}
-                  onChange={(e) => setCoachNotes(e.target.value)}
-                  className="w-full bg-black/80 border border-gray-800 rounded-lg p-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#CCFF00]"
-                />
-              </div>
+              <form onSubmit={handleSaveAssign} className="space-y-4">
+                {/* When already assigned to me */}
+                {isAssignedToMe && !isReassigning ? (
+                  <div className="bg-emerald-950/30 border border-emerald-800/60 p-3.5 rounded-xl flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-[#CCFF00]/15 border border-[#CCFF00]/30 flex items-center justify-center text-[#CCFF00] font-black text-xs shrink-0">
+                        <UserCheck className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-white">
+                          Assigned Coach: <span className="text-[#CCFF00]">{user.name} (You)</span>
+                        </p>
+                        <p className="text-[10px] text-zinc-400">
+                          Enter your Google Meet or Zoom link below to connect with {assignTarget.clientName}.
+                        </p>
+                      </div>
+                    </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setAssignTarget(null)}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-xs font-bold uppercase rounded-lg text-gray-300 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingAssign}
-                  className="px-5 py-2 bg-[#CCFF00] hover:bg-[#b8e600] disabled:opacity-50 text-xs font-black uppercase tracking-wider rounded-lg text-black flex items-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(204,255,0,0.3)]"
-                >
-                  {isSubmittingAssign ? (
-                    <>
-                      <Clock className="w-3.5 h-3.5 animate-spin" /> Saving...
-                    </>
-                  ) : (
-                    'Confirm & Save Assignment'
-                  )}
-                </button>
-              </div>
-            </form>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsReassigning(true);
+                        const otherCoach = availableCoaches.find(c => c.id !== user.id);
+                        if (otherCoach) {
+                          setSelectedCoachId(otherCoach.id);
+                          setSelectedCoachName(otherCoach.name);
+                        }
+                      }}
+                      className="text-[11px] font-bold text-zinc-400 hover:text-white underline cursor-pointer shrink-0"
+                    >
+                      Reassign Coach?
+                    </button>
+                  </div>
+                ) : (
+                  /* Coach selection / reassignment mode */
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-gray-300 uppercase">
+                        Select Coach Assignment
+                      </label>
+                      {assignTarget.assignedCoachId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCoachId(user.id);
+                            setSelectedCoachName(user.name);
+                            setIsReassigning(false);
+                          }}
+                          className="text-[11px] font-bold text-[#CCFF00] hover:underline cursor-pointer"
+                        >
+                          Keep assigned to me
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCoachId(user.id);
+                          setSelectedCoachName(user.name);
+                          setIsReassigning(false);
+                        }}
+                        className={`p-3 rounded-lg border text-left cursor-pointer transition-all ${
+                          selectedCoachId === user.id && !isReassigning
+                            ? 'bg-[#CCFF00]/15 border-[#CCFF00] text-white shadow-[0_0_12px_rgba(204,255,0,0.2)]'
+                            : 'bg-black/60 border-zinc-800 text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        <p className="text-xs font-bold uppercase flex items-center gap-1.5">
+                          <UserCheck className="w-3.5 h-3.5 text-[#CCFF00]" /> Coach Myself
+                        </p>
+                        <p className="text-[10px] text-zinc-400 mt-0.5 truncate">{user.name}</p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsReassigning(true);
+                          if (selectedCoachId === user.id) {
+                            const firstOther = availableCoaches.find(c => c.id !== user.id);
+                            if (firstOther) {
+                              setSelectedCoachId(firstOther.id);
+                              setSelectedCoachName(firstOther.name);
+                            }
+                          }
+                        }}
+                        className={`p-3 rounded-lg border text-left cursor-pointer transition-all ${
+                          isReassigning
+                            ? 'bg-[#CCFF00]/15 border-[#CCFF00] text-white shadow-[0_0_12px_rgba(204,255,0,0.2)]'
+                            : 'bg-black/60 border-zinc-800 text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        <p className="text-xs font-bold uppercase flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5 text-[#CCFF00]" /> Delegate Coach
+                        </p>
+                        <p className="text-[10px] text-zinc-400 mt-0.5">Assign to team member</p>
+                      </button>
+                    </div>
+
+                    {isReassigning && (
+                      <div className="space-y-1 pt-1 animate-in fade-in duration-200">
+                        <label className="block text-[11px] font-bold text-gray-400 uppercase">
+                          Choose Team Member:
+                        </label>
+                        <select
+                          value={selectedCoachId}
+                          onChange={(e) => {
+                            const found = availableCoaches.find(c => c.id === e.target.value);
+                            setSelectedCoachId(e.target.value);
+                            setSelectedCoachName(found ? found.name : '');
+                          }}
+                          className="w-full bg-black/80 border border-gray-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
+                        >
+                          <option value="">-- Choose Coach from Staff Directory --</option>
+                          {availableCoaches
+                            .filter(c => c.id !== user.id)
+                            .map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name} ({c.position})
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 uppercase mb-1 flex items-center justify-between">
+                    <span>Live Video Meeting URL (Google Meet / Zoom)</span>
+                    <Video className="w-3.5 h-3.5 text-[#CCFF00]" />
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://meet.google.com/xyz-abcd-efg"
+                    value={meetingLink}
+                    onChange={(e) => setMeetingLink(e.target.value)}
+                    className="w-full bg-black/80 border border-gray-800 rounded-lg p-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#CCFF00]"
+                  />
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    This link is instantly visible on the client's dashboard under MY BOOKINGS.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 uppercase mb-1">
+                    Coaching Notes / Instructions for Athlete (Optional)
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Notes on client focus, warmup emphasis, injury considerations, or session instructions..."
+                    value={coachNotes}
+                    onChange={(e) => setCoachNotes(e.target.value)}
+                    className="w-full bg-black/80 border border-gray-800 rounded-lg p-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#CCFF00]"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setAssignTarget(null)}
+                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-xs font-bold uppercase rounded-lg text-gray-300 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingAssign}
+                    className="px-5 py-2 bg-[#CCFF00] hover:bg-[#b8e600] disabled:opacity-50 text-xs font-black uppercase tracking-wider rounded-lg text-black flex items-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(204,255,0,0.3)] transition-all"
+                  >
+                    {isSubmittingAssign ? (
+                      <>
+                        <Clock className="w-3.5 h-3.5 animate-spin" /> Saving...
+                      </>
+                    ) : isAssignedToMe && !isReassigning ? (
+                      'Save Meeting Link & Notes'
+                    ) : (
+                      'Confirm & Save Assignment'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* DELETE CONFIRM MODAL */}
       <ConfirmModal

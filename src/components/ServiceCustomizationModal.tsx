@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { PhoneInput } from "./PhoneInput";
 import {
   X,
   AlertCircle,
@@ -53,95 +54,95 @@ export interface CustomTrainingElement {
 
 const CUSTOM_ELEMENTS: CustomTrainingElement[] = [
   {
-    id: 'strength',
-    name: 'Strength Training',
-    description: 'Build strength, improve endurance and move better.',
+    id: "strength",
+    name: "Strength Training",
+    description: "Build strength, improve endurance and move better.",
     price: CUSTOM_SERVICE_PRICING.strength.price,
     durationMin: CUSTOM_SERVICE_PRICING.strength.durationMin,
-    durationLabel: '15 min',
-    icon: Dumbbell
+    durationLabel: "15 min",
+    icon: Dumbbell,
   },
   {
-    id: 'functional',
-    name: 'Functional Training',
-    description: 'Improve overall fitness with real-world movements.',
+    id: "functional",
+    name: "Functional Training",
+    description: "Improve overall fitness with real-world movements.",
     price: CUSTOM_SERVICE_PRICING.functional.price,
     durationMin: CUSTOM_SERVICE_PRICING.functional.durationMin,
-    durationLabel: '15 min',
-    icon: Target
+    durationLabel: "15 min",
+    icon: Target,
   },
   {
-    id: 'boxing',
-    name: 'Fitness Boxing',
-    description: 'Develop fitness, coordination and boxing skills.',
+    id: "boxing",
+    name: "Fitness Boxing",
+    description: "Develop fitness, coordination and boxing skills.",
     price: CUSTOM_SERVICE_PRICING.boxing.price,
     durationMin: CUSTOM_SERVICE_PRICING.boxing.durationMin,
-    durationLabel: '15 min',
-    icon: Flame
+    durationLabel: "15 min",
+    icon: Flame,
   },
   {
-    id: 'mobility',
-    name: 'Mobility',
-    description: 'Improve movement, reduce stiffness and prevent injury.',
+    id: "mobility",
+    name: "Mobility",
+    description: "Improve movement, reduce stiffness and prevent injury.",
     price: CUSTOM_SERVICE_PRICING.mobility.price,
     durationMin: CUSTOM_SERVICE_PRICING.mobility.durationMin,
-    durationLabel: '15 min',
-    icon: Activity
+    durationLabel: "15 min",
+    icon: Activity,
   },
   {
-    id: 'flexibility',
-    name: 'Flexibility',
-    description: 'Increase flexibility and support better movement.',
+    id: "flexibility",
+    name: "Flexibility",
+    description: "Increase flexibility and support better movement.",
     price: CUSTOM_SERVICE_PRICING.flexibility.price,
     durationMin: CUSTOM_SERVICE_PRICING.flexibility.durationMin,
-    durationLabel: '15 min',
-    icon: UserCheck
+    durationLabel: "15 min",
+    icon: UserCheck,
   },
   {
-    id: 'guided-warmup',
-    name: 'Guided Warm-Up',
-    description: 'Get ready for your session with a structured warm-up.',
-    price: CUSTOM_SERVICE_PRICING['guided-warmup'].price,
-    durationMin: CUSTOM_SERVICE_PRICING['guided-warmup'].durationMin,
-    durationLabel: '10 min',
-    icon: Target
+    id: "guided-warmup",
+    name: "Guided Warm-Up",
+    description: "Get ready for your session with a structured warm-up.",
+    price: CUSTOM_SERVICE_PRICING["guided-warmup"].price,
+    durationMin: CUSTOM_SERVICE_PRICING["guided-warmup"].durationMin,
+    durationLabel: "10 min",
+    icon: Target,
   },
   {
-    id: 'personalised-warmup',
-    name: 'Personalised Warm-Up',
-    description: 'A customised warm-up based on your goals and needs.',
-    price: CUSTOM_SERVICE_PRICING['personalised-warmup'].price,
-    durationMin: CUSTOM_SERVICE_PRICING['personalised-warmup'].durationMin,
-    durationLabel: '10 min',
-    icon: Flame
+    id: "personalised-warmup",
+    name: "Personalised Warm-Up",
+    description: "A customised warm-up based on your goals and needs.",
+    price: CUSTOM_SERVICE_PRICING["personalised-warmup"].price,
+    durationMin: CUSTOM_SERVICE_PRICING["personalised-warmup"].durationMin,
+    durationLabel: "10 min",
+    icon: Flame,
   },
   {
-    id: 'cooldown',
-    name: 'Dedicated Cool-Down',
-    description: 'Guided cool-down and recovery exercises.',
+    id: "cooldown",
+    name: "Dedicated Cool-Down",
+    description: "Guided cool-down and recovery exercises.",
     price: CUSTOM_SERVICE_PRICING.cooldown.price,
     durationMin: CUSTOM_SERVICE_PRICING.cooldown.durationMin,
-    durationLabel: '10 min',
-    icon: ShieldCheck
+    durationLabel: "10 min",
+    icon: ShieldCheck,
   },
   {
-    id: 'yoga',
-    name: 'Guided Yoga',
-    description: 'Relax, restore and improve mind-body balance.',
+    id: "yoga",
+    name: "Guided Yoga",
+    description: "Relax, restore and improve mind-body balance.",
     price: CUSTOM_SERVICE_PRICING.yoga.price,
     durationMin: CUSTOM_SERVICE_PRICING.yoga.durationMin,
-    durationLabel: '30 min',
-    icon: Flower2
+    durationLabel: "30 min",
+    icon: Flower2,
   },
   {
-    id: 'wellness',
-    name: 'Wellness Support',
-    description: 'One-to-one conversation and lifestyle support.',
+    id: "wellness",
+    name: "Wellness Support",
+    description: "One-to-one conversation and lifestyle support.",
     price: CUSTOM_SERVICE_PRICING.wellness.price,
     durationMin: CUSTOM_SERVICE_PRICING.wellness.durationMin,
-    durationLabel: '30 min',
-    icon: MessageSquare
-  }
+    durationLabel: "30 min",
+    icon: MessageSquare,
+  },
 ];
 
 // Duration Options for Custom Plan
@@ -154,35 +155,70 @@ export interface CustomDurationOption {
 }
 
 const CUSTOM_DURATIONS: CustomDurationOption[] = [
-  { id: '15', minutes: 15, name: '15 Minutes', subtitle: 'Best for 1-2 elements', priceDelta: 0 },
-  { id: '30', minutes: 30, name: '30 Minutes', subtitle: 'Ideal for 2-3 elements', priceDelta: 15 },
-  { id: '45', minutes: 45, name: '45 Minutes', subtitle: 'Great for a more complete session', priceDelta: 30 },
-  { id: '60', minutes: 60, name: '60 Minutes', subtitle: 'Most comprehensive', priceDelta: 45 }
+  {
+    id: "15",
+    minutes: 15,
+    name: "15 Minutes",
+    subtitle: "Best for 1-2 elements",
+    priceDelta: 0,
+  },
+  {
+    id: "30",
+    minutes: 30,
+    name: "30 Minutes",
+    subtitle: "Ideal for 2-3 elements",
+    priceDelta: 15,
+  },
+  {
+    id: "45",
+    minutes: 45,
+    name: "45 Minutes",
+    subtitle: "Great for a more complete session",
+    priceDelta: 30,
+  },
+  {
+    id: "60",
+    minutes: 60,
+    name: "60 Minutes",
+    subtitle: "Most comprehensive",
+    priceDelta: 45,
+  },
 ];
 
 // Options for Weekly 3-session planner extra focus (Guided Warm-Up is pre-selected for all 3 sessions)
 const WEEKLY_EXTRA_OPTIONS = [
-  'Strength Training',
-  'Functional Training',
-  'Fitness Boxing',
-  'Mobility',
-  'Flexibility',
-  'Cool-Down & Recovery',
-  'Mindset & Wellness'
+  "Strength Training",
+  "Functional Training",
+  "Fitness Boxing",
+  "Mobility",
+  "Flexibility",
+  "Cool-Down & Recovery",
+  "Mindset & Wellness",
 ];
 
 // Options for Monthly 12-session planner dropdowns
 const MONTHLY_OPTIONS = [
-  'Strength Training',
-  'Functional Training',
-  'Fitness Boxing',
-  'Mobility',
-  'Flexibility',
-  'Mindset & Wellness'
+  "Strength Training",
+  "Functional Training",
+  "Fitness Boxing",
+  "Mobility",
+  "Flexibility",
+  "Mindset & Wellness",
 ];
 
+type ContactMethod = "whatsapp" | "call" | "email";
+
 const contactModeLabel = (mode?: string) =>
-  ({ whatsapp: 'WhatsApp', call: 'Phone Call', email: 'Email', all: 'All (WhatsApp, Call & Email)' } as Record<string, string>)[mode || ''] || mode || '';
+  (
+    ({
+      whatsapp: "WhatsApp",
+      call: "Phone Call",
+      email: "Email",
+      all: "All (WhatsApp, Call & Email)",
+    }) as Record<string, string>
+  )[mode || ""] ||
+  mode ||
+  "";
 
 interface ServiceCustomizationModalProps {
   isOpen: boolean;
@@ -205,13 +241,15 @@ interface ServiceCustomizationModalProps {
   initialCustomerEmail?: string;
 }
 
-export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps> = ({
+export const ServiceCustomizationModal: React.FC<
+  ServiceCustomizationModalProps
+> = ({
   isOpen,
   suspended = false,
   onClose,
   service,
   onNavigateToDashboard,
-  onRequireLogin
+  onRequireLogin,
 }) => {
   const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
@@ -222,13 +260,16 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
   // Step 2: PAYMENT (Pixel-accurate matching reference image with 2 columns, red pay button)
   // Step 3: CONFIRMED (Pixel-accurate matching reference image with receipt card, required messages, 2 horizontal buttons, support email)
   const [mainStage, setMainStage] = useState<number>(1);
-  const [continueToPaymentAfterLogin, setContinueToPaymentAfterLogin] = useState(false);
+  const [continueToPaymentAfterLogin, setContinueToPaymentAfterLogin] =
+    useState(false);
 
   // --- Custom Plan State ---
-  const [elementQuantities, setElementQuantities] = useState<Record<string, number>>({});
+  const [elementQuantities, setElementQuantities] = useState<
+    Record<string, number>
+  >({});
 
   const updateElementQuantity = (id: string, delta: number) => {
-    setElementQuantities(prev => {
+    setElementQuantities((prev) => {
       const current = prev[id] || 0;
       const next = Math.max(0, current + delta);
       return { ...prev, [id]: next };
@@ -238,51 +279,86 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
   // --- Weekly Plan State (3 sessions) ---
   // Guided Warm-Up is pre-selected in all 3 sessions; each item represents the 1 extra focus selected
   const [weeklySessions, setWeeklySessions] = useState<string[]>([
-    'Strength Training',
-    'Fitness Boxing',
-    'Mobility'
+    "Strength Training",
+    "Fitness Boxing",
+    "Mobility",
   ]);
 
   // --- Monthly Plan State (12 sessions) ---
   // Each of the 12 sessions includes 1 Guided Warm-Up + 1 Chosen Service + 1 Cool-Down & Recovery
   const [monthlySessions, setMonthlySessions] = useState<string[]>([
-    'Strength Training',
-    'Functional Training',
-    'Fitness Boxing',
-    'Strength Training',
-    'Functional Training',
-    'Mobility',
-    'Strength Training',
-    'Fitness Boxing',
-    'Functional Training',
-    'Strength Training',
-    'Flexibility',
-    'Mobility'
+    "Strength Training",
+    "Functional Training",
+    "Fitness Boxing",
+    "Strength Training",
+    "Functional Training",
+    "Mobility",
+    "Strength Training",
+    "Fitness Boxing",
+    "Functional Training",
+    "Strength Training",
+    "Flexibility",
+    "Mobility",
   ]);
-  const [openMonthlyDropdownIdx, setOpenMonthlyDropdownIdx] = useState<number | null>(null);
+  const [openMonthlyDropdownIdx, setOpenMonthlyDropdownIdx] = useState<
+    number | null
+  >(null);
 
   // Agreements start unticked: UK consent must be an active choice, never pre-checked
   const [ageConfirmed, setAgeConfirmed] = useState<boolean>(false);
-  const [virtualCoachingConfirmed, setVirtualCoachingConfirmed] = useState<boolean>(false);
+  const [virtualCoachingConfirmed, setVirtualCoachingConfirmed] =
+    useState<boolean>(false);
   const [healthConfirmed, setHealthConfirmed] = useState<boolean>(false);
   const [spaceConfirmed, setSpaceConfirmed] = useState<boolean>(false);
   const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
   // Optional and never required to pay (marketing consent is kept separate from the Terms)
   const [marketingConsent, setMarketingConsent] = useState<boolean>(false);
 
-  // Mode of Contact state (auto-populated if user already has it on profile)
-  const [selectedContactMode, setSelectedContactMode] = useState<User['preferredContactMethod'] | ''>(user?.preferredContactMethod || '');
-  const [contactPhoneInput, setContactPhoneInput] = useState<string>(user?.phone || '');
+  // Mode of Contact state (auto-populated if user already has it on profile). Multi-select.
+  const initialMethods = (): ContactMethod[] =>
+    user?.contactMethods?.length
+      ? user.contactMethods
+      : user?.preferredContactMethod && user.preferredContactMethod !== "all"
+        ? [user.preferredContactMethod]
+        : user?.preferredContactMethod === "all"
+          ? ["whatsapp", "call", "email"]
+          : [];
+  const [selectedMethods, setSelectedMethods] =
+    useState<ContactMethod[]>(initialMethods());
+  const [contactPhoneInput, setContactPhoneInput] = useState<string>(
+    user?.phone || "",
+  );
+  // WhatsApp: is the profile phone also the WhatsApp number? If not, collect a separate one.
+  const [whatsappIsCurrent, setWhatsappIsCurrent] = useState<boolean>(
+    !user?.whatsappNumber || user.whatsappNumber === user.phone,
+  );
+  const [whatsappNumberInput, setWhatsappNumberInput] = useState<string>(
+    user?.whatsappNumber || user?.phone || "",
+  );
 
-  // Keep contact mode synced when user logs in
+  // Keep contact selection synced when user logs in
   useEffect(() => {
-    if (user?.preferredContactMethod) {
-      setSelectedContactMode(user.preferredContactMethod);
-    }
-    if (user?.phone) {
-      setContactPhoneInput(user.phone);
-    }
+    setSelectedMethods(initialMethods());
+    if (user?.phone) setContactPhoneInput(user.phone);
+    if (user?.whatsappNumber) setWhatsappNumberInput(user.whatsappNumber);
+    setWhatsappIsCurrent(
+      !user?.whatsappNumber || user.whatsappNumber === user.phone,
+    );
   }, [user]);
+
+  const toggleMethod = (m: ContactMethod) =>
+    setSelectedMethods((prev) =>
+      prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m],
+    );
+
+  const effectiveWhatsapp = whatsappIsCurrent
+    ? user?.phone || ""
+    : whatsappNumberInput.trim();
+  const contactSelectionValid =
+    selectedMethods.length > 0 &&
+    (!selectedMethods.includes("whatsapp") || effectiveWhatsapp.length > 0) &&
+    (!selectedMethods.includes("call") ||
+      (contactPhoneInput || user?.phone || "").trim().length > 0);
 
   // Payment states
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -292,9 +368,10 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPaymentSuccess, setIsPaymentSuccess] = useState<boolean>(false);
-  const [isSuccessAnimationVisible, setIsSuccessAnimationVisible] = useState(false);
-  const [confirmedOrderId, setConfirmedOrderId] = useState<string>('');
-  const [bookingDate, setBookingDate] = useState<string>('');
+  const [isSuccessAnimationVisible, setIsSuccessAnimationVisible] =
+    useState(false);
+  const [confirmedOrderId, setConfirmedOrderId] = useState<string>("");
+  const [bookingDate, setBookingDate] = useState<string>("");
 
   // Reset state on open
   useEffect(() => {
@@ -306,8 +383,8 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
       setIsSuccessAnimationVisible(false);
       setOpenMonthlyDropdownIdx(null);
       setElementQuantities({});
-      setWeeklySessions(['Strength Training', 'Fitness Boxing', 'Mobility']);
-      setConfirmedOrderId('');
+      setWeeklySessions(["Strength Training", "Fitness Boxing", "Mobility"]);
+      setConfirmedOrderId("");
       // Agreements must be ticked fresh for every checkout, never carried over from an earlier one
       setAgeConfirmed(false);
       setVirtualCoachingConfirmed(false);
@@ -316,19 +393,19 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
       setTermsAccepted(false);
       setMarketingConsent(false);
       setBookingDate(
-        new Date().toLocaleDateString('en-GB', {
-          weekday: 'short',
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric'
-        })
+        new Date().toLocaleDateString("en-GB", {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        }),
       );
-      if (user?.preferredContactMethod) {
-        setSelectedContactMode(user.preferredContactMethod);
-      }
-      if (user?.phone) {
-        setContactPhoneInput(user.phone);
-      }
+      setSelectedMethods(initialMethods());
+      if (user?.phone) setContactPhoneInput(user.phone);
+      setWhatsappNumberInput(user?.whatsappNumber || user?.phone || "");
+      setWhatsappIsCurrent(
+        !user?.whatsappNumber || user.whatsappNumber === user.phone,
+      );
     }
     // Not keyed on `user`: saving the contact mode updates the user and would restart checkout at step 1
   }, [isOpen, service?.title]);
@@ -369,23 +446,25 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
     if (!isOpen || suspended) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
     dialogRef.current?.focus();
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const dialog = dialogRef.current;
       if (!dialog) return;
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         // Never close mid-payment: the Razorpay window is still open
         if (dialogLatest.current.isProcessing) return;
         e.preventDefault();
         dialogLatest.current.onClose();
         return;
       }
-      if (e.key !== 'Tab') return;
-      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      ));
+      if (e.key !== "Tab") return;
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -399,9 +478,9 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
       previouslyFocused?.focus?.();
     };
@@ -409,15 +488,23 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
 
   const continueToPayment = async () => {
     if (user) {
-      // If contact mode selected and different from user profile, persist it
-      if (selectedContactMode && (!user.preferredContactMethod || selectedContactMode !== user.preferredContactMethod || (contactPhoneInput && contactPhoneInput !== user.phone))) {
+      // Persist the chosen contact methods + WhatsApp number to the profile
+      if (selectedMethods.length > 0) {
+        // Legacy single-value field: 'all' when every method is picked, else the first choice
+        const legacy = selectedMethods.length >= 3 ? "all" : selectedMethods[0];
         try {
           await updateProfile({
-            preferredContactMethod: selectedContactMode,
-            ...(contactPhoneInput ? { phone: contactPhoneInput } : {})
+            contactMethods: selectedMethods,
+            preferredContactMethod: legacy,
+            ...(selectedMethods.includes("whatsapp") && effectiveWhatsapp
+              ? { whatsappNumber: effectiveWhatsapp }
+              : {}),
+            ...(contactPhoneInput && contactPhoneInput !== user.phone
+              ? { phone: contactPhoneInput }
+              : {}),
           });
         } catch (err) {
-          console.warn('Failed to update contact method on profile:', err);
+          console.warn("Failed to update contact methods on profile:", err);
         }
       }
       setMainStage(3);
@@ -431,29 +518,44 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
   if (!isOpen || suspended || !service) return null;
 
   // Same exact-name lookup the server prices with, so the page and the charge can't disagree
-  const planType = getServicePlanType(service.title || '');
+  const planType = getServicePlanType(service.title || "");
   if (!planType) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-        <div role="alertdialog" aria-labelledby="plan-unavailable-title" className="w-full max-w-md bg-[#0c0d12] border border-zinc-800 rounded-2xl p-6 text-center space-y-4">
+        <div
+          role="alertdialog"
+          aria-labelledby="plan-unavailable-title"
+          className="w-full max-w-md bg-[#0c0d12] border border-zinc-800 rounded-2xl p-6 text-center space-y-4"
+        >
           <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
-          <h2 id="plan-unavailable-title" className="text-lg font-black text-white">This plan isn't available to buy online</h2>
-          <p className="text-sm text-zinc-400">Please contact us and we'll help you get started.</p>
-          <button type="button" onClick={onClose} className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase tracking-wider py-3 px-6 rounded-xl cursor-pointer">
+          <h2
+            id="plan-unavailable-title"
+            className="text-lg font-black text-white"
+          >
+            This plan isn't available to buy online
+          </h2>
+          <p className="text-sm text-zinc-400">
+            Please contact us and we'll help you get started.
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase tracking-wider py-3 px-6 rounded-xl cursor-pointer"
+          >
             Close
           </button>
         </div>
       </div>
     );
   }
-  const isCustomPlan = planType === 'custom';
-  const isWeeklyPlan = planType === 'weekly';
-  const isMonthlyPlan = planType === 'monthly';
-  const isBasic = planType === 'basic';
-  const isFocus = planType === 'focus';
-  const isPerformance = planType === 'performance';
-  const isComplete = planType === 'complete';
-  const isWellness = planType === 'wellness';
+  const isCustomPlan = planType === "custom";
+  const isWeeklyPlan = planType === "weekly";
+  const isMonthlyPlan = planType === "monthly";
+  const isBasic = planType === "basic";
+  const isFocus = planType === "focus";
+  const isPerformance = planType === "performance";
+  const isComplete = planType === "complete";
+  const isWellness = planType === "wellness";
 
   // Custom Plan Selected Elements & Calculation
   const customPlanTotals = calculateCustomPlanTotals(elementQuantities);
@@ -462,7 +564,9 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
   const customPlanTotalPrice = customPlanTotals.price;
 
   // Total Price determination
-  const displayTotalPrice = isCustomPlan ? customPlanTotalPrice : SERVICE_PLAN_PRICES[planType];
+  const displayTotalPrice = isCustomPlan
+    ? customPlanTotalPrice
+    : SERVICE_PLAN_PRICES[planType];
 
   // Determine Service Inclusions & Display items for all 8 packages
   interface ServiceLineItem {
@@ -482,100 +586,277 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
     if (isBasic) {
       return {
         items: [
-          { name: 'Basic Warm-Up', duration: '10-15 minutes', price: 'Included', icon: Flame, isMandatory: true, description: 'Cardio activation and joint prep' },
-          { name: 'Strength Training', duration: '15 minutes', price: `£${SERVICE_PLAN_PRICES.basic}`, icon: Dumbbell, isMandatory: true, description: 'Focused progressive resistance training' }
+          {
+            name: "Basic Warm-Up",
+            duration: "10-15 minutes",
+            price: "Included",
+            icon: Flame,
+            isMandatory: true,
+            description: "Cardio activation and joint prep",
+          },
+          {
+            name: "Strength Training",
+            duration: "15 minutes",
+            price: `£${SERVICE_PLAN_PRICES.basic}`,
+            icon: Dumbbell,
+            isMandatory: true,
+            description: "Focused progressive resistance training",
+          },
         ],
-        totalDurationLabel: '15 minutes',
-        servicesCount: 2
+        totalDurationLabel: "15 minutes",
+        servicesCount: 2,
       };
     }
     if (isFocus) {
       return {
         items: [
-          { name: 'Guided Warm-Up', duration: '10-15 minutes', price: 'Included', icon: Target, isMandatory: true, description: 'Targeted mobility and neuromuscular prep' },
-          { name: 'Strength Training', duration: '15 minutes', price: 'Included', icon: Dumbbell, isMandatory: true, description: 'Compound strength and core overload' },
-          { name: 'Functional Training', duration: '15 minutes', price: `£${SERVICE_PLAN_PRICES.focus}`, icon: Activity, isMandatory: true, description: 'Movement patterns and metabolic conditioning' }
+          {
+            name: "Guided Warm-Up",
+            duration: "10-15 minutes",
+            price: "Included",
+            icon: Target,
+            isMandatory: true,
+            description: "Targeted mobility and neuromuscular prep",
+          },
+          {
+            name: "Strength Training",
+            duration: "15 minutes",
+            price: "Included",
+            icon: Dumbbell,
+            isMandatory: true,
+            description: "Compound strength and core overload",
+          },
+          {
+            name: "Functional Training",
+            duration: "15 minutes",
+            price: `£${SERVICE_PLAN_PRICES.focus}`,
+            icon: Activity,
+            isMandatory: true,
+            description: "Movement patterns and metabolic conditioning",
+          },
         ],
-        totalDurationLabel: '30 minutes',
-        servicesCount: 3
+        totalDurationLabel: "30 minutes",
+        servicesCount: 3,
       };
     }
     if (isPerformance) {
       return {
         items: [
-          { name: 'Personalised Warm-Up', duration: '10-15 minutes', price: 'Included', icon: Flame, isMandatory: true, description: 'Tailored dynamic preparation' },
-          { name: 'Strength Training', duration: '15 minutes', price: 'Included', icon: Dumbbell, isMandatory: true, description: 'Hypertrophy and explosive power' },
-          { name: 'Functional Training', duration: '15 minutes', price: 'Included', icon: Activity, isMandatory: true, description: 'Full-body movement integration' },
-          { name: 'Mobility & Flexibility', duration: '15 minutes', price: `£${SERVICE_PLAN_PRICES.performance}`, icon: UserCheck, isMandatory: true, description: 'Active range of motion and joint health' }
+          {
+            name: "Personalised Warm-Up",
+            duration: "10-15 minutes",
+            price: "Included",
+            icon: Flame,
+            isMandatory: true,
+            description: "Tailored dynamic preparation",
+          },
+          {
+            name: "Strength Training",
+            duration: "15 minutes",
+            price: "Included",
+            icon: Dumbbell,
+            isMandatory: true,
+            description: "Hypertrophy and explosive power",
+          },
+          {
+            name: "Functional Training",
+            duration: "15 minutes",
+            price: "Included",
+            icon: Activity,
+            isMandatory: true,
+            description: "Full-body movement integration",
+          },
+          {
+            name: "Mobility & Flexibility",
+            duration: "15 minutes",
+            price: `£${SERVICE_PLAN_PRICES.performance}`,
+            icon: UserCheck,
+            isMandatory: true,
+            description: "Active range of motion and joint health",
+          },
         ],
-        totalDurationLabel: '45 minutes',
-        servicesCount: 4
+        totalDurationLabel: "45 minutes",
+        servicesCount: 4,
       };
     }
     if (isComplete) {
       return {
         items: [
-          { name: 'Personalised Warm-Up', duration: '10-15 minutes', price: 'Included', icon: Flame, isMandatory: true, description: 'Comprehensive dynamic warm-up' },
-          { name: 'Fitness Boxing', duration: '15 minutes', price: 'Included', icon: Target, isMandatory: true, description: 'High-intensity striking and footwork' },
-          { name: 'Strength Training', duration: '15 minutes', price: 'Included', icon: Dumbbell, isMandatory: true, description: 'Core and full-body resistance' },
-          { name: 'Functional Training', duration: '15 minutes', price: 'Included', icon: Activity, isMandatory: true, description: 'Athletic endurance and conditioning' },
-          { name: 'Mobility & Flexibility', duration: '15 minutes', price: 'Included', icon: UserCheck, isMandatory: true, description: 'Structural alignment and suppleness' },
-          { name: 'Cool-Down & Recovery', duration: '10-15 minutes', price: `£${SERVICE_PLAN_PRICES.complete}`, icon: ShieldCheck, isMandatory: true, description: 'Dedicated parasympathetic down-regulation' }
+          {
+            name: "Personalised Warm-Up",
+            duration: "10-15 minutes",
+            price: "Included",
+            icon: Flame,
+            isMandatory: true,
+            description: "Comprehensive dynamic warm-up",
+          },
+          {
+            name: "Fitness Boxing",
+            duration: "15 minutes",
+            price: "Included",
+            icon: Target,
+            isMandatory: true,
+            description: "High-intensity striking and footwork",
+          },
+          {
+            name: "Strength Training",
+            duration: "15 minutes",
+            price: "Included",
+            icon: Dumbbell,
+            isMandatory: true,
+            description: "Core and full-body resistance",
+          },
+          {
+            name: "Functional Training",
+            duration: "15 minutes",
+            price: "Included",
+            icon: Activity,
+            isMandatory: true,
+            description: "Athletic endurance and conditioning",
+          },
+          {
+            name: "Mobility & Flexibility",
+            duration: "15 minutes",
+            price: "Included",
+            icon: UserCheck,
+            isMandatory: true,
+            description: "Structural alignment and suppleness",
+          },
+          {
+            name: "Cool-Down & Recovery",
+            duration: "10-15 minutes",
+            price: `£${SERVICE_PLAN_PRICES.complete}`,
+            icon: ShieldCheck,
+            isMandatory: true,
+            description: "Dedicated parasympathetic down-regulation",
+          },
         ],
-        totalDurationLabel: '60 minutes',
-        servicesCount: 6
+        totalDurationLabel: "60 minutes",
+        servicesCount: 6,
       };
     }
     if (isWellness) {
       return {
         items: [
-          { name: 'Guided Yoga', duration: '15 minutes', price: 'Included', icon: Flower2, isMandatory: true, description: 'Restorative flow and posture work' },
-          { name: 'Breathing & Relaxation', duration: '10 minutes', price: 'Included', icon: Target, isMandatory: true, description: 'Breathwork for nervous system reset' },
-          { name: '1-to-1 Wellness Conversation', duration: '15 minutes', price: 'Included', icon: MessageSquare, isMandatory: true, description: 'Lifestyle, stress and sleep guidance' },
-          { name: 'Mindset & Lifestyle Support', duration: '15 minutes', price: `£${SERVICE_PLAN_PRICES.wellness}`, icon: Calendar, isMandatory: true, description: 'Habit coaching and accountability' }
+          {
+            name: "Guided Yoga",
+            duration: "15 minutes",
+            price: "Included",
+            icon: Flower2,
+            isMandatory: true,
+            description: "Restorative flow and posture work",
+          },
+          {
+            name: "Breathing & Relaxation",
+            duration: "10 minutes",
+            price: "Included",
+            icon: Target,
+            isMandatory: true,
+            description: "Breathwork for nervous system reset",
+          },
+          {
+            name: "1-to-1 Wellness Conversation",
+            duration: "15 minutes",
+            price: "Included",
+            icon: MessageSquare,
+            isMandatory: true,
+            description: "Lifestyle, stress and sleep guidance",
+          },
+          {
+            name: "Mindset & Lifestyle Support",
+            duration: "15 minutes",
+            price: `£${SERVICE_PLAN_PRICES.wellness}`,
+            icon: Calendar,
+            isMandatory: true,
+            description: "Habit coaching and accountability",
+          },
         ],
-        totalDurationLabel: '30 minutes',
-        servicesCount: 4
+        totalDurationLabel: "30 minutes",
+        servicesCount: 4,
       };
     }
     if (isWeeklyPlan) {
       return {
         items: [
-          { name: `Session 1: Guided Warm-Up + ${weeklySessions[0]}`, duration: '30 minutes', price: 'Included', icon: Target, isMandatory: true },
-          { name: `Session 2: Guided Warm-Up + ${weeklySessions[1]}`, duration: '30 minutes', price: 'Included', icon: Dumbbell, isMandatory: true },
-          { name: `Session 3: Guided Warm-Up + ${weeklySessions[2]}`, duration: '30 minutes', price: `£${SERVICE_PLAN_PRICES.weekly}`, icon: Flame, isMandatory: true }
+          {
+            name: `Session 1: Guided Warm-Up + ${weeklySessions[0]}`,
+            duration: "30 minutes",
+            price: "Included",
+            icon: Target,
+            isMandatory: true,
+          },
+          {
+            name: `Session 2: Guided Warm-Up + ${weeklySessions[1]}`,
+            duration: "30 minutes",
+            price: "Included",
+            icon: Dumbbell,
+            isMandatory: true,
+          },
+          {
+            name: `Session 3: Guided Warm-Up + ${weeklySessions[2]}`,
+            duration: "30 minutes",
+            price: `£${SERVICE_PLAN_PRICES.weekly}`,
+            icon: Flame,
+            isMandatory: true,
+          },
         ],
-        totalDurationLabel: '3 sessions (90 minutes)',
-        servicesCount: 3
+        totalDurationLabel: "3 sessions (90 minutes)",
+        servicesCount: 3,
       };
     }
     if (isMonthlyPlan) {
       return {
         items: [
-          { name: '12 Guided Warm-Ups', duration: 'Pre-session', price: 'Included', icon: Target, isMandatory: true },
-          { name: '12 Chosen Core Coaching Services', duration: '30 min each', price: 'Included', icon: Dumbbell, isMandatory: true },
-          { name: '12 Cool-Down & Recovery Sessions', duration: 'Post-session', price: `£${SERVICE_PLAN_PRICES.monthly}`, icon: ShieldCheck, isMandatory: true },
-          { name: '10-Day Grace Period Recovery', duration: 'Bonus', price: 'Free', icon: Award, isMandatory: true }
+          {
+            name: "12 Guided Warm-Ups",
+            duration: "Pre-session",
+            price: "Included",
+            icon: Target,
+            isMandatory: true,
+          },
+          {
+            name: "12 Chosen Core Coaching Services",
+            duration: "30 min each",
+            price: "Included",
+            icon: Dumbbell,
+            isMandatory: true,
+          },
+          {
+            name: "12 Cool-Down & Recovery Sessions",
+            duration: "Post-session",
+            price: `£${SERVICE_PLAN_PRICES.monthly}`,
+            icon: ShieldCheck,
+            isMandatory: true,
+          },
+          {
+            name: "10-Day Grace Period Recovery",
+            duration: "Bonus",
+            price: "Free",
+            icon: Award,
+            isMandatory: true,
+          },
         ],
-        totalDurationLabel: '12 sessions (360 minutes)',
-        servicesCount: 12
+        totalDurationLabel: "12 sessions (360 minutes)",
+        servicesCount: 12,
       };
     }
     // Default / Custom Plan
     return {
-      items: CUSTOM_ELEMENTS.filter(e => (elementQuantities[e.id] || 0) > 0).map(e => {
+      items: CUSTOM_ELEMENTS.filter(
+        (e) => (elementQuantities[e.id] || 0) > 0,
+      ).map((e) => {
         const qty = elementQuantities[e.id] || 1;
         return {
           name: qty > 1 ? `${e.name} (x${qty})` : e.name,
           duration: `${e.durationMin * qty} minutes`,
           price: `£${e.price * qty}`,
           icon: e.icon,
-          isMandatory: e.id === 'guided-warmup',
-          description: e.description
+          isMandatory: e.id === "guided-warmup",
+          description: e.description,
         };
       }),
       totalDurationLabel: `${customPlanTotalMinutes} minutes`,
-      servicesCount: totalSelectedCount
+      servicesCount: totalSelectedCount,
     };
   };
 
@@ -584,55 +865,64 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
   const getStandardServiceDetails = () => {
     if (isBasic) {
       return {
-        title: 'BX BASIC',
-        description: 'A focused foundation session designed for high-efficiency movement and core strength development.',
-        duration: '15 MINUTES',
-        format: '1-on-1 Live Virtual Coaching',
-        price: SERVICE_PLAN_PRICES.basic
+        title: "BX BASIC",
+        description:
+          "A focused foundation session designed for high-efficiency movement and core strength development.",
+        duration: "15 MINUTES",
+        format: "1-on-1 Live Virtual Session",
+        price: SERVICE_PLAN_PRICES.basic,
       };
     }
     if (isFocus) {
       return {
-        title: 'BX FOCUS',
-        description: 'A targeted double-discipline session combining guided warm-up with focused strength or functional conditioning.',
-        duration: '30 MINUTES',
-        format: '1-on-1 Live Virtual Coaching',
-        price: SERVICE_PLAN_PRICES.focus
+        title: "BX FOCUS",
+        description:
+          "A targeted double-discipline session combining guided warm-up with focused strength or functional conditioning.",
+        duration: "30 MINUTES",
+        format: "1-on-1 Live Virtual Session",
+        price: SERVICE_PLAN_PRICES.focus,
       };
     }
     if (isPerformance) {
       return {
-        title: 'BX PERFORMANCE',
-        description: 'A performance-focused session designed for more complete movement, strength and mobility work.',
-        duration: '45 MINUTES',
-        format: '1-on-1 Live Virtual Coaching',
-        price: SERVICE_PLAN_PRICES.performance
+        title: "BX PERFORMANCE",
+        description:
+          "A performance-focused session designed for more complete movement, strength and mobility work.",
+        duration: "45 MINUTES",
+        format: "1-on-1 Live Virtual Session",
+        price: SERVICE_PLAN_PRICES.performance,
       };
     }
     if (isComplete) {
       return {
-        title: 'BX COMPLETE',
-        description: 'The ultimate comprehensive training session integrating full dynamic preparation, strength, boxing, functional athletic conditioning and dedicated recovery.',
-        duration: '60 MINUTES',
-        format: '1-on-1 Live Virtual Coaching',
-        price: SERVICE_PLAN_PRICES.complete
+        title: "BX COMPLETE",
+        description:
+          "The ultimate comprehensive training session integrating full dynamic preparation, strength, boxing, functional athletic conditioning and dedicated recovery.",
+        duration: "60 MINUTES",
+        format: "1-on-1 Live Virtual Session",
+        price: SERVICE_PLAN_PRICES.complete,
       };
     }
     if (isWellness) {
       return {
-        title: 'BX WELLNESS & MINDSET',
-        description: 'Holistic restorative session combining guided yoga flow, nervous system reset breathwork, and lifestyle wellness coaching.',
-        duration: '30 MINUTES',
-        format: '1-on-1 Live Virtual Coaching',
-        price: SERVICE_PLAN_PRICES.wellness
+        title: "BX WELLNESS & MINDSET",
+        description:
+          "Holistic restorative session combining guided yoga flow, nervous system reset breathwork, and lifestyle wellness coaching.",
+        duration: "30 MINUTES",
+        format: "1-on-1 Live Virtual Session",
+        price: SERVICE_PLAN_PRICES.wellness,
       };
     }
     return {
-      title: (service.title || 'BX SESSION').toUpperCase(),
-      description: service.description || 'Personalised 1-on-1 virtual training tailored to your fitness level and goals.',
-      duration: service.duration ? service.duration.toUpperCase() : '45 MINUTES',
-      format: '1-on-1 Live Virtual Coaching',
-      price: displayTotalPrice
+      title: (service.title || "BX SESSION").toUpperCase(),
+      description:
+        service.description ||
+        "Personalised 1-on-1 virtual training tailored to your fitness level and goals.",
+      duration: service.duration
+        ? service.duration.toUpperCase()
+        : "45 MINUTES",
+      format: "1-on-1 Live Virtual Session",
+      price: displayTotalPrice,
     };
   };
 
@@ -648,53 +938,68 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
     setIsProcessing(true);
     setErrorMessage(null);
 
-    const clientEmail = user?.email || 'guest@bxstrength.com';
-    const clientName = user?.name || 'Client Athlete';
-    const clientPhone = user?.phone || '';
+    const clientEmail = user?.email || "guest@bxstrength.com";
+    const clientName = user?.name || "Client Athlete";
+    const clientPhone = user?.phone || "";
 
     try {
       await openRazorpayCheckout({
         simulateSuccess,
         amount: displayTotalPrice,
-        currency: 'GBP',
-        country: 'GB',
-        name: 'BxStrength Performance',
+        currency: "GBP",
+        country: "GB",
+        name: "BxStrength Performance",
         description: service.title,
         userEmail: clientEmail,
         userName: clientName,
         userPhone: clientPhone,
         notes: {
           planTitle: service.title,
-          planType: isCustomPlan ? 'custom' : isWeeklyPlan ? 'weekly' : isMonthlyPlan ? 'monthly' : 'standard',
+          planType: isCustomPlan
+            ? "custom"
+            : isWeeklyPlan
+              ? "weekly"
+              : isMonthlyPlan
+                ? "monthly"
+                : "standard",
           details: isCustomPlan
             ? JSON.stringify({
-                elements: CUSTOM_ELEMENTS.filter(e => (elementQuantities[e.id] || 0) > 0).map(e => `${e.name} (x${elementQuantities[e.id]})`),
+                elements: CUSTOM_ELEMENTS.filter(
+                  (e) => (elementQuantities[e.id] || 0) > 0,
+                ).map((e) => `${e.name} (x${elementQuantities[e.id]})`),
                 duration: `${customPlanTotalMinutes} minutes`,
-                quantities: elementQuantities
+                quantities: elementQuantities,
               })
             : isWeeklyPlan
-            ? JSON.stringify({
-                structure: 'Guided Warm-Up + 1 Focus per session',
-                sessions: weeklySessions.map((s, idx) => `Session ${idx + 1}: Guided Warm-Up + ${s}`)
-              })
-            : isMonthlyPlan
-            ? JSON.stringify({
-                structure: '12 Warm-Ups + 12 Core Services + 12 Cool-Downs',
-                sessions: monthlySessions.map((s, idx) => `Session ${idx + 1}: Guided Warm-Up + ${s} + Cool-Down & Recovery`)
-              })
-          : '',
-        customExercises: isCustomPlan
-          ? getCustomExerciseNames(elementQuantities)
-          : isWeeklyPlan
-          ? weeklySessions
-          : isMonthlyPlan
-          ? monthlySessions
-          : packageDetails.items.map(item => item.name)
+              ? JSON.stringify({
+                  structure: "Guided Warm-Up + 1 Focus per session",
+                  sessions: weeklySessions.map(
+                    (s, idx) => `Session ${idx + 1}: Guided Warm-Up + ${s}`,
+                  ),
+                })
+              : isMonthlyPlan
+                ? JSON.stringify({
+                    structure: "12 Warm-Ups + 12 Core Services + 12 Cool-Downs",
+                    sessions: monthlySessions.map(
+                      (s, idx) =>
+                        `Session ${idx + 1}: Guided Warm-Up + ${s} + Cool-Down & Recovery`,
+                    ),
+                  })
+                : "",
+          customExercises: isCustomPlan
+            ? getCustomExerciseNames(elementQuantities)
+            : isWeeklyPlan
+              ? weeklySessions
+              : isMonthlyPlan
+                ? monthlySessions
+                : packageDetails.items.map((item) => item.name),
         },
         onSuccess: async (res) => {
           setIsProcessing(false);
           if (!res.razorpay_order_id) {
-            setErrorMessage('Payment received but we could not confirm your order reference. Please contact support before paying again.');
+            setErrorMessage(
+              "Payment received but we could not confirm your order reference. Please contact support before paying again.",
+            );
             return;
           }
           setConfirmedOrderId(res.razorpay_order_id);
@@ -805,38 +1110,43 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
         },
         onFailure: (err) => {
           setIsProcessing(false);
-          setErrorMessage(err?.message || 'Payment could not be completed. Please try again.');
+          setErrorMessage(
+            err?.message || "Payment could not be completed. Please try again.",
+          );
         },
         onDismiss: () => {
           setIsProcessing(false);
-        }
+        },
       });
     } catch (err: any) {
       setIsProcessing(false);
-      setErrorMessage(err?.message || 'Could not launch payment gateway. Please try again.');
+      setErrorMessage(
+        err?.message || "Could not launch payment gateway. Please try again.",
+      );
     }
   };
 
   // Redirection Handlers for Completed Section
   const handleRedirectHome = () => {
     onClose();
-    navigate('/dashboard');
+    navigate("/dashboard");
     if (onNavigateToDashboard) onNavigateToDashboard();
   };
 
-  const modalMaxWidth = mainStage === 3
-    ? 'max-w-4xl lg:max-w-5xl'
-    : mainStage === 1 && isCustomPlan
-    ? 'max-w-5xl xl:max-w-6xl'
-    : mainStage === 1 && (isMonthlyPlan || isWeeklyPlan)
-    ? 'max-w-4xl lg:max-w-5xl'
-    : mainStage === 1
-    ? 'max-w-2xl sm:max-w-3xl'
-    : mainStage === 2
-    ? 'max-w-3xl'
-    : mainStage === 4
-    ? 'max-w-2xl'
-    : 'max-w-xl';
+  const modalMaxWidth =
+    mainStage === 3
+      ? "max-w-4xl lg:max-w-5xl"
+      : mainStage === 1 && isCustomPlan
+        ? "max-w-5xl xl:max-w-6xl"
+        : mainStage === 1 && (isMonthlyPlan || isWeeklyPlan)
+          ? "max-w-4xl lg:max-w-5xl"
+          : mainStage === 1
+            ? "max-w-2xl sm:max-w-3xl"
+            : mainStage === 2
+              ? "max-w-3xl"
+              : mainStage === 4
+                ? "max-w-2xl"
+                : "max-w-xl";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md overflow-y-auto">
@@ -848,7 +1158,6 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
         tabIndex={-1}
         className={`relative w-full ${modalMaxWidth} max-h-[94vh] flex flex-col bg-[#0c0d12] border border-zinc-800 rounded-2xl shadow-2xl my-auto transition-all outline-none`}
       >
-
         {/* =========================================================================
             TOP BRAND HEADER
            ========================================================================= */}
@@ -870,84 +1179,132 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
           </button>
         </div>
 
-        <div className={`${mainStage === 4 ? 'hidden' : 'flex'} items-center justify-between px-3 sm:px-6 py-2.5 sm:py-3.5 border-b border-zinc-800/80 bg-zinc-950/70 overflow-x-auto text-xs no-scrollbar shrink-0 gap-1 sm:gap-2`}>
+        <div
+          className={`${mainStage === 4 ? "hidden" : "flex"} items-center justify-between px-3 sm:px-6 py-2.5 sm:py-3.5 border-b border-zinc-800/80 bg-zinc-950/70 overflow-x-auto text-xs no-scrollbar shrink-0 gap-1 sm:gap-2`}
+        >
           {/* Step 1: Onboarding */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all ${
-              mainStage === 1
-                ? 'bg-[#CCFF00] text-black shadow-[0_0_12px_rgba(204,255,0,0.35)]'
-                : mainStage > 1
-                ? 'bg-[#CCFF00] text-black'
-                : 'bg-zinc-800 text-zinc-400 border border-zinc-700/60'
-            }`}>
-              {mainStage > 1 ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" /> : '1'}
+            <div
+              className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all ${
+                mainStage === 1
+                  ? "bg-[#CCFF00] text-black shadow-[0_0_12px_rgba(204,255,0,0.35)]"
+                  : mainStage > 1
+                    ? "bg-[#CCFF00] text-black"
+                    : "bg-zinc-800 text-zinc-400 border border-zinc-700/60"
+              }`}
+            >
+              {mainStage > 1 ? (
+                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" />
+              ) : (
+                "1"
+              )}
             </div>
             <div>
-              <p className={`font-black uppercase tracking-wider text-[10px] sm:text-[11px] ${mainStage >= 1 ? 'text-[#CCFF00]' : 'text-zinc-400'}`}>
+              <p
+                className={`font-black uppercase tracking-wider text-[10px] sm:text-[11px] ${mainStage >= 1 ? "text-[#CCFF00]" : "text-zinc-400"}`}
+              >
                 ONBOARDING
               </p>
-              <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">Choose Service</p>
+              <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">
+                Choose Service
+              </p>
             </div>
           </div>
 
-          <span className="text-zinc-600 font-bold px-1 sm:px-2.5 text-xs sm:text-base shrink-0">›</span>
+          <span className="text-zinc-600 font-bold px-1 sm:px-2.5 text-xs sm:text-base shrink-0">
+            ›
+          </span>
 
           {/* Step 2: Checkout */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all ${
-              mainStage === 2
-                ? 'bg-[#CCFF00] text-black shadow-[0_0_12px_rgba(204,255,0,0.35)]'
-                : mainStage > 2
-                ? 'bg-[#CCFF00] text-black'
-                : 'bg-zinc-800 text-zinc-400 border border-zinc-700/60'
-            }`}>
-              {mainStage > 2 ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" /> : '2'}
+            <div
+              className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all ${
+                mainStage === 2
+                  ? "bg-[#CCFF00] text-black shadow-[0_0_12px_rgba(204,255,0,0.35)]"
+                  : mainStage > 2
+                    ? "bg-[#CCFF00] text-black"
+                    : "bg-zinc-800 text-zinc-400 border border-zinc-700/60"
+              }`}
+            >
+              {mainStage > 2 ? (
+                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" />
+              ) : (
+                "2"
+              )}
             </div>
             <div>
-              <p className={`font-black uppercase tracking-wider text-[10px] sm:text-[11px] ${mainStage >= 2 ? 'text-[#CCFF00]' : 'text-zinc-400'}`}>
+              <p
+                className={`font-black uppercase tracking-wider text-[10px] sm:text-[11px] ${mainStage >= 2 ? "text-[#CCFF00]" : "text-zinc-400"}`}
+              >
                 CHECKOUT
               </p>
-              <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">Accept Terms</p>
+              <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">
+                Accept Terms
+              </p>
             </div>
           </div>
 
-          <span className="text-zinc-600 font-bold px-1 sm:px-2.5 text-xs sm:text-base shrink-0">›</span>
+          <span className="text-zinc-600 font-bold px-1 sm:px-2.5 text-xs sm:text-base shrink-0">
+            ›
+          </span>
 
           {/* Step 3: Payment */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all ${
-              mainStage === 3
-                ? 'bg-[#CCFF00] text-black shadow-[0_0_12px_rgba(204,255,0,0.35)]'
-                : mainStage > 3
-                ? 'bg-[#CCFF00] text-black'
-                : 'bg-zinc-800 text-zinc-400 border border-zinc-700/60'
-            }`}>
-              {mainStage > 3 ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" /> : '3'}
+            <div
+              className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all ${
+                mainStage === 3
+                  ? "bg-[#CCFF00] text-black shadow-[0_0_12px_rgba(204,255,0,0.35)]"
+                  : mainStage > 3
+                    ? "bg-[#CCFF00] text-black"
+                    : "bg-zinc-800 text-zinc-400 border border-zinc-700/60"
+              }`}
+            >
+              {mainStage > 3 ? (
+                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" />
+              ) : (
+                "3"
+              )}
             </div>
             <div>
-              <p className={`font-black uppercase tracking-wider text-[10px] sm:text-[11px] ${mainStage >= 3 ? 'text-[#CCFF00]' : 'text-zinc-400'}`}>
+              <p
+                className={`font-black uppercase tracking-wider text-[10px] sm:text-[11px] ${mainStage >= 3 ? "text-[#CCFF00]" : "text-zinc-400"}`}
+              >
                 PAYMENT
               </p>
-              <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">Pay Securely</p>
+              <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">
+                Pay Securely
+              </p>
             </div>
           </div>
 
-          <span className="text-zinc-600 font-bold px-1 sm:px-2.5 text-xs sm:text-base shrink-0">›</span>
+          <span className="text-zinc-600 font-bold px-1 sm:px-2.5 text-xs sm:text-base shrink-0">
+            ›
+          </span>
 
           {/* Step 4: Confirmed */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all ${
-              mainStage === 4 || isPaymentSuccess
-                ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.35)]'
-                : 'bg-zinc-800 text-zinc-400 border border-zinc-700/60'
-            }`}>
-              {mainStage === 4 || isPaymentSuccess ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" /> : '4'}
+            <div
+              className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all ${
+                mainStage === 4 || isPaymentSuccess
+                  ? "bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.35)]"
+                  : "bg-zinc-800 text-zinc-400 border border-zinc-700/60"
+              }`}
+            >
+              {mainStage === 4 || isPaymentSuccess ? (
+                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" />
+              ) : (
+                "4"
+              )}
             </div>
             <div>
-              <p className={`font-black uppercase tracking-wider text-[10px] sm:text-[11px] ${mainStage === 4 || isPaymentSuccess ? 'text-[#CCFF00]' : 'text-zinc-400'}`}>
+              <p
+                className={`font-black uppercase tracking-wider text-[10px] sm:text-[11px] ${mainStage === 4 || isPaymentSuccess ? "text-[#CCFF00]" : "text-zinc-400"}`}
+              >
                 CONFIRMED
               </p>
-              <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">Class Scheduled</p>
+              <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">
+                Session Confirmed
+              </p>
             </div>
           </div>
         </div>
@@ -960,27 +1317,15 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
           </div>
         )}
 
-        {/* Modal Main Content Container with smooth inner scrolling on touch & desktop */}
         <div className="p-4 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden flex-1">
 
-          {/* =====================================================================
-              STEP 1: ONBOARDING (CHOOSE SERVICE / PLAN CUSTOMIZATION)
-              Pixel-accurate to user screenshot for standard packages, and
-              interactive planners for Weekly, Custom, and Monthly plans.
-             ===================================================================== */}
           {mainStage === 1 && (
             <div className="space-y-5 sm:space-y-6">
-              {/* -------------------------------------------------------------
-                  A. STANDARD PACKAGES (BX Basic, Focus, Performance, Complete, Wellness)
-                  EXACTLY MATCHING USER SCREENSHOT
-                 ------------------------------------------------------------- */}
+
               {!isCustomPlan && !isWeeklyPlan && !isMonthlyPlan && (
                 <div className="space-y-5 sm:space-y-6">
                   {/* Step 1 of 1 & Lime Line */}
                   <div>
-                    <p className="text-[11px] sm:text-xs font-bold text-[#CCFF00] tracking-wider uppercase mb-1.5">
-                      Step 1 of 1
-                    </p>
                     <div className="w-full h-1 bg-[#CCFF00] rounded-full mb-4 sm:mb-6" />
                     <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight uppercase">
                       {standardDetails.title}
@@ -993,14 +1338,18 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                   {/* Summary Card */}
                   <div className="p-4 sm:p-6 rounded-2xl bg-[#0e1319] border border-zinc-800/90 shadow-xl space-y-3 sm:space-y-4 my-4 sm:my-6">
                     <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="text-zinc-400 font-medium">Service Duration</span>
+                      <span className="text-zinc-400 font-medium">
+                        Service Duration
+                      </span>
                       <span className="font-black text-white uppercase tracking-wide">
                         {standardDetails.duration}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs sm:text-sm">
                       <span className="text-zinc-400 font-medium">Format</span>
-                      <span className="font-bold text-[#CCFF00]">{standardDetails.format}</span>
+                      <span className="font-bold text-[#CCFF00]">
+                        {standardDetails.format}
+                      </span>
                     </div>
                     <div className="pt-3.5 sm:pt-4 border-t border-zinc-800/80 flex items-center justify-between">
                       <span className="text-sm sm:text-base font-black text-white uppercase tracking-wider">
@@ -1056,7 +1405,8 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                         BUILD YOUR OWN BX PLAN
                       </h3>
                       <p className="text-xs text-zinc-400 leading-relaxed">
-                        Choose only the training elements you need. Each element has a fixed time and price.
+                        Choose only the training elements you need. Each element
+                        has a fixed time and price.
                       </p>
                     </div>
 
@@ -1072,20 +1422,36 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                       </div>
                       <ol className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-[11px] text-zinc-400">
                         <li className="flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-300 font-bold text-[9px] flex items-center justify-center shrink-0">1</span>
-                          <span className="truncate">Select the services you want</span>
+                          <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-300 font-bold text-[9px] flex items-center justify-center shrink-0">
+                            1
+                          </span>
+                          <span className="truncate">
+                            Select the services you want
+                          </span>
                         </li>
                         <li className="flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-300 font-bold text-[9px] flex items-center justify-center shrink-0">2</span>
-                          <span className="truncate">Set the quantity for each service</span>
+                          <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-300 font-bold text-[9px] flex items-center justify-center shrink-0">
+                            2
+                          </span>
+                          <span className="truncate">
+                            Set the quantity for each service
+                          </span>
                         </li>
                         <li className="flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-300 font-bold text-[9px] flex items-center justify-center shrink-0">3</span>
-                          <span className="truncate">Review your plan and total time</span>
+                          <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-300 font-bold text-[9px] flex items-center justify-center shrink-0">
+                            3
+                          </span>
+                          <span className="truncate">
+                            Review your plan and total time
+                          </span>
                         </li>
                         <li className="flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-300 font-bold text-[9px] flex items-center justify-center shrink-0">4</span>
-                          <span className="truncate">Proceed to booking and payment</span>
+                          <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-300 font-bold text-[9px] flex items-center justify-center shrink-0">
+                            4
+                          </span>
+                          <span className="truncate">
+                            Proceed to booking and payment
+                          </span>
                         </li>
                       </ol>
                     </div>
@@ -1093,7 +1459,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
 
                   {/* 3-Column Elements Grid matching Target Screenshot format */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                    {CUSTOM_ELEMENTS.map(element => {
+                    {CUSTOM_ELEMENTS.map((element) => {
                       const qty = elementQuantities[element.id] || 0;
                       const isSelected = qty > 0;
                       const IconComp = element.icon;
@@ -1104,18 +1470,23 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                           role="group"
                           tabIndex={0}
                           onClick={() => {
-                            if (!isSelected) updateElementQuantity(element.id, 1);
+                            if (!isSelected)
+                              updateElementQuantity(element.id, 1);
                           }}
-                          onKeyDown={event => {
-                            if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ') && !isSelected) {
+                          onKeyDown={(event) => {
+                            if (
+                              event.target === event.currentTarget &&
+                              (event.key === "Enter" || event.key === " ") &&
+                              !isSelected
+                            ) {
                               event.preventDefault();
                               updateElementQuantity(element.id, 1);
                             }
                           }}
                           className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
                             isSelected
-                              ? 'bg-[#181822] border-[#CCFF00] shadow-[0_0_18px_-4px_rgba(204,255,0,0.28)]'
-                              : 'bg-[#101218] border-zinc-800/90 hover:border-zinc-700/80'
+                              ? "bg-[#181822] border-[#CCFF00] shadow-[0_0_18px_-4px_rgba(204,255,0,0.28)]"
+                              : "bg-[#101218] border-zinc-800/90 hover:border-zinc-700/80"
                           }`}
                         >
                           {/* Top: Icon + Title + Description */}
@@ -1123,8 +1494,8 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                             <div
                               className={`p-2.5 rounded-xl shrink-0 transition-colors ${
                                 isSelected
-                                  ? 'bg-[#CCFF00]/15 text-[#CCFF00]'
-                                  : 'bg-zinc-800/80 text-zinc-400'
+                                  ? "bg-[#CCFF00]/15 text-[#CCFF00]"
+                                  : "bg-zinc-800/80 text-zinc-400"
                               }`}
                             >
                               <IconComp className="w-5 h-5" />
@@ -1143,37 +1514,43 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                           <div className="pt-3 border-t border-zinc-800/80 flex items-center justify-between gap-2 mt-auto">
                             {/* Left: Duration | Price */}
                             <div className="flex items-center gap-2 text-xs">
-                              <span className="text-zinc-400 font-semibold">{element.durationLabel}</span>
+                              <span className="text-zinc-400 font-semibold">
+                                {element.durationLabel}
+                              </span>
                               <span className="text-zinc-700 font-bold">|</span>
-                              <span className="font-black text-white text-sm">£{element.price}</span>
+                              <span className="font-black text-white text-sm">
+                                £{element.price}
+                              </span>
                             </div>
 
                             {/* Right: Quantity Stepper (- 0 +) */}
                             <div className="flex items-center bg-[#0a0a0f] border border-zinc-800 rounded-lg p-0.5">
                               <button
                                 type="button"
-                                onClick={event => {
+                                onClick={(event) => {
                                   event.stopPropagation();
                                   updateElementQuantity(element.id, -1);
                                 }}
                                 disabled={qty === 0}
                                 className={`w-8 h-8 rounded flex items-center justify-center transition-colors cursor-pointer ${
                                   qty === 0
-                                    ? 'text-zinc-600 cursor-not-allowed'
-                                    : 'text-zinc-300 hover:text-white hover:bg-zinc-800'
+                                    ? "text-zinc-600 cursor-not-allowed"
+                                    : "text-zinc-300 hover:text-white hover:bg-zinc-800"
                                 }`}
                                 aria-label={`Decrease ${element.name} quantity`}
                               >
                                 <Minus className="w-5 h-5" strokeWidth={2.5} />
                               </button>
 
-                              <span className={`w-8 text-center text-xs font-black select-none ${isSelected ? 'text-[#CCFF00]' : 'text-zinc-400'}`}>
+                              <span
+                                className={`w-8 text-center text-xs font-black select-none ${isSelected ? "text-[#CCFF00]" : "text-zinc-400"}`}
+                              >
                                 {qty}
                               </span>
 
                               <button
                                 type="button"
-                                onClick={event => {
+                                onClick={(event) => {
                                   event.stopPropagation();
                                   updateElementQuantity(element.id, 1);
                                 }}
@@ -1195,10 +1572,12 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                       </div>
                       <div className="text-xs text-zinc-300 leading-relaxed">
                         <p className="font-semibold text-white">
-                          Your total session time will be the sum of all selected services.
+                          Your total session time will be the sum of all
+                          selected services.
                         </p>
                         <p className="text-zinc-400 text-[11px] mt-0.5">
-                          There is no fixed duration — we'll create a session that fits your plan.
+                          There is no fixed duration — we'll create a session
+                          that fits your plan.
                         </p>
                       </div>
                     </div>
@@ -1218,11 +1597,17 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
 
                       <div className="flex items-center gap-3 text-sm sm:text-base pl-2">
                         <span className="text-zinc-300 font-semibold">
-                          Total Time: <strong className="font-bold text-white">{customPlanTotalMinutes} min</strong>
+                          Total Time:{" "}
+                          <strong className="font-bold text-white">
+                            {customPlanTotalMinutes} min
+                          </strong>
                         </span>
                         <span className="text-zinc-500">•</span>
                         <span className="text-zinc-300 font-semibold">
-                          Price: <strong className="font-bold text-white">£{customPlanTotalPrice}</strong>
+                          Price:{" "}
+                          <strong className="font-bold text-white">
+                            £{customPlanTotalPrice}
+                          </strong>
                         </span>
                       </div>
                     </div>
@@ -1232,11 +1617,15 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                         type="button"
                         onClick={() => setMainStage(2)}
                         disabled={totalSelectedCount === 0}
-                        aria-describedby={totalSelectedCount === 0 ? 'service-selection-alert' : undefined}
+                        aria-describedby={
+                          totalSelectedCount === 0
+                            ? "service-selection-alert"
+                            : undefined
+                        }
                         className={`w-full sm:w-auto font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-5 sm:px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md ${
                           totalSelectedCount > 0
-                            ? 'bg-[#CCFF00] hover:bg-[#b8e600] text-black cursor-pointer'
-                            : 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-zinc-700/50'
+                            ? "bg-[#CCFF00] hover:bg-[#b8e600] text-black cursor-pointer"
+                            : "bg-zinc-800 text-zinc-500 cursor-not-allowed border border-zinc-700/50"
                         }`}
                       >
                         <span>NEXT: CHECKOUT &amp; TERMS</span>
@@ -1248,8 +1637,13 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                           role="alert"
                           className="pointer-events-none absolute bottom-full right-0 z-20 mb-2.5 flex w-max max-w-[min(19rem,calc(100vw-3rem))] items-start gap-2.5 rounded-lg border border-[#CCFF00]/35 bg-gradient-to-br from-zinc-800 to-zinc-950 px-4 py-3 text-[13px] font-semibold leading-snug text-white opacity-0 shadow-[0_10px_28px_rgba(0,0,0,0.5)] ring-1 ring-white/10 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:opacity-100 group-focus-within:-translate-y-0.5 group-focus-within:opacity-100 sm:text-sm"
                         >
-                          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#CCFF00]/15 text-base font-black leading-none text-[#CCFF00] ring-1 ring-[#CCFF00]/30">!</span>
-                          <span className="max-w-[15rem]">Choose at least one training service before continuing to checkout.</span>
+                          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#CCFF00]/15 text-base font-black leading-none text-[#CCFF00] ring-1 ring-[#CCFF00]/30">
+                            !
+                          </span>
+                          <span className="max-w-[15rem]">
+                            Choose at least one training service before
+                            continuing to checkout.
+                          </span>
                         </span>
                       )}
                     </span>
@@ -1271,7 +1665,8 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                       PLAN YOUR 3 SESSIONS
                     </h2>
                     <p className="text-xs sm:text-sm text-zinc-400 mt-1.5 sm:mt-2">
-                      Guided Warm-Up is pre-selected for all 3 sessions. Choose 1 additional training focus for each session.
+                      Guided Warm-Up is pre-selected for all 3 sessions. Choose
+                      1 additional training focus for each session.
                     </p>
                   </div>
 
@@ -1286,7 +1681,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-3.5">
-                      {[0, 1, 2].map(sessionIdx => (
+                      {[0, 1, 2].map((sessionIdx) => (
                         <div
                           key={sessionIdx}
                           className="p-3.5 sm:p-4 rounded-xl bg-[#14151e] border border-zinc-800 flex flex-col justify-between space-y-3"
@@ -1297,7 +1692,9 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                                 <span className="text-xs font-black uppercase text-white block">
                                   Session {sessionIdx + 1}
                                 </span>
-                                <span className="text-[10px] text-zinc-400">1 Warm-Up + 1 Focus</span>
+                                <span className="text-[10px] text-zinc-400">
+                                  1 Warm-Up + 1 Focus
+                                </span>
                               </div>
                               <span className="text-[10px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded">
                                 30 min
@@ -1311,8 +1708,12 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                                   <Check className="w-3.5 h-3.5 stroke-[3]" />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-xs font-bold text-white truncate">Guided Warm-Up</p>
-                                  <p className="text-[9px] text-zinc-400 truncate">Pre-selected for session</p>
+                                  <p className="text-xs font-bold text-white truncate">
+                                    Guided Warm-Up
+                                  </p>
+                                  <p className="text-[9px] text-zinc-400 truncate">
+                                    Pre-selected for session
+                                  </p>
                                 </div>
                               </div>
                               <span className="text-[9px] font-black uppercase tracking-wider text-[#CCFF00] bg-[#CCFF00]/20 border border-[#CCFF00]/30 px-2 py-0.5 rounded shrink-0 ml-1">
@@ -1327,8 +1728,9 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                               Select 1 Extra Focus:
                             </p>
                             <div className="space-y-1.5 max-h-48 sm:max-h-56 overflow-y-auto pr-0.5">
-                              {WEEKLY_EXTRA_OPTIONS.map(opt => {
-                                const isSelected = weeklySessions[sessionIdx] === opt;
+                              {WEEKLY_EXTRA_OPTIONS.map((opt) => {
+                                const isSelected =
+                                  weeklySessions[sessionIdx] === opt;
                                 return (
                                   <button
                                     key={opt}
@@ -1340,8 +1742,8 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                                     }}
                                     className={`w-full p-2 sm:p-2.5 rounded-lg border text-left text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
                                       isSelected
-                                        ? 'bg-[#181f14] border-[#CCFF00] text-white shadow-[0_0_12px_rgba(204,255,0,0.2)]'
-                                        : 'bg-[#101218] border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                                        ? "bg-[#181f14] border-[#CCFF00] text-white shadow-[0_0_12px_rgba(204,255,0,0.2)]"
+                                        : "bg-[#101218] border-zinc-800 text-zinc-300 hover:border-zinc-700"
                                     }`}
                                   >
                                     <span className="truncate">{opt}</span>
@@ -1395,7 +1797,8 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                       MONTHLY COACHING SESSIONS
                     </h2>
                     <p className="text-xs sm:text-sm text-zinc-400 mt-1.5 sm:mt-2">
-                      User gets 1 Guided Warm-Up, 1 chosen service, and 1 Cool-Down &amp; Recovery in each of the 12 sessions.
+                      User gets 1 Guided Warm-Up, 1 chosen service, and 1
+                      Cool-Down &amp; Recovery in each of the 12 sessions.
                     </p>
                   </div>
 
@@ -1429,14 +1832,14 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
 
                             <select
                               value={sessionService}
-                              onChange={e => {
+                              onChange={(e) => {
                                 const updated = [...monthlySessions];
                                 updated[idx] = e.target.value;
                                 setMonthlySessions(updated);
                               }}
                               className="bg-zinc-900 border border-zinc-700 text-white font-bold text-xs rounded-lg px-2 py-1.5 focus:border-[#CCFF00] focus:outline-hidden min-w-[125px] max-w-[155px] truncate cursor-pointer shrink-0"
                             >
-                              {MONTHLY_OPTIONS.map(opt => (
+                              {MONTHLY_OPTIONS.map((opt) => (
                                 <option key={opt} value={opt}>
                                   {opt}
                                 </option>
@@ -1494,7 +1897,8 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                   Checkout &amp; Accept Terms
                 </h2>
                 <p className="text-xs sm:text-sm text-zinc-400 mt-1.5">
-                  Confirm your training agreement and health disclosures before proceeding.
+                  Confirm your training agreement and health disclosures before
+                  proceeding.
                 </p>
               </div>
 
@@ -1528,104 +1932,125 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                         CHOOSE MODE OF CONTACT
                       </span>
                     </div>
-                    {!user.preferredContactMethod && !selectedContactMode ? (
+                    {selectedMethods.length === 0 ? (
                       <span className="text-[10px] sm:text-[11px] font-bold text-[#CCFF00] bg-[#CCFF00]/10 border border-[#CCFF00]/30 px-2 py-0.5 rounded">
                         Required For Coach Onboarding
                       </span>
                     ) : (
                       <span className="text-[10px] sm:text-[11px] font-bold text-zinc-300 bg-zinc-900 border border-zinc-800 px-2.5 py-0.5 rounded">
-                        Selected: <strong className="text-[#CCFF00]">{contactModeLabel(selectedContactMode || user.preferredContactMethod)}</strong>
+                        Selected:{" "}
+                        <strong className="text-[#CCFF00]">
+                          {selectedMethods.map(contactModeLabel).join(", ")}
+                        </strong>
                       </span>
                     )}
                   </div>
 
-                  {(!user.preferredContactMethod || !selectedContactMode) ? (
-                    <div className="space-y-3">
-                      <p className="text-xs text-zinc-400">
-                        Please choose how your assigned UK coach should connect with you for session onboarding, prep drills, and live video links:
-                      </p>
+                  <div className="space-y-3">
+                    <p className="text-xs text-zinc-400">
+                      Choose one or more ways your assigned UK coach can connect
+                      with you for session onboarding, prep drills, and live
+                      video links:
+                    </p>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                        {[
-                          { id: 'whatsapp' as const, label: 'WhatsApp', icon: MessageSquare, desc: 'Instant chat & link' },
-                          { id: 'call' as const, label: 'Phone Call', icon: Phone, desc: 'Voice check-in' },
-                          { id: 'email' as const, label: 'Email', icon: Mail, desc: 'Class link by email' },
-                          { id: 'all' as const, label: 'All', icon: CheckCircle2, desc: 'WhatsApp, call & email' }
-                        ].map(mode => {
-                          const isSelected = selectedContactMode === mode.id;
-                          const IconComp = mode.icon;
-                          return (
-                            <button
-                              key={mode.id}
-                              type="button"
-                              onClick={() => setSelectedContactMode(mode.id)}
-                              className={`p-3 sm:p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
-                                isSelected
-                                  ? 'bg-[#151922] border-[#CCFF00] shadow-[0_0_15px_-3px_rgba(204,255,0,0.3)] ring-1 ring-[#CCFF00]'
-                                  : 'bg-[#12141c] border-zinc-800 hover:border-zinc-700'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <IconComp className={`w-4 h-4 ${isSelected ? 'text-[#CCFF00]' : 'text-zinc-400'}`} />
-                                <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
-                                  isSelected ? 'border-[#CCFF00] bg-[#CCFF00]' : 'border-zinc-600'
-                                }`}>
-                                  {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
-                                </div>
-                              </div>
-                              <div>
-                                <p className={`text-xs font-black uppercase tracking-wide ${isSelected ? 'text-white' : 'text-zinc-300'}`}>
-                                  {mode.label}
-                                </p>
-                                <p className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">
-                                  {mode.desc}
-                                </p>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
+                    {/* Three methods on one horizontal row */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: "whatsapp" as const, label: "WhatsApp", icon: MessageSquare },
+                        { id: "call" as const, label: "Phone Call", icon: Phone },
+                        { id: "email" as const, label: "Email", icon: Mail },
+                      ].map((mode) => {
+                        const isSelected = selectedMethods.includes(mode.id);
+                        const IconComp = mode.icon;
+                        return (
+                          <button
+                            key={mode.id}
+                            type="button"
+                            aria-pressed={isSelected}
+                            onClick={() => toggleMethod(mode.id)}
+                            className={`flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-lg border text-[11px] sm:text-xs font-bold transition-colors cursor-pointer ${
+                              isSelected
+                                ? "bg-[#CCFF00]/10 border-[#CCFF00] text-white"
+                                : "bg-[#12141c] border-zinc-800 text-zinc-300 hover:border-zinc-700"
+                            }`}
+                          >
+                            <IconComp
+                              className={`w-4 h-4 shrink-0 ${isSelected ? "text-[#CCFF00]" : "text-zinc-400"}`}
+                            />
+                            <span className="truncate">{mode.label}</span>
+                            {isSelected && (
+                              <Check className="w-3.5 h-3.5 shrink-0 text-[#CCFF00]" strokeWidth={3} />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
 
-                      {/* If WhatsApp, Phone Call, or SMS is chosen and user has no phone */}
-                      {(selectedContactMode === 'whatsapp' || selectedContactMode === 'call' || selectedContactMode === 'all') && (!user.phone || contactPhoneInput !== user.phone) && (
-                        <div className="pt-2">
-                          <label className="text-[11px] font-bold text-zinc-300 uppercase tracking-wider block mb-1.5">
-                            Mobile Phone Number for {contactModeLabel(selectedContactMode)}:
-                          </label>
-                          <input
-                            type="tel"
-                            value={contactPhoneInput}
-                            onChange={e => setContactPhoneInput(e.target.value)}
-                            placeholder="e.g. +44 7123 456789"
-                            className="w-full bg-[#12141c] border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-hidden focus:border-[#CCFF00]"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-[#12141c] border border-zinc-800">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center shrink-0">
-                          <MessageSquare className="w-3.5 h-3.5 text-[#CCFF00]" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-white">
-                            Preferred Contact: {contactModeLabel(selectedContactMode || user.preferredContactMethod)}
-                          </p>
-                          <p className="text-[10px] text-zinc-400">
-                            {user.phone ? `Mobile: ${user.phone}` : `Email: ${user.email}`}
-                          </p>
-                        </div>
+                    {/* Compact confirmation lines for whatever is switched on */}
+                    {selectedMethods.length > 0 && (
+                      <div className="space-y-1.5">
+                        {selectedMethods.includes("whatsapp") && (
+                          <div className="rounded-lg bg-[#12141c] border border-zinc-800 px-3 py-2 space-y-1.5">
+                            <div className="flex items-center gap-2 text-[11px]">
+                              <MessageSquare className="w-3.5 h-3.5 text-[#CCFF00] shrink-0" />
+                              <span className="font-bold text-white truncate">
+                                {user.phone
+                                  ? `WhatsApp: ${user.phone}`
+                                  : "Add your WhatsApp number"}
+                              </span>
+                              {user.phone && (
+                                <label className="flex items-center gap-1 ml-auto shrink-0 text-[10px] text-zinc-400 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={whatsappIsCurrent}
+                                    onChange={(e) => setWhatsappIsCurrent(e.target.checked)}
+                                    className="w-3 h-3 accent-[#CCFF00]"
+                                  />
+                                  on WhatsApp
+                                </label>
+                              )}
+                            </div>
+                            {(!user.phone || !whatsappIsCurrent) && (
+                              <PhoneInput
+                                label=""
+                                value={whatsappNumberInput}
+                                onChange={setWhatsappNumberInput}
+                                inputClassName="w-full bg-[#0e1319] border border-zinc-700 rounded-md pl-[104px] pr-2.5 py-1.5 text-[11px] text-white placeholder-zinc-500 focus:outline-hidden focus:border-[#CCFF00]"
+                              />
+                            )}
+                          </div>
+                        )}
+
+                        {selectedMethods.includes("call") &&
+                          (user.phone ? (
+                            <div className="rounded-lg bg-[#12141c] border border-zinc-800 px-3 py-2 flex items-center gap-2 text-[11px]">
+                              <Phone className="w-3.5 h-3.5 text-[#CCFF00] shrink-0" />
+                              <span className="font-bold text-white truncate">
+                                We'll call you on {user.phone}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="rounded-lg bg-[#12141c] border border-zinc-800 p-2">
+                              <PhoneInput
+                                label=""
+                                value={contactPhoneInput}
+                                onChange={setContactPhoneInput}
+                                inputClassName="w-full bg-[#0e1319] border border-zinc-700 rounded-md pl-[104px] pr-2.5 py-1.5 text-[11px] text-white placeholder-zinc-500 focus:outline-hidden focus:border-[#CCFF00]"
+                              />
+                            </div>
+                          ))}
+
+                        {selectedMethods.includes("email") && (
+                          <div className="rounded-lg bg-[#12141c] border border-zinc-800 px-3 py-2 flex items-center gap-2 text-[11px]">
+                            <Mail className="w-3.5 h-3.5 text-[#CCFF00] shrink-0" />
+                            <span className="font-bold text-white truncate">
+                              Session links to {user.email}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedContactMode('')}
-                        className="text-[11px] font-bold text-[#CCFF00] hover:underline cursor-pointer"
-                      >
-                        Change
-                      </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1647,17 +2072,28 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                     aria-checked={ageConfirmed}
                     tabIndex={0}
                     onClick={() => setAgeConfirmed(!ageConfirmed)}
-                    onKeyDown={event => { if (event.key === " " || event.key === "Enter") { event.preventDefault(); setAgeConfirmed(!ageConfirmed); } }}
+                    onKeyDown={(event) => {
+                      if (event.key === " " || event.key === "Enter") {
+                        event.preventDefault();
+                        setAgeConfirmed(!ageConfirmed);
+                      }
+                    }}
                     className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
                       ageConfirmed
-                        ? 'bg-[#12141c] border-[#CCFF00]/40 shadow-sm'
-                        : 'bg-[#0f1015] border-zinc-800/80 opacity-75'
+                        ? "bg-[#12141c] border-[#CCFF00]/40 shadow-sm"
+                        : "bg-[#0f1015] border-zinc-800/80 opacity-75"
                     }`}
                   >
-                    <div className={`w-5 h-5 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
-                      ageConfirmed ? 'bg-[#CCFF00] text-black shadow-xs' : 'border border-zinc-700 bg-zinc-900'
-                    }`}>
-                      {ageConfirmed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    <div
+                      className={`w-5 h-5 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
+                        ageConfirmed
+                          ? "bg-[#CCFF00] text-black shadow-xs"
+                          : "border border-zinc-700 bg-zinc-900"
+                      }`}
+                    >
+                      {ageConfirmed && (
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      )}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 text-xs sm:text-sm font-black uppercase tracking-wider text-white">
@@ -1675,26 +2111,39 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                     role="checkbox"
                     aria-checked={virtualCoachingConfirmed}
                     tabIndex={0}
-                    onClick={() => setVirtualCoachingConfirmed(!virtualCoachingConfirmed)}
-                    onKeyDown={event => { if (event.key === " " || event.key === "Enter") { event.preventDefault(); setVirtualCoachingConfirmed(!virtualCoachingConfirmed); } }}
+                    onClick={() =>
+                      setVirtualCoachingConfirmed(!virtualCoachingConfirmed)
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === " " || event.key === "Enter") {
+                        event.preventDefault();
+                        setVirtualCoachingConfirmed(!virtualCoachingConfirmed);
+                      }
+                    }}
                     className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
                       virtualCoachingConfirmed
-                        ? 'bg-[#12141c] border-[#CCFF00]/40 shadow-sm'
-                        : 'bg-[#0f1015] border-zinc-800/80 opacity-75'
+                        ? "bg-[#12141c] border-[#CCFF00]/40 shadow-sm"
+                        : "bg-[#0f1015] border-zinc-800/80 opacity-75"
                     }`}
                   >
-                    <div className={`w-5 h-5 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
-                      virtualCoachingConfirmed ? 'bg-[#CCFF00] text-black shadow-xs' : 'border border-zinc-700 bg-zinc-900'
-                    }`}>
-                      {virtualCoachingConfirmed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    <div
+                      className={`w-5 h-5 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
+                        virtualCoachingConfirmed
+                          ? "bg-[#CCFF00] text-black shadow-xs"
+                          : "border border-zinc-700 bg-zinc-900"
+                      }`}
+                    >
+                      {virtualCoachingConfirmed && (
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      )}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 text-xs sm:text-sm font-black uppercase tracking-wider text-white">
                         <Video className="w-4 h-4 text-[#CCFF00] shrink-0" />
-                        <span>VIRTUAL COACHING</span>
+                        <span>VIRTUAL SESSIONS</span>
                       </div>
                       <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                        Live interactive sessions with expert UK coaches at home.
+                        Live interactive sessions with expert UK trainers at home.
                       </p>
                     </div>
                   </div>
@@ -1705,17 +2154,28 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                     aria-checked={healthConfirmed}
                     tabIndex={0}
                     onClick={() => setHealthConfirmed(!healthConfirmed)}
-                    onKeyDown={event => { if (event.key === " " || event.key === "Enter") { event.preventDefault(); setHealthConfirmed(!healthConfirmed); } }}
+                    onKeyDown={(event) => {
+                      if (event.key === " " || event.key === "Enter") {
+                        event.preventDefault();
+                        setHealthConfirmed(!healthConfirmed);
+                      }
+                    }}
                     className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
                       healthConfirmed
-                        ? 'bg-[#12141c] border-[#CCFF00]/40 shadow-sm'
-                        : 'bg-[#0f1015] border-zinc-800/80 opacity-75'
+                        ? "bg-[#12141c] border-[#CCFF00]/40 shadow-sm"
+                        : "bg-[#0f1015] border-zinc-800/80 opacity-75"
                     }`}
                   >
-                    <div className={`w-5 h-5 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
-                      healthConfirmed ? 'bg-[#CCFF00] text-black shadow-xs' : 'border border-zinc-700 bg-zinc-900'
-                    }`}>
-                      {healthConfirmed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    <div
+                      className={`w-5 h-5 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
+                        healthConfirmed
+                          ? "bg-[#CCFF00] text-black shadow-xs"
+                          : "border border-zinc-700 bg-zinc-900"
+                      }`}
+                    >
+                      {healthConfirmed && (
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      )}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 text-xs sm:text-sm font-black uppercase tracking-wider text-white">
@@ -1723,7 +2183,8 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                         <span>HEALTH DISCLOSURE</span>
                       </div>
                       <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                        I confirm there are no medical conditions preventing participation.
+                        I confirm there are no medical conditions preventing
+                        participation.
                       </p>
                     </div>
                   </div>
@@ -1734,17 +2195,28 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                     aria-checked={spaceConfirmed}
                     tabIndex={0}
                     onClick={() => setSpaceConfirmed(!spaceConfirmed)}
-                    onKeyDown={event => { if (event.key === " " || event.key === "Enter") { event.preventDefault(); setSpaceConfirmed(!spaceConfirmed); } }}
+                    onKeyDown={(event) => {
+                      if (event.key === " " || event.key === "Enter") {
+                        event.preventDefault();
+                        setSpaceConfirmed(!spaceConfirmed);
+                      }
+                    }}
                     className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
                       spaceConfirmed
-                        ? 'bg-[#12141c] border-[#CCFF00]/40 shadow-sm'
-                        : 'bg-[#0f1015] border-zinc-800/80 opacity-75'
+                        ? "bg-[#12141c] border-[#CCFF00]/40 shadow-sm"
+                        : "bg-[#0f1015] border-zinc-800/80 opacity-75"
                     }`}
                   >
-                    <div className={`w-5 h-5 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
-                      spaceConfirmed ? 'bg-[#CCFF00] text-black shadow-xs' : 'border border-zinc-700 bg-zinc-900'
-                    }`}>
-                      {spaceConfirmed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    <div
+                      className={`w-5 h-5 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
+                        spaceConfirmed
+                          ? "bg-[#CCFF00] text-black shadow-xs"
+                          : "border border-zinc-700 bg-zinc-900"
+                      }`}
+                    >
+                      {spaceConfirmed && (
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      )}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 text-xs sm:text-sm font-black uppercase tracking-wider text-white">
@@ -1765,52 +2237,85 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                     <input
                       type="checkbox"
                       checked={termsAccepted}
-                      onChange={e => setTermsAccepted(e.target.checked)}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
                       aria-labelledby="checkout-terms-text"
                       className="peer sr-only"
                     />
-                    <span className={`w-4 h-4 rounded flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#CCFF00] peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[#0e1319] ${
-                      termsAccepted ? 'bg-[#CCFF00] text-black' : 'border border-zinc-700 bg-zinc-900'
-                    }`}>
-                      {termsAccepted && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    <span
+                      className={`w-4 h-4 rounded flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#CCFF00] peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[#0e1319] ${
+                        termsAccepted
+                          ? "bg-[#CCFF00] text-black"
+                          : "border border-zinc-700 bg-zinc-900"
+                      }`}
+                    >
+                      {termsAccepted && (
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      )}
                     </span>
                   </label>
                   <span id="checkout-terms-text" className="leading-relaxed">
-                    I agree to the{' '}
+                    I agree to the{" "}
                     <a
                       href="/terms"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-white font-bold underline underline-offset-2 hover:text-[#CCFF00]"
                     >
-                      BXStrength Terms &amp; Conditions
-                    </a>{' '}
-                    and cancellation policy.
+                      Terms &amp; Conditions,
+                    </a>{" "}
+                    <a
+                      href="/onboarding-terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-white font-bold underline underline-offset-2 hover:text-[#CCFF00]"
+                    >
+                      Onboarding & Checkout Policies,
+                    </a>{" "}
+                    and{" "}
+                    <a
+                      href="/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-white font-bold underline underline-offset-2 hover:text-[#CCFF00]"
+                    >
+                      Privacy Policies.
+                    </a>{" "}
+                    {/* and cancellation policy. */}
                   </span>
                 </div>
-
                 {/* Optional marketing consent: same box-only toggle as the terms row */}
                 <div className="p-3.5 rounded-xl bg-[#0e1319] border border-zinc-800/80 flex items-start gap-2.5 sm:gap-3 text-xs sm:text-sm text-zinc-300">
                   <label className="mt-0.5 shrink-0 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={marketingConsent}
-                      onChange={e => setMarketingConsent(e.target.checked)}
+                      onChange={(e) => setMarketingConsent(e.target.checked)}
                       aria-labelledby="checkout-marketing-title checkout-marketing-text"
                       className="peer sr-only"
                     />
-                    <span className={`w-4 h-4 rounded flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#CCFF00] peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[#0e1319] ${
-                      marketingConsent ? 'bg-[#CCFF00] text-black' : 'border border-zinc-700 bg-zinc-900'
-                    }`}>
-                      {marketingConsent && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    <span
+                      className={`w-4 h-4 rounded flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#CCFF00] peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[#0e1319] ${
+                        marketingConsent
+                          ? "bg-[#CCFF00] text-black"
+                          : "border border-zinc-700 bg-zinc-900"
+                      }`}
+                    >
+                      {marketingConsent && (
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      )}
                     </span>
                   </label>
                   <div className="leading-relaxed">
-                    <p id="checkout-marketing-title" className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-400">
+                    <p
+                      id="checkout-marketing-title"
+                      className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-400"
+                    >
                       Optional Marketing Consent
                     </p>
                     <p id="checkout-marketing-text" className="mt-0.5">
-                      I would like to receive BXStrength offers, training updates and marketing communications. I understand that I can unsubscribe at any time.
+                      I would like to receive BXStrength offers, training
+                      updates and marketing communications. I understand that I
+                      can unsubscribe at any time.
                     </p>
                   </div>
                 </div>
@@ -1829,7 +2334,14 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
 
                 <button
                   type="button"
-                  disabled={!termsAccepted || !ageConfirmed || !virtualCoachingConfirmed || !healthConfirmed || !spaceConfirmed || Boolean(user && !user.preferredContactMethod && !selectedContactMode)}
+                  disabled={
+                    !termsAccepted ||
+                    !ageConfirmed ||
+                    !virtualCoachingConfirmed ||
+                    !healthConfirmed ||
+                    !spaceConfirmed ||
+                    Boolean(user && !contactSelectionValid)
+                  }
                   onClick={continueToPayment}
                   className="bg-[#CCFF00] hover:bg-[#b8e600] disabled:opacity-50 text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
                 >
@@ -1840,25 +2352,14 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
             </div>
           )}
 
-          {/* =====================================================================
-              STEP 3: PAYMENT SECTION
-              Layout matching reference screenshot 1 with app brand colors:
-              - Left Column: Booking Summary with #CCFF00 icons, durations, prices,
-                Total Session Time, Total Price, Back button, #CCFF00 Edit button
-              - Right Column: Payment Method with Card / UPI / International Card,
-                card logos (VISA, Mastercard, AMEX, JCB, Apple Pay), Other options,
-                prominent #CCFF00 Pay button (black text), and encrypted padlock message
-             ===================================================================== */}
           {mainStage === 3 && user && (
             <div className="space-y-5 sm:space-y-6">
               {/* Header inside Payment stage */}
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[11px] sm:text-xs font-bold text-zinc-400 tracking-wider">
-                    Step 3 of 4 Payment
-                  </p>
                   <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white mt-1">
-                    <span className="text-[#CCFF00]">BX</span> {service.title.replace(/^BX\s*/i, '')}
+                    <span className="text-[#CCFF00]">BX</span>{" "}
+                    {service.title.replace(/^BX\s*/i, "")}
                   </h2>
                   <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-zinc-400 mt-0.5">
                     COMPLETE YOUR BOOKING
@@ -1868,7 +2369,6 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
 
               {/* Responsive Column Layout: 1 col on mobile & tablet, 2 cols on desktop */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-stretch">
-
                 {/* Left Column: Booking Summary */}
                 <div className="flex h-full flex-col">
                   <div className="flex flex-1 flex-col gap-3 sm:gap-4 rounded-2xl bg-[#0e1319] border border-zinc-800/90 p-4 sm:p-5 shadow-xl">
@@ -1876,14 +2376,16 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                       <h4 className="text-xs sm:text-sm font-black text-white uppercase tracking-wide">
                         Booking Summary
                       </h4>
-                      <button
-                        type="button"
-                        onClick={() => setMainStage(1)}
-                        className="text-xs font-bold text-[#CCFF00] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
-                      >
-                        <Pencil className="w-3.5 h-3.5 text-[#CCFF00]" />
-                        <span>Edit</span>
-                      </button>
+                      {(isCustomPlan || isWeeklyPlan || isMonthlyPlan) && (
+                        <button
+                          type="button"
+                          onClick={() => setMainStage(1)}
+                          className="text-xs font-bold text-[#CCFF00] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Pencil className="w-3.5 h-3.5 text-[#CCFF00]" />
+                          <span>Edit</span>
+                        </button>
+                      )}
                     </div>
 
                     {/* Service Rows with Application Theme Lime Icons */}
@@ -1891,14 +2393,22 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                       {packageDetails.items.map((item, idx) => {
                         const IconComp = item.icon;
                         return (
-                          <div key={idx} className="flex items-center justify-between text-xs">
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between text-xs"
+                          >
                             <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
                               <IconComp className="w-4 h-4 text-[#CCFF00] shrink-0" />
-                              <span className="font-bold text-white truncate">{item.name}</span>
+                              <span className="font-bold text-white truncate">
+                                {item.name}
+                              </span>
                             </div>
                             <div className="flex items-center gap-3 sm:gap-4 shrink-0 ml-2">
-                              <span className="text-zinc-400 text-[10px] sm:text-[11px]">{item.duration}</span>
-                              <span className="font-bold text-white text-right w-10 sm:w-12">{item.price}</span>
+                              <span className="font-bold text-white text-right">
+                                {item.price.startsWith("£")
+                                  ? "Included"
+                                  : item.price}
+                              </span>
                             </div>
                           </div>
                         );
@@ -1912,7 +2422,9 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                           <Clock className="w-4 h-4 text-[#CCFF00] shrink-0" />
                           <span>Total Session Time</span>
                         </div>
-                        <span className="font-bold text-white">{packageDetails.totalDurationLabel}</span>
+                        <span className="font-bold text-white">
+                          {packageDetails.totalDurationLabel}
+                        </span>
                       </div>
 
                       <div className="flex items-center justify-between text-xs pt-1">
@@ -1951,7 +2463,7 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                       </div>
                       <div>
                         <p className="text-xs sm:text-sm font-bold text-white">
-                          Card / UPI / International Card
+                          Credit / Debit Card
                         </p>
                         <p className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5">
                           Secure payment powered by Razorpay
@@ -1982,7 +2494,9 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                         <span className="w-1 h-2.5 rounded-xs bg-[#005a9c]" />
                         <span className="w-1 h-2.5 rounded-xs bg-[#d9272e]" />
                         <span className="w-1 h-2.5 rounded-xs bg-[#00873c]" />
-                        <span className="text-[9px] font-black text-zinc-900 ml-0.5">JCB</span>
+                        <span className="text-[9px] font-black text-zinc-900 ml-0.5">
+                          JCB
+                        </span>
                       </span>
 
                       {/* Apple Pay */}
@@ -1993,56 +2507,77 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                   </div>
 
                   <button
-                        type="button"
-                        disabled={isProcessing}
-                        onClick={() => void handleProceedToPayment()}
-                        className="w-full bg-[#CCFF00] hover:bg-[#b8e600] active:scale-[0.99] disabled:opacity-50 text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3.5 sm:py-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(204,255,0,0.3)]"
-                      >
-                        <span>{isProcessing ? 'Processing...' : `Pay £${displayTotalPrice}`}</span>
-                        <ArrowRight className="w-4 h-4 stroke-[3]" />
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => void handleProceedToPayment()}
+                    className="w-full bg-[#CCFF00] hover:bg-[#b8e600] active:scale-[0.99] disabled:opacity-50 text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3.5 sm:py-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(204,255,0,0.3)]"
+                  >
+                    <span>
+                      {isProcessing
+                        ? "Processing..."
+                        : `Pay £${displayTotalPrice}`}
+                    </span>
+                    <ArrowRight className="w-4 h-4 stroke-[3]" />
                   </button>
+                  {canTestMockPayment && (
+                    <button
+                      type="button"
+                      disabled={isProcessing}
+                      onClick={() => void handleProceedToPayment(true)}
+                      className="w-full border border-amber-400/60 bg-amber-400/10 hover:bg-amber-400/20 disabled:opacity-50 text-amber-200 font-bold text-xs uppercase tracking-wider py-3 rounded-xl transition-colors"
+                    >
+                      Simulate successful payment (test only)
+                    </button>
+                  )}
                   
 
                   {/* Security indicator */}
                   <div className="flex items-center justify-center gap-1.5 text-[10px] sm:text-[11px] text-zinc-400 text-center">
                     <Lock className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                    <span>Your payment information is secure and encrypted.</span>
+                    <span>
+                      Your payment information is secure and encrypted.
+                    </span>
                   </div>
-        </div>
-
-        {isSuccessAnimationVisible && (
-          <div
-            role="status"
-            aria-live="assertive"
-            aria-label="Payment successful. Opening your thank-you page."
-            className="absolute inset-0 z-[60] flex items-center justify-center rounded-2xl bg-black/60 p-4 text-center backdrop-blur-sm"
-          >
-            <div className="payment-success-alert flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl border border-[#CCFF00]/40 bg-[#101318] px-6 py-7 shadow-[0_20px_80px_rgba(0,0,0,0.65)]">
-              <div className="payment-success-overlay-icon relative flex h-20 w-20 items-center justify-center">
-                <div className="absolute inset-0 rounded-full border-2 border-[#CCFF00]/25 border-t-[#CCFF00] payment-success-spinner" />
-                {Array.from({ length: 16 }, (_, index) => (
-                  <span
-                    key={index}
-                    className="payment-success-firework-particle"
-                    style={{
-                      '--burst-angle': `${index * 22.5}deg`,
-                      '--burst-distance': `${42 + (index % 3) * 10}px`,
-                      '--burst-delay': `${(index % 4) * 25}ms`,
-                    } as React.CSSProperties}
-                  />
-                ))}
-                <div className="payment-success-overlay-check flex h-14 w-14 items-center justify-center rounded-full bg-[#CCFF00] text-black shadow-[0_0_35px_rgba(204,255,0,0.45)]">
-                  <Check className="h-8 w-8 stroke-[4]" />
                 </div>
-              </div>
-              <div className="space-y-1.5">
-                <h2 className="text-xl font-black text-white sm:text-2xl">Payment Successful</h2>
-                <p className="text-sm text-zinc-400">Taking you to your thank-you page…</p>
-              </div>
-            </div>
-          </div>
-        )}
 
+                {isSuccessAnimationVisible && (
+                  <div
+                    role="status"
+                    aria-live="assertive"
+                    aria-label="Payment successful. Opening your thank-you page."
+                    className="absolute inset-0 z-[60] flex items-center justify-center rounded-2xl bg-black/60 p-4 text-center backdrop-blur-sm"
+                  >
+                    <div className="payment-success-alert flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl border border-[#CCFF00]/40 bg-[#101318] px-6 py-7 shadow-[0_20px_80px_rgba(0,0,0,0.65)]">
+                      <div className="payment-success-overlay-icon relative flex h-20 w-20 items-center justify-center">
+                        <div className="absolute inset-0 rounded-full border-2 border-[#CCFF00]/25 border-t-[#CCFF00] payment-success-spinner" />
+                        {Array.from({ length: 16 }, (_, index) => (
+                          <span
+                            key={index}
+                            className="payment-success-firework-particle"
+                            style={
+                              {
+                                "--burst-angle": `${index * 22.5}deg`,
+                                "--burst-distance": `${42 + (index % 3) * 10}px`,
+                                "--burst-delay": `${(index % 4) * 25}ms`,
+                              } as React.CSSProperties
+                            }
+                          />
+                        ))}
+                        <div className="payment-success-overlay-check flex h-14 w-14 items-center justify-center rounded-full bg-[#CCFF00] text-black shadow-[0_0_35px_rgba(204,255,0,0.45)]">
+                          <Check className="h-8 w-8 stroke-[4]" />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <h2 className="text-xl font-black text-white sm:text-2xl">
+                          Payment Successful
+                        </h2>
+                        <p className="text-sm text-zinc-400">
+                          Taking you to your thank-you page…
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -2067,17 +2602,85 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
             <div className="max-w-2xl mx-auto text-center space-y-4 py-1">
               {/* Celebratory radiating burst rays with lime checkmark circle */}
               <div className="payment-success-badge relative w-[4.5rem] h-[4.5rem] sm:w-20 sm:h-20 mx-auto flex items-center justify-center">
-                <svg className="payment-success-rays absolute inset-0 w-full h-full text-[#CCFF00]" viewBox="0 0 100 100" fill="none">
+                <svg
+                  className="payment-success-rays absolute inset-0 w-full h-full text-[#CCFF00]"
+                  viewBox="0 0 100 100"
+                  fill="none"
+                >
                   {/* Cardinal rays */}
-                  <line x1="50" y1="5" x2="50" y2="10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                  <line x1="50" y1="90" x2="50" y2="95" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                  <line x1="5" y1="50" x2="10" y2="50" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                  <line x1="90" y1="50" x2="95" y2="50" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                  <line
+                    x1="50"
+                    y1="5"
+                    x2="50"
+                    y2="10"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                  <line
+                    x1="50"
+                    y1="90"
+                    x2="50"
+                    y2="95"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                  <line
+                    x1="5"
+                    y1="50"
+                    x2="10"
+                    y2="50"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                  <line
+                    x1="90"
+                    y1="50"
+                    x2="95"
+                    y2="50"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
                   {/* Diagonal rays */}
-                  <line x1="18" y1="18" x2="22" y2="22" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                  <line x1="78" y1="22" x2="82" y2="18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                  <line x1="18" y1="82" x2="22" y2="78" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                  <line x1="78" y1="78" x2="82" y2="82" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                  <line
+                    x1="18"
+                    y1="18"
+                    x2="22"
+                    y2="22"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                  <line
+                    x1="78"
+                    y1="22"
+                    x2="82"
+                    y2="18"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                  <line
+                    x1="18"
+                    y1="82"
+                    x2="22"
+                    y2="78"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                  <line
+                    x1="78"
+                    y1="78"
+                    x2="82"
+                    y2="82"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
                 </svg>
                 <div className="payment-success-mark w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#CCFF00] flex items-center justify-center text-black shadow-[0_0_30px_rgba(204,255,0,0.45)]">
                   <Check className="w-8 h-8 sm:w-9 sm:h-9 stroke-[3.5] text-black" />
@@ -2112,7 +2715,8 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                     <span>Services</span>
                   </div>
                   <span className="font-bold text-white text-xs">
-                    {packageDetails.servicesCount} services ({packageDetails.totalDurationLabel})
+                    {packageDetails.servicesCount} services (
+                    {packageDetails.totalDurationLabel})
                   </span>
                 </div>
 
@@ -2121,7 +2725,9 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                     <Calendar className="w-4 h-4 text-zinc-400 shrink-0" />
                     <span>Date</span>
                   </div>
-                  <span className="font-bold text-white text-xs">{bookingDate}</span>
+                  <span className="font-bold text-white text-xs">
+                    {bookingDate}
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
@@ -2129,7 +2735,9 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                     <Clock className="w-4 h-4 text-zinc-400 shrink-0" />
                     <span>Time (Your Local Time)</span>
                   </div>
-                  <span className="font-bold text-white text-xs">10:00 (Your Local Time)</span>
+                  <span className="font-bold text-white text-xs">
+                    10:00 (Your Local Time)
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between pt-1">
@@ -2149,10 +2757,14 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
                   We’ll Contact You Soon
                 </h4>
                 <p className="text-xs text-zinc-300 leading-relaxed text-center sm:text-left">
-                  Thank you for booking with BXStrength. Our team will now confirm your session date and time and send you the final booking details, including the joining link and any required information, via email or WhatsApp.
+                  Thank you for booking with BXStrength. Our team will now
+                  confirm your session date and time and send you the final
+                  booking details, including the joining link and any required
+                  information, via email or WhatsApp.
                 </p>
                 <p className="text-[10px] sm:text-[11px] text-zinc-400 leading-relaxed text-center sm:text-left pt-1 border-t border-zinc-800/80">
-                  If you have any specific request, feel free to reply once you receive our confirmation message.
+                  If you have any specific request, feel free to reply once you
+                  receive our confirmation message.
                 </p>
               </div>
 
@@ -2180,7 +2792,6 @@ export const ServiceCustomizationModal: React.FC<ServiceCustomizationModalProps>
               </div>
             </div>
           )}
-
         </div>
       </div>
     </div>

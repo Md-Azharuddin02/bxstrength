@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, Bot, User, CheckCircle2, Phone, Mail, ShieldCheck, Zap, ArrowRight, Clock } from 'lucide-react';
 import { VelocityAPI } from '../../services/api';
+import { PhoneInput } from '../PhoneInput';
 import { sendBrevoTicketEmail } from '../../services/emailService';
 
 interface ChatMessage {
@@ -374,16 +375,12 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-zinc-300 uppercase mb-1">Phone / WhatsApp</label>
-                    <input
-                      type="tel"
-                      value={contactPhone}
-                      onChange={(e) => setContactPhone(e.target.value)}
-                      placeholder="+44 7911 123456"
-                      className="w-full bg-[#121214] border border-zinc-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
-                    />
-                  </div>
+                  <PhoneInput
+                    label="Phone / WhatsApp"
+                    value={contactPhone}
+                    onChange={setContactPhone}
+                    inputClassName="w-full bg-[#121214] border border-zinc-700 rounded-lg pl-[104px] pr-3 py-2 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
+                  />
                 </div>
 
                 <div>

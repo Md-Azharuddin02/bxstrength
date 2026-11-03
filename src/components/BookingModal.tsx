@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useId } from 'react';
+import { PhoneInput } from './PhoneInput';
 import { ConsultationBooking } from '../types';
 import { VelocityAPI, getApiUrl, apiFetch } from '../services/api';
 import { sendConsultationConfirmationEmail } from '../services/emailService';
@@ -122,7 +123,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [userPhone, setUserPhone] = useState(user?.phone || '');
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [goal, setGoal] = useState<string>(preSelectedClass || 'Fitness Boxing');
-  const [selectedDuration, setSelectedDuration] = useState<number>(20);
   const [selectedTrainer, setSelectedTrainer] = useState(preSelectedTrainer || 'Assigned Lead Coach');
   
   const [confirmedBooking, setConfirmedBooking] = useState<ConsultationBooking & { duration?: string } | null>(null);
@@ -130,7 +130,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const nameInputId = useId();
   const emailInputId = useId();
-  const phoneInputId = useId();
   const additionalNotesInputId = useId();
   const goalInputId = useId();
 
@@ -148,14 +147,6 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       setSelectedTrainer(preSelectedTrainer);
     }
   }, [preSelectedTrainer]);
-
-  // Update default duration when goal changes
-  useEffect(() => {
-    const matched = ALL_GOALS_SERVICES.find(g => g.title.toLowerCase() === goal.toLowerCase());
-    if (matched) {
-      setSelectedDuration(matched.defaultDuration);
-    }
-  }, [goal]);
 
   // Auto-dismiss the error toast after a few seconds
   useEffect(() => {
@@ -177,7 +168,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
-    const durationText = `${selectedDuration} Min`;
+    const durationText = '15 Min'; // Free demo is always a 15-minute session
     const newBooking: ConsultationBooking & { duration?: string } = {
       id: 'BX-CONS-' + Math.floor(100000 + Math.random() * 900000),
       clientName: userName,
@@ -474,20 +465,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   />
                 </div>
 
-                <div>
-                  <label htmlFor={phoneInputId} className="block text-[11px] font-bold uppercase tracking-wider text-zinc-300 mb-1.5">
-                    PHONE / WHATSAPP *
-                  </label>
-                  <input
-                    id={phoneInputId}
-                    type="tel"
-                    required
-                    placeholder="+44 7911 123456"
-                    value={userPhone}
-                    onChange={(e) => setUserPhone(e.target.value)}
-                    className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-4 py-3 text-xs font-semibold text-white focus:outline-none focus:border-[#CCFF00] transition-colors"
-                  />
-                </div>
+                <PhoneInput
+                  label="Phone / WhatsApp"
+                  required
+                  value={userPhone}
+                  onChange={setUserPhone}
+                  inputClassName="w-full bg-[#18181b] border border-zinc-800 rounded-xl pl-[104px] pr-4 py-3 text-xs font-semibold text-white focus:outline-none focus:border-[#CCFF00] transition-colors"
+                />
               </div>
             </section>
 

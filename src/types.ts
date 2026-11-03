@@ -61,6 +61,8 @@ export interface User {
   avatarUrl?: string;
   phone?: string;
   preferredContactMethod?: 'whatsapp' | 'email' | 'call' | 'all';
+  contactMethods?: ('whatsapp' | 'call' | 'email')[];
+  whatsappNumber?: string;
   age?: number;
   heightCm?: number;
   gender?: 'Male' | 'Female' | 'Other' | 'Prefer not to say';

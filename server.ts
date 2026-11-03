@@ -1774,6 +1774,8 @@ if (dbPool) {
           ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active';
           ALTER TABLE users ADD COLUMN IF NOT EXISTS assigned_coach VARCHAR(255);
           ALTER TABLE users ADD COLUMN IF NOT EXISTS assigned_head_coach VARCHAR(255);
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS contact_methods TEXT;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(100);
 
           ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS target_user_id VARCHAR(64);
           ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS target_name VARCHAR(255);
@@ -3151,7 +3153,7 @@ app.post('/api/consultations', enquiryLimiter, async (req, res) => {
     const leadEmail = sanitizeInput(email).toLowerCase();
     const leadPhone = sanitizeInput(phone || '');
     const leadGoal = sanitizeInput(goal || 'Fitness Boxing');
-    const leadDuration = sanitizeInput(duration || '20 Min');
+    const leadDuration = sanitizeInput(duration || '15 Min');
     const coach = sanitizeInput(coachPreference || 'Head Coach Assignment');
     const date = sanitizeInput(preferredDate || '');
     const time = sanitizeInput(preferredTime || '');
@@ -4084,6 +4086,8 @@ app.get('/api/users', async (req, res) => {
           status: r.status || 'active',
           assignedCoach: r.assigned_coach || '',
           assignedHeadCoach: r.assigned_head_coach || '',
+          contactMethods: r.contact_methods ? String(r.contact_methods).split(',').filter(Boolean) : [],
+          whatsappNumber: r.whatsapp_number || '',
           createdAt: r.created_at || new Date().toISOString()
         }));
         return res.json(formatted);
@@ -4139,12 +4143,18 @@ app.post('/api/users', authenticateToken, async (req: any, res: any) => {
 app.patch('/api/users/:id', authenticateToken, async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, role, coachPosition, heightCm, age, gender, fitnessGoals, subscriptionTier, billingStatements, isVerified, status, assignedCoach, assignedHeadCoach } = req.body;
+    const { name, email, phone, role, coachPosition, heightCm, age, gender, fitnessGoals, subscriptionTier, billingStatements, isVerified, status, assignedCoach, assignedHeadCoach, contactMethods, whatsappNumber } = req.body;
 
     // Authorization check: User can update their own profile OR must be admin/coach
     if (req.user.id !== id && req.user.role !== 'admin' && req.user.role !== 'coach' && req.user.role !== 'headcoach') {
       return res.status(403).json({ error: 'Forbidden: You can only update your own profile.' });
     }
+
+    const allowedMethods = ['whatsapp', 'call', 'email'];
+    const cleanContactMethods = Array.isArray(contactMethods)
+      ? contactMethods.map((m: any) => sanitizeInput(String(m)).toLowerCase()).filter((m: string) => allowedMethods.includes(m)).join(',')
+      : null;
+    const cleanWhatsappNumber = whatsappNumber !== undefined ? sanitizeInput(String(whatsappNumber)) : null;
 
     const cleanRole = (req.user.role === 'admin' || req.user.role === 'headcoach') && role !== undefined ? sanitizeInput(role) : null;
     const parsedIsVerified = (req.user.role === 'admin' || req.user.role === 'headcoach') && isVerified !== undefined ? Boolean(isVerified) : null;
@@ -4172,7 +4182,9 @@ app.patch('/api/users/:id', authenticateToken, async (req: any, res: any) => {
             is_verified = CASE WHEN $12::boolean IS NOT NULL THEN $12::boolean ELSE is_verified END,
             status = CASE WHEN $13::text IS NOT NULL THEN $13::text ELSE status END,
             assigned_coach = CASE WHEN $14::text IS NOT NULL THEN $14::text ELSE assigned_coach END,
-            assigned_head_coach = CASE WHEN $15::text IS NOT NULL THEN $15::text ELSE assigned_head_coach END
+            assigned_head_coach = CASE WHEN $15::text IS NOT NULL THEN $15::text ELSE assigned_head_coach END,
+            contact_methods = COALESCE($17, contact_methods),
+            whatsapp_number = COALESCE($18, whatsapp_number)
            WHERE id = $16`,
           [
             name ? sanitizeInput(name) : null,
@@ -4190,7 +4202,9 @@ app.patch('/api/users/:id', authenticateToken, async (req: any, res: any) => {
             cleanStatus,
             cleanAssignedCoach,
             cleanAssignedHeadCoach,
-            id
+            id,
+            cleanContactMethods,
+            cleanWhatsappNumber
           ]
         );
       } catch (e: any) {

@@ -1,5 +1,17 @@
 import { Dumbbell, Flame, Target, Activity, Move, UserCheck, ShieldCheck } from 'lucide-react';
-import type { TrainYourWayService } from '../types';
+import type { TrainYourWayService, TrainYourWayFeature } from '../types';
+
+// Canonical feature list shown on every card, in upsell order. Each tier highlights the
+// keys it includes (see `includes`) and renders the rest dimmed, so all cards are equal height.
+export const trainYourWayFeatures = [
+  { key: 'warmup', icon: Flame, label: 'Warm-Up' },
+  { key: 'strength', icon: Dumbbell, label: 'Strength Training' },
+  { key: 'functional', icon: Activity, label: 'Functional Training' },
+  { key: 'mobility', icon: Move, label: 'Mobility' },
+  { key: 'flexibility', icon: UserCheck, label: 'Flexibility' },
+  { key: 'boxing', icon: Target, label: 'Fitness Boxing' },
+  { key: 'recovery', icon: ShieldCheck, label: 'Cool-Down & Recovery' }
+] satisfies TrainYourWayFeature[];
 
 export const trainYourWayServices = [
     {
@@ -9,10 +21,7 @@ export const trainYourWayServices = [
       price: 20,
       duration: '15 MINUTES',
       description: 'A quick, focused strength session for structured training when time is limited.',
-      features: [
-        { icon: Flame, text: 'Basic Warm-Up' },
-        { icon: Dumbbell, text: 'Strength Training' }
-      ],
+      includes: ['warmup', 'strength'],
       ctaLabel: 'CHOOSE BASIC'
     },
     {
@@ -22,11 +31,7 @@ export const trainYourWayServices = [
       price: 40,
       duration: '30 MINUTES',
       description: 'A balanced session combining guided preparation, strength and functional movement.',
-      features: [
-        { icon: Target, text: 'Guided Warm-Up' },
-        { icon: Dumbbell, text: 'Strength Training' },
-        { icon: Activity, text: 'Functional Training' }
-      ],
+      includes: ['warmup', 'strength', 'functional'],
       ctaLabel: 'CHOOSE FOCUS'
     },
     {
@@ -36,13 +41,7 @@ export const trainYourWayServices = [
       price: 60,
       duration: '45 MINUTES',
       description: 'A performance-focused session designed for more complete movement, strength and mobility work.',
-      features: [
-        { icon: Flame, text: 'Personalised Warm-Up' },
-        { icon: Dumbbell, text: 'Strength Training' },
-        { icon: Activity, text: 'Functional Training' },
-        { icon: Move, text: 'Mobility' },
-        { icon: UserCheck, text: 'Flexibility' }
-      ],
+      includes: ['warmup', 'strength', 'functional', 'mobility', 'flexibility'],
       ctaLabel: 'CHOOSE PERFORMANCE'
     },
     {
@@ -52,15 +51,7 @@ export const trainYourWayServices = [
       price: 80,
       duration: '60 MINUTES',
       description: 'A complete training experience with structured preparation, full-body training and dedicated recovery.',
-      features: [
-        { icon: Flame, text: 'Personalised Warm-Up' },
-        { icon: Target, text: 'Fitness Boxing' },
-        { icon: Dumbbell, text: 'Strength Training' },
-        { icon: Activity, text: 'Functional Training' },
-        { icon: Move, text: 'Mobility' },
-        { icon: UserCheck, text: 'Flexibility' }
-      ],
-      specialBadge: 'Dedicated Cool-Down & Recovery',
+      includes: ['warmup', 'strength', 'functional', 'mobility', 'flexibility', 'boxing', 'recovery'],
       ctaLabel: 'CHOOSE COMPLETE'
     }
   ] satisfies TrainYourWayService[];

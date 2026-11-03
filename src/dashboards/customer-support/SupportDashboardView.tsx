@@ -6,6 +6,7 @@ import { normalizeRole } from '../../utils/auth';
 import { VelocityAPI, getApiUrl, decodeHtmlEntities } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { PhoneInput } from '../../components/PhoneInput';
 import { ProfileManagement } from '../client/ProfileManagement';
 import { FreeAssessmentsView } from '../head-coach/FreeAssessmentsView';
 import { 
@@ -1380,16 +1381,12 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
                 />
               </div>
 
-              <div>
-                <label className="text-[10px] font-bold uppercase text-zinc-400 block mb-1">Phone Number</label>
-                <input
-                  type="text"
-                  value={newCustPhone}
-                  onChange={(e) => setNewCustPhone(e.target.value)}
-                  placeholder="+44 7911 123456"
-                  className="w-full bg-[#121214] border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
-                />
-              </div>
+              <PhoneInput
+                label="Phone Number"
+                value={newCustPhone}
+                onChange={setNewCustPhone}
+                inputClassName="w-full bg-[#121214] border border-zinc-800 rounded-xl pl-[104px] pr-2.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
+              />
 
               <div>
                 <label className="text-[10px] font-bold uppercase text-zinc-400 block mb-1">Source</label>

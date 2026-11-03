@@ -92,6 +92,88 @@
   animation: service-section-reveal 700ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
 }
 
+/* "Train better" collage: cards fly in from the sides in 3D and wipe open.
+   Fill mode is "backwards" so once a card lands its own hover effects (brightness, borders) work again. */
+@keyframes collage-in-left {
+  0% {
+    opacity: 0;
+    transform: perspective(1200px) translate3d(-160px, 40px, -280px) rotateY(58deg) rotateZ(-4deg);
+    filter: blur(14px);
+    clip-path: inset(0 100% 0 0 round 24px);
+  }
+  55% { opacity: 1; filter: blur(0); clip-path: inset(0 0 0 0 round 24px); }
+  78% { transform: perspective(1200px) translate3d(8px, 0, 0) rotateY(-5deg); }
+  100% { opacity: 1; transform: none; filter: none; clip-path: inset(0 0 0 0 round 24px); }
+}
+
+@keyframes collage-in-right {
+  0% {
+    opacity: 0;
+    transform: perspective(1200px) translate3d(160px, 40px, -280px) rotateY(-58deg) rotateZ(4deg);
+    filter: blur(14px);
+    clip-path: inset(0 0 0 100% round 24px);
+  }
+  55% { opacity: 1; filter: blur(0); clip-path: inset(0 0 0 0 round 24px); }
+  78% { transform: perspective(1200px) translate3d(-8px, 0, 0) rotateY(5deg); }
+  100% { opacity: 1; transform: none; filter: none; clip-path: inset(0 0 0 0 round 24px); }
+}
+
+.collage-col:not(.is-in) > * { opacity: 0; }
+.collage-col > *:nth-child(2) { --collage-step: 220ms; }
+.collage-col > *:nth-child(3) { --collage-step: 440ms; }
+
+.collage-col.is-in > * {
+  will-change: transform, filter, clip-path;
+  animation: 1150ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(var(--collage-delay, 0ms) + var(--collage-step, 0ms));
+}
+.collage-col.is-in[data-from="left"] > * { animation-name: collage-in-left; }
+.collage-col.is-in[data-from="right"] > * { animation-name: collage-in-right; }
+
+/* Headline: each word rises out of a mask */
+@keyframes headline-word-up {
+  from { transform: translateY(115%) rotate(7deg); }
+  to { transform: none; }
+}
+.headline-word {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.08em;
+}
+.headline-word > span {
+  display: inline-block;
+  transform: translateY(115%) rotate(7deg);
+}
+.headline-reveal.is-in .headline-word > span {
+  animation: headline-word-up 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--word, 0) * 90ms);
+}
+
+/* "Train Your Way" quote: each line slides up from behind a mask, staggered. Key phrases in lime. */
+.quote-hl {
+  color: #CCFF00;
+  font-weight: 700;
+}
+.quote-line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.06em;
+}
+.quote-line > span {
+  display: inline-block;
+  white-space: nowrap;
+  /* Visible by default; the slide-up starts from its hidden position only once .is-in triggers the animation. */
+}
+.quote-reveal.is-in .quote-line > span {
+  animation: quote-line-up 760ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--line, 0) * 130ms);
+}
+@keyframes quote-line-up {
+  from { transform: translateY(115%); }
+  to { transform: none; }
+}
+
 @keyframes service-monthly-glow {
   0%, 100% { box-shadow: 0 0 26px -16px rgba(204, 255, 0, 0.35); }
   50% { box-shadow: 0 0 42px -12px rgba(204, 255, 0, 0.58); }
@@ -323,5 +405,17 @@
   .payment-success-mark,
   .best-value-badge-anim {
     animation: none !important;
+  }
+
+  /* No fly-in or word reveal: show everything straight away */
+  .collage-col > *,
+  .headline-reveal .headline-word > span {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  .quote-reveal .quote-line > span {
+    animation: none !important;
+    transform: none !important;
   }
 }

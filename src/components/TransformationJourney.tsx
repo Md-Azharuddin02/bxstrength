@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Play, Maximize2, X, Flame, CalendarCheck, ClipboardList, ArrowUpRight } from 'lucide-react';
 import { cloudinaryImage } from '../utils/image';
 import { LazyVideo } from './ui/LazyVideo';
@@ -21,16 +21,44 @@ export const TransformationJourney: React.FC<TransformationJourneyProps> = ({
   onOpenConsultation,
 }) => {
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // The headline and each column animate every time they scroll into view (per column, so stacked phone
+  // layouts animate as you reach them). They reset only once fully off-screen, so nothing vanishes in view.
+  useEffect(() => {
+    const columns = Array.from(sectionRef.current?.querySelectorAll<HTMLElement>('.collage-col, .headline-reveal') ?? []);
+    if (!('IntersectionObserver' in window)) {
+      columns.forEach((col) => col.classList.add('is-in'));
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.intersectionRatio >= 0.15) entry.target.classList.add('is-in');
+        else if (!entry.isIntersecting) entry.target.classList.remove('is-in');
+      });
+    }, { threshold: [0, 0.15] });
+    columns.forEach((col) => observer.observe(col));
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <section className="w-full bg-[#070708] py-12 sm:py-20 text-white border-b border-zinc-800/80 relative font-sans overflow-hidden">
+    <section ref={sectionRef} className="w-full bg-[#070708] py-12 sm:py-20 text-white border-b border-zinc-800/80 relative font-sans overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
         
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-16">
           
-          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-white break-words">
-            TRAIN BETTER. WHEREVER YOU ARE.
+          <h2
+            aria-label="Train better. Wherever you are."
+            className="headline-reveal text-2xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-white break-words"
+          >
+            {['TRAIN', 'BETTER.', 'WHEREVER', 'YOU', 'ARE.'].map((word, i) => (
+              <React.Fragment key={word}>
+                <span className="headline-word" aria-hidden="true">
+                  <span style={{ '--word': i } as React.CSSProperties}>{word}</span>
+                </span>{' '}
+              </React.Fragment>
+            ))}
           </h2>
           {/* <p className="text-zinc-400 text-xs sm:text-base mt-3 font-medium leading-relaxed max-w-2xl mx-auto">
             Live coach-led boxing, strength training, and athlete transformations engineered for real life.
@@ -41,7 +69,7 @@ export const TransformationJourney: React.FC<TransformationJourneyProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
           
           {/* COLUMN 1 */}
-          <div className="flex flex-col gap-4">
+          <div className="collage-col flex flex-col gap-4" data-from="left" style={{ '--collage-delay': '0ms' } as React.CSSProperties}>
             {/* Tall Portrait Video Card */}
             <div 
               onClick={() => setSelectedMedia({
@@ -71,22 +99,22 @@ export const TransformationJourney: React.FC<TransformationJourneyProps> = ({
             {/* Solid Vibrant Coral/Orange Text Card */}
             <div 
               onClick={onOpenConsultation}
-              className="relative h-[220px] rounded-3xl bg-[#f95738] p-6 text-white flex flex-col justify-between cursor-pointer group hover:brightness-105 transition-all shadow-xl border border-orange-500/30"
+              className="relative h-[220px] rounded-3xl bg-[#CCFF00] p-6 text-black flex flex-col justify-between cursor-pointer group hover:bg-[#b8e600] transition-all shadow-xl border border-[#CCFF00]"
             >
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-orange-100 bg-black/20 px-2.5 py-1 rounded-full">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-black/70 bg-black/10 px-2.5 py-1 rounded-full">
                   COACH-LED PLATFORM
                 </span>
-                <ArrowUpRight className="w-5 h-5 text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                <ArrowUpRight className="w-5 h-5 text-black group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </div>
-              <h3 className="text-xl sm:text-2xl font-black uppercase leading-tight tracking-tight text-white">
+              <h3 className="text-xl sm:text-2xl font-black uppercase leading-tight tracking-tight text-black">
                 100% Coach-Led Live Online Sessions Built Around Real Life
               </h3>
             </div>
           </div>
 
           {/* COLUMN 2 */}
-          <div className="flex flex-col gap-4">
+          <div className="collage-col flex flex-col gap-4" data-from="left" style={{ '--collage-delay': '150ms' } as React.CSSProperties}>
             {/* Landscape Photo Card */}
             <div 
               onClick={() => setSelectedMedia({
@@ -114,15 +142,15 @@ export const TransformationJourney: React.FC<TransformationJourneyProps> = ({
             {/* Solid Light Sky Blue / Mint Text Card */}
             <div 
               onClick={onOpenAssessment}
-              className="relative h-[240px] rounded-3xl bg-[#99f6e4] p-6 text-zinc-950 flex flex-col justify-between cursor-pointer group hover:brightness-105 transition-all shadow-xl border border-teal-300/40"
+              className="relative h-[240px] rounded-3xl bg-[#121214] p-6 text-white flex flex-col justify-between cursor-pointer group transition-all shadow-xl border border-zinc-800 hover:border-[#CCFF00]"
             >
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-teal-900 bg-teal-950/15 px-2.5 py-1 rounded-full">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#CCFF00] bg-[#CCFF00]/10 px-2.5 py-1 rounded-full">
                   GLOBAL IMPACT
                 </span>
-                <ArrowUpRight className="w-5 h-5 text-zinc-950 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                <ArrowUpRight className="w-5 h-5 text-white group-hover:text-[#CCFF00] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
               </div>
-              <h3 className="text-xl sm:text-2xl font-black uppercase leading-tight tracking-tight text-zinc-950">
+              <h3 className="text-xl sm:text-2xl font-black uppercase leading-tight tracking-tight text-white">
                 1,000+ Global Athlete Transformations Across UK, UAE & Worldwide
               </h3>
             </div>
@@ -155,7 +183,7 @@ export const TransformationJourney: React.FC<TransformationJourneyProps> = ({
           </div>
 
           {/* COLUMN 3 */}
-          <div className="flex flex-col gap-4">
+          <div className="collage-col flex flex-col gap-4" data-from="right" style={{ '--collage-delay': '150ms' } as React.CSSProperties}>
             {/* Tall Action Photo Card */}
             <div 
               onClick={() => setSelectedMedia({
@@ -206,7 +234,7 @@ export const TransformationJourney: React.FC<TransformationJourneyProps> = ({
                 </div>
               </div>
               <div className="absolute bottom-4 left-4">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400 bg-black/60 px-2.5 py-0.5 rounded-full border border-zinc-700">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#CCFF00] bg-black/60 px-2.5 py-0.5 rounded-full border border-zinc-700">
                   HEAVY BAG DRILL
                 </span>
               </div>
@@ -214,14 +242,14 @@ export const TransformationJourney: React.FC<TransformationJourneyProps> = ({
           </div>
 
           {/* COLUMN 4 */}
-          <div className="flex flex-col gap-4">
+          <div className="collage-col flex flex-col gap-4" data-from="right" style={{ '--collage-delay': '0ms' } as React.CSSProperties}>
             {/* Deep Dark Teal Solid Color Text Card */}
             <div 
               onClick={onOpenConsultation}
-              className="relative h-[220px] rounded-3xl bg-[#044e42] p-6 text-white flex flex-col justify-between cursor-pointer group hover:brightness-105 transition-all shadow-xl border border-emerald-600/30"
+              className="relative h-[220px] rounded-3xl bg-[#121214] p-6 text-white flex flex-col justify-between cursor-pointer group transition-all shadow-xl border border-zinc-800 hover:border-[#CCFF00]"
             >
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-emerald-200 bg-black/20 px-2.5 py-1 rounded-full">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#CCFF00] bg-[#CCFF00]/10 px-2.5 py-1 rounded-full">
                   STRUCTURED COACHING
                 </span>
                 <ArrowUpRight className="w-5 h-5 text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
@@ -340,7 +368,7 @@ export const TransformationJourney: React.FC<TransformationJourneyProps> = ({
 
             {/* Modal Footer Info */}
             <div className="p-4 bg-[#121214] border-t border-zinc-800 shrink-0 flex items-center justify-between gap-3">
-              <span className="text-xs font-mono text-emerald-400 uppercase tracking-wider">
+              <span className="text-xs font-mono text-[#CCFF00] uppercase tracking-wider">
                 {selectedMedia.category}
               </span>
               <button

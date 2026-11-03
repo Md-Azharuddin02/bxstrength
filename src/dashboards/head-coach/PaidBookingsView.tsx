@@ -853,10 +853,10 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
               </span>
               <div>
                 <h3 className="text-base font-black uppercase text-white tracking-wider">
-                  Alert Head Coach &amp; Admin
+                  Alert Head Coach & Admin
                 </h3>
                 <p className="text-xs text-zinc-400">
-                  Send immediate priority email and in-app notification to Head Coach &amp; Admin.
+                  Send immediate priority email and in-app notification to Head Coach & Admin.
                 </p>
               </div>
             </div>

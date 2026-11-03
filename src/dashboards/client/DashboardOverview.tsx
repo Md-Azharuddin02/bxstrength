@@ -202,7 +202,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                   </span>
                 </div>
                 <h3 className="text-base sm:text-lg font-black text-white uppercase mt-1 tracking-tight">
-                  Claim Your 1-on-1 Free Demo &amp; Strategy Session
+                  Claim Your 1-on-1 Free Demo & Strategy Session
                 </h3>
                 <p className="text-xs text-zinc-300 max-w-xl mt-1 leading-relaxed">
                   As a registered BxStrength athlete, you are eligible for one complimentary 15-minute consultation directly overseen by our Head Coach. Discuss your athletic goals and receive a custom training roadmap.
@@ -353,7 +353,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 </span>
                 <span className="text-xs font-mono font-bold text-zinc-400">REF: {activeJourney.id}</span>
               </div>
-              <h3 className="text-sm font-black text-white uppercase mt-1">Coach Alignment &amp; Schedule Assignment Pending</h3>
+              <h3 className="text-sm font-black text-white uppercase mt-1">Coach Alignment & Schedule Assignment Pending</h3>
               <p className="text-xs text-zinc-400 mt-0.5">
                 Your payment for <strong className="text-white">{activeJourney.serviceTitle}</strong> (£{activeJourney.amountGbp} GBP) is confirmed. Our Head Coaching team will contact you to confirm your schedule.
               </p>

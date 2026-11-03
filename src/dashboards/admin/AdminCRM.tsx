@@ -11,15 +11,13 @@ import { FinancialSubscriptions } from './FinancialSubscriptions';
 import { EnquiriesManager } from '../customer-support/EnquiriesManager';
 import { AnnouncementsManager } from './AnnouncementsManager';
 import { AuditLogsAndSettings } from './AuditLogsAndSettings';
-import { TicketManagement } from '../customer-support/TicketManagement';
-import { SupportDashboardView } from '../customer-support/SupportDashboardView';
 import { CoachesManager } from './CoachesManager';
 import { FreeConsultationsView } from '../head-coach/FreeConsultationsView';
 import { FreeAssessmentsView } from '../head-coach/FreeAssessmentsView';
 import { PaidBookingsView } from '../head-coach/PaidBookingsView';
 import {
   LayoutDashboard, Users, Calendar, Dumbbell, Utensils,
-  CreditCard, Mail, ShieldAlert, ShieldCheck, LogOut, CheckCircle2, X, LifeBuoy, UserCheck, Headphones, FileText, Menu, Video, ClipboardCheck, Award
+  CreditCard, Mail, ShieldAlert, ShieldCheck, LogOut, CheckCircle2, X, UserCheck, FileText, Menu, Video, ClipboardCheck, Award
 } from 'lucide-react';
 
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
@@ -116,7 +114,7 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
   const allowedCoachTabs: string[] = [];
 
   if (isHeadCoach) {
-    allowedCoachTabs.push('overview', 'paid_bookings', 'free_consultations', 'free_assessments', 'users', 'schedule', 'programs', 'nutrition', 'enquiries', 'cs_dashboard', 'tickets', 'announcements');
+    allowedCoachTabs.push('overview', 'paid_bookings', 'free_consultations', 'free_assessments', 'users', 'schedule', 'programs', 'nutrition', 'enquiries', 'announcements');
     if (coachPerms.allowFinancials) allowedCoachTabs.push('subscriptions');
   } else if (isCoach) {
     allowedCoachTabs.push('paid_bookings', 'free_consultations');
@@ -128,7 +126,7 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
     allowedCoachTabs.push('enquiries');
     if (coachPerms.allowFinancials) allowedCoachTabs.push('subscriptions');
   } else {
-    allowedCoachTabs.push('overview', 'paid_bookings', 'free_consultations', 'free_assessments', 'users', 'schedule', 'programs', 'nutrition', 'subscriptions', 'enquiries', 'cs_dashboard', 'tickets', 'announcements', 'audit');
+    allowedCoachTabs.push('overview', 'paid_bookings', 'free_consultations', 'free_assessments', 'users', 'schedule', 'programs', 'nutrition', 'subscriptions', 'enquiries', 'announcements', 'audit');
   }
 
   const allNavItems = [
@@ -142,8 +140,6 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
     { id: 'nutrition', label: 'DIET PLANS', icon: Utensils },
     { id: 'subscriptions', label: 'FINANCIAL BILLING', icon: CreditCard },
     { id: 'enquiries', label: isCoach && !isHeadCoach ? 'ENQUIRIES' : (isHeadCoach ? 'HEAD COACH ENQUIRIES' : 'WEBSITE ENQUIRIES'), icon: Mail },
-    { id: 'cs_dashboard', label: 'CUSTOMER SUPPORT DESK', icon: Headphones },
-    { id: 'tickets', label: 'SUPPORT TICKETS', icon: LifeBuoy },
     { id: 'announcements', label: 'ANNOUNCEMENTS', icon: ShieldAlert },
     { id: 'audit', label: 'SECURITY & PERMISSIONS', icon: ShieldCheck }
   ];
@@ -172,12 +168,10 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
       ]
     },
     {
-      category: isCoach && !isHeadCoach ? 'MY ASSIGNED WORKSPACE' : 'CUSTOMER SUPPORT & COMMUNICATIONS',
+      category: isCoach && !isHeadCoach ? 'MY ASSIGNED WORKSPACE' : 'COMMUNICATIONS & ENQUIRIES',
       items: [
         { id: 'enquiries', label: isCoach && !isHeadCoach ? 'ENQUIRIES' : (isHeadCoach ? 'HEAD COACH ENQUIRIES' : 'WEBSITE ENQUIRIES'), icon: Mail },
-        { id: 'cs_dashboard', label: 'CUSTOMER SUPPORT DESK', icon: Headphones },
-        { id: 'tickets', label: 'SUPPORT TICKETS', icon: LifeBuoy },
-        { id: 'announcements', label: 'ANNOUNCEMENTS', icon: ShieldAlert },
+                { id: 'announcements', label: 'ANNOUNCEMENTS', icon: ShieldAlert },
       ]
     },
     {
@@ -423,39 +417,7 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
               />
             )}
 
-            {activeTab === 'cs_dashboard' && (
-              <div className="space-y-6">
-                <div className="bg-[#121214] border border-zinc-800 p-6 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 bg-amber-950/80 text-amber-300 rounded border border-amber-800/80">
-                        {isAdmin ? 'ADMIN CRM • CUSTOMER SUPPORT CONTROL' : 'HEAD COACH • SUPPORT CONTROL'}
-                      </span>
-                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
-                        Live Database Sync
-                      </span>
-                    </div>
-                    <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white flex items-center gap-2">
-                      <Headphones className="w-6 h-6 text-[#CCFF00]" />
-                      CUSTOMER SUPPORT DESK & INBOX MODULE
-                    </h2>
-                    <p className="text-xs text-zinc-400 mt-1 max-w-3xl">
-                      Master control over customer support operations: View live client tickets, compose email responses, log callbacks, edit tickets, assign agents, escalate urgent cases to Head Coach, and inspect complete audit logs.
-                    </p>
-                  </div>
-                </div>
-
-                <SupportDashboardView
-                  onShowToast={showToast}
-                />
-              </div>
-            )}
-
-            {activeTab === 'tickets' && (
-              <TicketManagement user={user} coaches={coaches} onShowToast={showToast} />
-            )}
-
-            {activeTab === 'announcements' && (
+                                    {activeTab === 'announcements' && (
               <AnnouncementsManager
                 announcements={announcements}
                 onAnnouncementsUpdated={loadCRMData}

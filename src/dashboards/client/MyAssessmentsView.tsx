@@ -92,7 +92,7 @@ export const MyAssessmentsView: React.FC<MyAssessmentsViewProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-zinc-800/80">
             <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
-              <span className="text-[#CCFF00] font-black text-xs uppercase block mb-1">1. Movement &amp; Goal Audit</span>
+              <span className="text-[#CCFF00] font-black text-xs uppercase block mb-1">1. Movement & Goal Audit</span>
               <p className="text-[11px] text-zinc-400">Specify your targets: fat loss, boxing technique, mobility, or progressive strength.</p>
             </div>
             <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
@@ -159,7 +159,7 @@ export const MyAssessmentsView: React.FC<MyAssessmentsViewProps> = ({
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black uppercase text-emerald-400 flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      COACHING RECOMMENDATIONS &amp; PROTOCOL
+                      COACHING RECOMMENDATIONS & PROTOCOL
                     </span>
                     <span className="text-[10px] font-bold text-zinc-400 uppercase">
                       Coach: {latestAssessment.assignedCoachName || 'BxStrength Coaching Team'}

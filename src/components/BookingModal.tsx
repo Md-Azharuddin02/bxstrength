@@ -232,19 +232,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       return;
     }
 
-    // Store in Local Enquiries & DB only after server accepts request
-    try {
-      VelocityAPI.createEnquiry({
-        name: userName,
-        email: userEmail,
-        phone: userPhone,
-        subject: `Free Consultation (${durationText}): ${goal}`,
-        message: `[FREE CONSULTATION BOOKED]\nRef: ${newBooking.id}\nGoal/Exercise: ${goal}\nDuration: ${durationText}\nPreferred schedule: To be arranged by the coaching team\nAssigned Coach: ${selectedTrainer}`
-          + (additionalNotes.trim() ? `\nAdditional Notes: ${additionalNotes.trim()}` : '')
-      });
-    } catch (err) {
-      console.error('Consultation enquiry save error:', err);
-    }
+// Consultation saved in consultations table & state
 
     // Send confirmation email + admin notification (best-effort).
     sendConsultationConfirmationEmail({

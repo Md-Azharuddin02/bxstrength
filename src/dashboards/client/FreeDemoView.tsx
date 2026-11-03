@@ -36,7 +36,7 @@ export const FreeDemoView: React.FC<FreeDemoViewProps> = ({
           </div>
           <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white flex items-center gap-2">
             <Sparkles className="w-6 h-6 text-amber-400" />
-            1-ON-1 FREE DEMO &amp; STRATEGY SESSION
+            1-ON-1 FREE DEMO & STRATEGY SESSION
           </h1>
           <p className="text-xs text-zinc-400 mt-1 max-w-2xl leading-relaxed">
             Every registered athlete is entitled to strictly ONE complimentary 15-minute strategy demo session directly overseen by our Head Coaching team.

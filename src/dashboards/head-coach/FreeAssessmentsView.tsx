@@ -436,7 +436,7 @@ export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
                   <div className="bg-zinc-900/90 border border-zinc-700 p-3 rounded-xl text-xs space-y-1">
                     <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] font-bold uppercase">
                       <Edit3 className="w-3 h-3 text-[#CCFF00]" />
-                      <span>Internal Contact &amp; Follow-up Notes:</span>
+                      <span>Internal Contact & Follow-up Notes:</span>
                     </div>
                     <p className="text-zinc-200 whitespace-pre-line font-mono text-[11px]">{a.coachNotes}</p>
                   </div>

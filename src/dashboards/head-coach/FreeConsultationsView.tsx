@@ -908,7 +908,7 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
                   type="submit"
                   className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black uppercase px-5 py-2.5 rounded-xl text-xs transition-all shadow-md cursor-pointer"
                 >
-                  SAVE &amp; UPDATE
+                  SAVE & UPDATE
                 </button>
               </div>
             </form>

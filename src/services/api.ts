@@ -2345,11 +2345,26 @@ export const VelocityAPI = {
     }
   },
 
-  // ENQUIRIES & CONTACT
+  // ENQUIRIES & CONTACT (Strictly Contact Us Form enquiries only)
   getEnquiries(emailOrUserId?: string): Enquiry[] {
     initStore();
     const raw = getItem<Enquiry[]>(STORAGE_KEYS.ENQUIRIES, []);
-    const clean = raw.filter(e => e.id !== 'enq-1' && e.id !== 'enq-2');
+    const clean = raw.filter(e => {
+      if (e.id === 'enq-1' || e.id === 'enq-2') return false;
+      const lowerSubj = (e.subject || '').toLowerCase();
+      const lowerMsg = (e.message || '').toLowerCase();
+      if (
+        lowerMsg.includes('[free consultation booked]') ||
+        lowerSubj.includes('free consultation') ||
+        lowerMsg.includes('[self assessment diagnostic]') ||
+        lowerSubj.includes('diagnostic assessment') ||
+        lowerSubj.includes('digital diagnostic') ||
+        lowerSubj.startsWith('diagnostic:')
+      ) {
+        return false;
+      }
+      return true;
+    });
     if (clean.length !== raw.length) {
       setItem(STORAGE_KEYS.ENQUIRIES, clean);
     }

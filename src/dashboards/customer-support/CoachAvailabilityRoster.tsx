@@ -150,7 +150,7 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
               <UserCheck className="w-5 h-5" />
             </span>
             <h2 className="text-lg font-black uppercase text-white tracking-wider">
-              Coach Availability &amp; Workload Roster
+              Coach Availability & Workload Roster
             </h2>
           </div>
           <p className="text-xs text-zinc-400 mt-1 max-w-2xl">
@@ -347,7 +347,7 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
                     >
                       <span className="font-bold flex items-center gap-1.5">
                         <Layers className="w-3.5 h-3.5 text-[#CCFF00]" />
-                        Assigned Athletes &amp; Packages ({assignedBookings.length})
+                        Assigned Athletes & Packages ({assignedBookings.length})
                       </span>
                       {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </button>
@@ -518,7 +518,7 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
               {/* Coordination Notes */}
               <div>
                 <label className="block text-[11px] font-bold uppercase text-zinc-400 mb-1.5">
-                  Coordination Notes for Coach &amp; Client (Optional)
+                  Coordination Notes for Coach & Client (Optional)
                 </label>
                 <textarea
                   value={coordinationNotes}

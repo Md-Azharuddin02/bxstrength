@@ -422,7 +422,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
               }`}
             >
               <Package className="w-3.5 h-3.5" />
-              <span>Paid Bookings &amp; Dispatch</span>
+              <span>Paid Bookings & Dispatch</span>
               {unassignedCount > 0 ? (
                 <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full font-black ${
                   activeTab === 'paid_bookings' ? 'bg-black text-[#CCFF00]' : 'bg-amber-500 text-black'
@@ -447,7 +447,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              <span>Coach Availability &amp; Workload</span>
+              <span>Coach Availability & Workload</span>
               <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
                 activeTab === 'coaches_workload' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
               }`}>
@@ -468,7 +468,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
               }`}
             >
               <Mail className="w-3.5 h-3.5" />
-              <span>Support Enquiries &amp; Tickets</span>
+              <span>Support Enquiries & Tickets</span>
               <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
                 activeTab === 'inbox' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
               }`}>
@@ -787,7 +787,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
                     : 'bg-[#18181b] text-zinc-400 hover:text-white border border-zinc-800'
                 }`}
               >
-                📅 Consultations &amp; Bookings ({tickets.filter(t => t.source?.toLowerCase().includes('book') || t.source?.toLowerCase().includes('assessment')).length})
+                📅 Consultations & Bookings ({tickets.filter(t => t.source?.toLowerCase().includes('book') || t.source?.toLowerCase().includes('assessment')).length})
               </button>
               <button
                 onClick={() => setPriorityFilter(priorityFilter === 'urgent' ? 'all' : 'urgent')}
@@ -854,7 +854,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
                     <option value="Website Contact Form">Channel: Website Contact Form</option>
                     <option value="Chatbot">Channel: Chatbot AI</option>
                     <option value="Booking">Channel: Consultation / Booking</option>
-                    <option value="Payment">Channel: Payment &amp; Billing</option>
+                    <option value="Payment">Channel: Payment & Billing</option>
                     <option value="WhatsApp">Channel: WhatsApp Support</option>
                     <option value="Callback Request">Channel: Phone Callback</option>
                   </select>
@@ -1032,7 +1032,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
                       <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
                         <span className="text-xs font-black uppercase tracking-wider text-[#CCFF00] flex items-center gap-1.5">
                           <UserCheck className="w-4 h-4 text-[#CCFF00]" />
-                          360° CLIENT PROFILE &amp; SYSTEM DATA
+                          360° CLIENT PROFILE & SYSTEM DATA
                         </span>
                       </div>
 
@@ -1083,7 +1083,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
                     {/* CONVERSATION HISTORY TIMELINE */}
                     <div className="space-y-3">
                       <span className="text-xs font-black uppercase tracking-wider text-zinc-400 block">
-                        COMMUNICATION TIMELINE &amp; LOGS
+                        COMMUNICATION TIMELINE & LOGS
                       </span>
 
                       <div className="space-y-3">
@@ -1155,7 +1155,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
               <div>
                 <h2 className="text-lg font-black uppercase text-white">SUPPORT SYSTEM PERFORMANCE ANALYTICS</h2>
                 <p className="text-xs text-zinc-400 mt-1">
-                  Metrics dynamically computed from authentic database ticket &amp; booking logs.
+                  Metrics dynamically computed from authentic database ticket & booking logs.
                 </p>
               </div>
 
@@ -1215,7 +1215,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
           <div className="bg-[#121214] border border-zinc-800 p-6 rounded-2xl space-y-4">
             <div>
               <h2 className="text-lg font-black uppercase text-white flex items-center gap-2">
-                <Lock className="w-5 h-5 text-[#CCFF00]" /> AUDIT LOGS &amp; PCI-DSS COMPLIANCE
+                <Lock className="w-5 h-5 text-[#CCFF00]" /> AUDIT LOGS & PCI-DSS COMPLIANCE
               </h2>
               <p className="text-xs text-zinc-400 mt-1">
                 Timestamped audit records of ticket creations, escalations, internal notes, and administrative actions.
@@ -1245,7 +1245,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
             <div className="border-b border-zinc-800 pb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-black uppercase text-white flex items-center gap-2">
-                  <UserCheck className="w-5 h-5 text-[#CCFF00]" /> ACCOUNT &amp; PASSWORD SETTINGS
+                  <UserCheck className="w-5 h-5 text-[#CCFF00]" /> ACCOUNT & PASSWORD SETTINGS
                 </h2>
                 <p className="text-xs text-zinc-400 mt-1">
                   Manage your customer support employee profile, avatar image, phone number, security credentials, and password.

@@ -2850,31 +2850,14 @@ app.post('/api/assessments', enquiryLimiter, async (req, res) => {
           ]
         );
 
-        // Also record in enquiries table for legacy support
-        await dbPool.query(
-          `INSERT INTO enquiries (id, name, email, phone, preferred_contact_method, subject, message, status, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'new', NOW())`,
-          [enquiryId, leadName, leadEmail, leadPhone, preferredContactMethod || null, `Diagnostic: ${goal}`, assessmentMessage]
-        );
+// Saved in assessments table
       } catch (dbErr: any) {
         console.error('Assessment database save error:', dbErr.message);
         return res.status(500).json({ error: 'Failed to record self assessment' });
       }
     }
 
-    const newEnquiry: ServerEnquiry = {
-      id: enquiryId,
-      name: leadName,
-      email: leadEmail,
-      phone: leadPhone,
-      preferredContactMethod: preferredContactMethod as ServerEnquiry['preferredContactMethod'],
-      subject: `Digital Diagnostic: ${goal}`,
-      message: assessmentMessage,
-      createdAt: new Date().toISOString(),
-      status: 'new',
-      assignedNotes: 'Automatically created from 5-Min Self Assessment Lead Funnel'
-    };
-    enquiriesStore.unshift(newEnquiry);
+// Self assessment stored in assessments table
 
     // Send email alert to head coach
     sendServerEmail({
@@ -3208,20 +3191,7 @@ app.post('/api/consultations', enquiryLimiter, async (req, res) => {
     const bookingRef = `BX-CONS-${Math.floor(100000 + Math.random() * 900000)}`;
     const consultationMessage = `[FREE CONSULTATION BOOKED]\nRef: ${bookingRef}\nPrimary Exercise / Goal: ${leadGoal}\nSession Duration: ${leadDuration}\nScheduled Date & Time Slot: ${date} at ${time}\nAssigned Coach: ${coach}${additionalNotes ? `\nAdditional Notes: ${additionalNotes}` : ''}`;
 
-    const enquiryId = `enq-consult-${Date.now()}`;
-    const newEnquiry: ServerEnquiry = {
-      id: enquiryId,
-      name: leadName,
-      email: leadEmail,
-      phone: leadPhone,
-      subject: `Free Consultation (${leadDuration}): ${leadGoal}`,
-      message: consultationMessage,
-      createdAt: new Date().toISOString(),
-      status: 'new',
-      assignedNotes: `Consultation Ref #${bookingRef}`
-    };
-
-    enquiriesStore.unshift(newEnquiry);
+// Consultation stored in consultations table & journeys
 
     const consultationJourneyRecord: UkBookingJourneyRecord = {
       id: bookingRef,
@@ -3251,13 +3221,7 @@ app.post('/api/consultations', enquiryLimiter, async (req, res) => {
     ukJourneyStore.unshift(consultationJourneyRecord);
 
     if (dbPool) {
-      try {
-        await dbPool.query(
-          `INSERT INTO enquiries (id, name, email, phone, subject, message, status, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, 'new', NOW())`,
-          [enquiryId, leadName, leadEmail, leadPhone, newEnquiry.subject, consultationMessage]
-        );
-      } catch (e: any) { }
+// Consultation record handled in consultations table
 
       try {
         await dbPool.query(

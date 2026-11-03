@@ -177,18 +177,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
       }
 
       const finalAssessment = { ...formData,name: cleanName, submittedAt: new Date().toISOString() };
-      try {
-        VelocityAPI.createEnquiry({
-          name: cleanName,
-          email: formData.email,
-          phone: formData.phone,
-          preferredContactMethod: formData.preferredContactMethod || undefined,
-          subject: `Diagnostic Assessment: ${formData.goal}`,
-          message: `[SELF ASSESSMENT DIAGNOSTIC]\n1. Main Goal: ${formData.goal}\n2. Fitness Level: ${formData.fitnessLevel || 'N/A'}\n3. Training Days/Wk: ${formData.trainingDays || 'N/A'}\n4. Training Location: ${formData.trainingLocation || 'N/A'}\n5. Equipment: ${formData.equipment || 'N/A'}\n6. Injury/Medical Restriction: ${formData.hasInjury || 'N/A'}\n7. Preferred Contact Method: ${formData.preferredContactMethod}`,
-        });
-      } catch (error) {
-        console.error('Diagnostic enquiry local sync error:', error);
-      }
+// Assessment saved in assessments table & state
       setFormData(finalAssessment);
       setIsCompleted(true);
       try {

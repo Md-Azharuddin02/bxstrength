@@ -30,6 +30,8 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/server.ts ./
 COPY --from=builder /app/Backend ./Backend
+# server.ts imports from src/ at runtime (e.g. src/services/servicePricing.ts), so ship src too.
+COPY --from=builder /app/src ./src
 COPY --from=builder /app/db_schema.sql ./
 
 # Expose API Server Port

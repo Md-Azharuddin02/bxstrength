@@ -37,13 +37,12 @@ guard.use('/auth', open); // the auth router does its own checks
 guard.use('/consultations', open);
 guard.use('/assessments', open);
 guard.use('/enquiries', open);
-guard.use('/users', open);
 guard.use('/paid-bookings', open);
 guard.get('/health', open);
 
 guard.get(['/trainers', '/classes', '/reviews', '/announcements'], open);
 
-guard.post(['/assessments', '/consultations', '/enquiries', '/reviews', '/tickets', '/send-email', '/payments/create-intent', '/create-order', '/create-razorpay-order', '/verify-payment', '/verify-razorpay-payment', '/payments/verify'], open);
+guard.post(['/assessments', '/consultations', '/enquiries', '/reviews', '/tickets', '/send-email', '/create-order', '/create-razorpay-order', '/verify-payment', '/verify-razorpay-payment'], open);
 
 guard.post(['/webhooks/razorpay', '/webhooks/cashfree', '/payments/cashfree-webhook'], open);
 
@@ -61,6 +60,7 @@ guard.use('/admin', allow(STAFF));
 guard.get('/admin/purge-reviews', allow(['admin']));
 guard.use('/email', allow(['admin']));
 
+guard.get('/users', allow(STAFF));
 guard.post('/users', allow(MANAGERS));
 guard.delete('/users/:id', allow(['admin']));
 

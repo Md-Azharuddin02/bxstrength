@@ -17,20 +17,9 @@ interface Transformation {
 }
 
 const TRANSFORMATIONS: Transformation[] = [
+
   {
     id: 1,
-    image: 'https://res.cloudinary.com/yuyxn5b0/image/upload/v1790509640/WhatsApp_Image_2026-09-27_at_4.45.24_PM.jpg',
-    clientName: 'Fahad Chris',
-    startKg: 96,
-    currentKg: 76,
-    weeks: 16,
-    programme: '1-on-1 personal coaching',
-    focus: 'Boxing power, footwork & compound lifting',
-    category: 'Fat loss',
-    summary: 'Lost 20 kg of body fat while increasing bench press strength and metabolic endurance.',
-  },
-  {
-    id: 2,
     image: 'https://res.cloudinary.com/yuyxn5b0/image/upload/v1790509640/WhatsApp_Image_2026-09-27_at_4.49.10_PM.jpg',
     clientName: 'Naail James',
     startKg: 92,
@@ -42,7 +31,7 @@ const TRANSFORMATIONS: Transformation[] = [
     summary: 'Recomposed his physique with high-output interval training and a tailored nutrition plan.',
   },
   {
-    id: 3,
+    id: 2,
     image: 'https://res.cloudinary.com/yuyxn5b0/image/upload/v1790509651/WhatsApp_Image_2026-09-27_at_4.59.04_PM.jpg',
     clientName: 'Abdullah Jones',
     startKg: 89,
@@ -52,6 +41,18 @@ const TRANSFORMATIONS: Transformation[] = [
     focus: 'Progressive resistance & heavy bag power',
     category: 'Fat loss',
     summary: 'Added lean athletic muscle while improving joint mobility, shoulder stability and posture.',
+  },
+    {
+    id: 3,
+    image: 'https://res.cloudinary.com/yuyxn5b0/image/upload/v1790509640/WhatsApp_Image_2026-09-27_at_4.45.24_PM.jpg',
+    clientName: 'Fahad Chris',
+    startKg: 96,
+    currentKg: 76,
+    weeks: 16,
+    programme: '1-on-1 personal coaching',
+    focus: 'Boxing power, footwork & compound lifting',
+    category: 'Fat loss',
+    summary: 'Lost 20 kg of body fat while increasing bench press strength and metabolic endurance.',
   },
   {
     id: 4,

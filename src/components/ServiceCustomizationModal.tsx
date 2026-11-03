@@ -363,7 +363,7 @@ export const ServiceCustomizationModal: React.FC<
   // Payment states
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const canTestMockPayment = canUseMockPayments(
-    import.meta.env.DEV,
+    import.meta.env.MODE !== 'production',
     import.meta.env.VITE_ENABLE_MOCK_PAYMENTS,
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);

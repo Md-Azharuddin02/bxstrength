@@ -647,17 +647,18 @@ export const refresh = async (req: Request, res: Response) => {
   try {
     const session: RefreshPayload = (req as any).refreshSession;
 
-    if (!(await revokeToken(session))) {
-      return res.status(401).json({ error: 'Session expired. Please sign in again.' });
-    }
-
     const found = dbPool
       ? await dbPool.query('SELECT id, name, email, role, status FROM users WHERE id = $1', [session.sub])
       : { rows: [] };
     const user = found.rows[0];
 
     if (!user || user.status === 'inactive' || user.status === 'deactivated') {
+      await revokeToken(session);
       clearSessionCookies(res);
+      return res.status(401).json({ error: 'Session expired. Please sign in again.' });
+    }
+
+    if (!(await revokeToken(session))) {
       return res.status(401).json({ error: 'Session expired. Please sign in again.' });
     }
 

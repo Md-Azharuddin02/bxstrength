@@ -31,20 +31,15 @@ import {
   Lightbulb,
   Video,
   Phone,
-  Zap,
-} from "lucide-react";
-import { useAuth } from "../context/AuthContext";
-import { VelocityAPI } from "../services/api";
-import { openRazorpayCheckout } from "../services/razorpayService";
-import { canUseMockPayments } from "../services/mockPayment";
-import {
-  calculateCustomPlanTotals,
-  CUSTOM_SERVICE_PRICING,
-  getCustomExerciseNames,
-  getServicePlanType,
-  SERVICE_PLAN_PRICES,
-} from "../services/servicePricing";
-import type { User } from "../types";
+  Zap
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { VelocityAPI } from '../services/api';
+import { openRazorpayCheckout } from '../services/razorpayService';
+import { sendBrevoPaymentReceiptEmail, sendBrevoCoachAssignmentAlertToAdmin } from '../services/emailService';
+import { canUseMockPayments } from '../services/mockPayment';
+import { calculateCustomPlanTotals, CUSTOM_SERVICE_PRICING, getCustomExerciseNames, getServicePlanType, SERVICE_PLAN_PRICES } from '../services/servicePricing';
+import type { User } from '../types';
 
 // Available Training Elements for Custom Plan
 export interface CustomTrainingElement {
@@ -421,7 +416,7 @@ export const ServiceCustomizationModal: React.FC<
       setIsSuccessAnimationVisible(false);
       setIsPaymentSuccess(true);
       setMainStage(4);
-    }, 2000);
+    }, 450);
 
     return () => window.clearTimeout(timeoutId);
   }, [isSuccessAnimationVisible]);
@@ -1011,6 +1006,106 @@ export const ServiceCustomizationModal: React.FC<
           setIsSuccessAnimationVisible(true);
 
           // The server creates the subscription when it verifies the payment; pull it into the local cache
+          // Record the dynamic Paid Package Booking in database
+          try {
+            const pkgType = isCustomPlan ? 'custom' : isWeeklyPlan ? 'weekly' : isMonthlyPlan ? 'monthly' : 'standard';
+            const totalSess = isWeeklyPlan ? 3 : isMonthlyPlan ? 12 : isCustomPlan ? 1 : 1;
+            const durationMin = isCustomPlan ? customPlanTotalMinutes : (isWeeklyPlan ? 30 : isMonthlyPlan ? 45 : 30);
+
+            const disclosuresObj = {
+              ageConfirmed: Boolean(ageConfirmed),
+              virtualCoachingConfirmed: Boolean(virtualCoachingConfirmed),
+              healthConfirmed: Boolean(healthConfirmed),
+              spaceConfirmed: Boolean(spaceConfirmed),
+              termsAccepted: Boolean(termsAccepted),
+              marketingConsent: Boolean(marketingConsent)
+            };
+
+            const customizedDetailsObj = isCustomPlan
+              ? {
+                  elements: CUSTOM_ELEMENTS.filter(e => (elementQuantities[e.id] || 0) > 0).map(e => ({
+                    id: e.id,
+                    name: e.name,
+                    quantity: elementQuantities[e.id],
+                    unitMinutes: e.durationMin
+                  })),
+                  totalMinutes: customPlanTotalMinutes,
+                  elementQuantities,
+                  disclosures: disclosuresObj
+                }
+              : isWeeklyPlan
+              ? {
+                  structure: 'Guided Warm-Up + 1 Focus per session',
+                  sessions: weeklySessions.map((s, idx) => ({ sessionNumber: idx + 1, warmUp: 'Guided Warm-Up', focus: s })),
+                  disclosures: disclosuresObj
+                }
+              : isMonthlyPlan
+              ? {
+                  structure: '12 Warm-Ups + 12 Core Services + 12 Cool-Downs',
+                  sessions: monthlySessions.map((s, idx) => ({ sessionNumber: idx + 1, warmUp: 'Guided Warm-Up', core: s, coolDown: 'Cool-Down & Recovery' })),
+                  disclosures: disclosuresObj
+                }
+              : {
+                  structure: packageDetails.totalDurationLabel,
+                  items: packageDetails.items.map(item => ({ name: item.name, duration: item.duration, price: item.price })),
+                  disclosures: disclosuresObj
+                };
+
+            const focusList = isCustomPlan
+              ? getCustomExerciseNames(elementQuantities)
+              : isWeeklyPlan
+              ? weeklySessions
+              : isMonthlyPlan
+              ? monthlySessions
+              : packageDetails.items.map(item => item.name);
+
+            VelocityAPI.createPaidBooking({
+              orderId: res.razorpay_order_id,
+              paymentId: res.razorpay_payment_id,
+              userId: user?.id,
+              clientName,
+              clientEmail,
+              clientPhone,
+              packageName: service.title,
+              packageType: pkgType,
+              totalPrice: displayTotalPrice,
+              currency: 'GBP',
+              totalSessions: totalSess,
+              durationMinutes: durationMin,
+              validityDays: isMonthlyPlan ? 60 : 30,
+              customizedDetails: customizedDetailsObj,
+              sessionFocusList: focusList
+            }).catch(err => console.warn('Paid booking creation error:', err));
+
+            // Dispatch customer payment receipt & admin notification emails
+            sendBrevoPaymentReceiptEmail({
+              orderId: res.razorpay_order_id,
+              clientName,
+              clientEmail,
+              planName: service.title,
+              serviceType: pkgType,
+              amountPaid: displayTotalPrice,
+              expiryDate: new Date(Date.now() + (isMonthlyPlan ? 60 : 30) * 86400000).toLocaleDateString(),
+              selectedExercises: focusList,
+              paymentMethod: 'Razorpay'
+            }).catch(e => console.warn('Payment receipt email dispatch notice:', e?.message));
+
+            sendBrevoCoachAssignmentAlertToAdmin({
+              bookingId: res.razorpay_order_id,
+              clientName,
+              clientEmail,
+              clientPhone: clientPhone || '',
+              serviceTitle: service.title,
+              serviceType: pkgType,
+              amountPaid: displayTotalPrice,
+              customExercises: focusList
+            }).catch(e => console.warn('Admin coach alert email dispatch notice:', e?.message));
+
+            window.dispatchEvent(new CustomEvent('bxstrength_paid_bookings_updated'));
+          } catch (createErr) {
+            console.warn('Failed to build paid booking payload:', createErr);
+          }
+
           VelocityAPI.fetchSubscriptions().catch(() => {});
         },
         onFailure: (err) => {
@@ -2434,6 +2529,7 @@ export const ServiceCustomizationModal: React.FC<
                       Simulate successful payment (test only)
                     </button>
                   )}
+                  
 
                   {/* Security indicator */}
                   <div className="flex items-center justify-center gap-1.5 text-[10px] sm:text-[11px] text-zinc-400 text-center">

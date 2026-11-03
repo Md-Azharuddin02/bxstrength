@@ -201,7 +201,7 @@ export const openRazorpayCheckout = async (
     const keyId =
       metaEnv.VITE_RAZORPAY_KEY_ID ||
       metaEnv.RAZORPAY_KEY_ID ||
-      orderData.key_id;
+      orderData.key_id || 'rzp_test_TvFURtpOoPHkCJ';
 
     // 3. Configure Razorpay Standard Modal Options
     const razorpayOptions = {

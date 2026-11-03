@@ -13,6 +13,7 @@ import { FloatingActionWidget } from './components/ui/FloatingActionWidget';
 import { ChatbotWidget } from './components/ui/ChatbotWidget';
 import { Preloader } from './components/ui/Preloader';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
+import { clearAssessmentDraft } from './utils/assessmentDraft';
 import { CheckCircle2, X, WifiOff, AlertTriangle } from 'lucide-react';
 
 // Dashboards load on demand so public visitors don't download staff code
@@ -54,7 +55,13 @@ function AppContent() {
   const isPortal = currentPage !== null && PORTAL_PAGES.includes(currentPage);
 
   const setCurrentPage = (page: ViewPage) => navigate(PAGE_PATHS[page]);
-  const [isLoadingSplash, setIsLoadingSplash] = useState<boolean>(true);
+  const [isLoadingSplash, setIsLoadingSplash] = useState<boolean>(() => {
+    try {
+      return !sessionStorage.getItem('bxstrength_splash_shown');
+    } catch {
+      return false;
+    }
+  });
   const [bookingModalOpen, setBookingModalOpen] = useState<boolean>(false);
   const [pendingBooking, setPendingBooking] = useState<null | (() => void)>(null);
   const [assessmentModalOpen, setAssessmentModalOpen] = useState<boolean>(false);
@@ -199,6 +206,7 @@ function AppContent() {
   // The portal (dashboard) for the logged-in user, chosen by role.
   // Route guards in AppRoutes decide who may reach it.
   const signOut = (label: string) => () => {
+    clearAssessmentDraft();
     navigate("/", { replace: true });
     logout();
     showToast(`Signed Out of ${label}`);
@@ -215,6 +223,7 @@ function AppContent() {
       {...common}
       onLogout={signOut("session")}
       onOpenBooking={() => setBookingModalOpen(true)}
+      onOpenAssessment={() => setAssessmentModalOpen(true)}
     />
   ) : null;
 
@@ -259,7 +268,14 @@ function AppContent() {
 
     
       {/* 3-5 Sec Animated Preloader Splash Screen */}
-      {isLoadingSplash && <Preloader onComplete={() => setIsLoadingSplash(false)} />}
+      {isLoadingSplash && (
+        <Preloader
+          onComplete={() => {
+            setIsLoadingSplash(false);
+            try { sessionStorage.setItem('bxstrength_splash_shown', 'true'); } catch {}
+          }}
+        />
+      )}
 
       {/* Network Status Banner */}
       {!network.isOnline ? (
@@ -331,6 +347,7 @@ function AppContent() {
       {/* Interactive 5-Step Lead Diagnostic Self Assessment Modal */}
       <KeepAfterOpen open={assessmentModalOpen}>
         <SelfAssessmentModal
+          key={user?.id ?? 'guest'}
           isOpen={assessmentModalOpen}
           onClose={() => setAssessmentModalOpen(false)}
           onCompleteAndBookConsultation={handleAssessmentCompleteAndBook}

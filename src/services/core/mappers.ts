@@ -3,13 +3,22 @@ import { STORAGE_KEYS, SEED_USERS, getItem, setItem } from "./storage";
 
 export const decodeHtmlEntities = (text: string): string => {
   if (!text || typeof text !== "string") return "";
-  return text
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, "/");
+  let decoded = text;
+  // Multi-pass recursive decode for &amp;amp; -> &amp; -> &
+  while (/&(amp|lt|gt|quot|#x27|#39|#x2F|#47);/i.test(decoded)) {
+    const next = decoded
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#x27;/g, "'")
+      .replace(/&#39;/g, "'")
+      .replace(/&#x2F;/g, "/")
+      .replace(/&#47;/g, "/");
+    if (next === decoded) break;
+    decoded = next;
+  }
+  return decoded;
 };
 
 export const dicebearAvatar = (seed: string) =>

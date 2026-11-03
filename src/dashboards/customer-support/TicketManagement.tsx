@@ -343,7 +343,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
             <h2 className="text-xl font-black text-white uppercase tracking-tight">SUPPORT TICKETS COMMAND CENTER</h2>
           </div>
           <p className="text-xs text-zinc-400">
-            Full administrative authority to manage, assign, prioritize, respond, and resolve all client &amp; customer support tickets.
+            Full administrative authority to manage, assign, prioritize, respond, and resolve all client & customer support tickets.
           </p>
         </div>
 
@@ -384,7 +384,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
             priorityFilter === 'urgent' ? 'bg-[#18181b] border-red-500/50 shadow-md' : 'bg-[#121214] border-zinc-800 hover:border-zinc-700'
           }`}
         >
-          <span className="text-[10px] font-black uppercase text-red-400 block tracking-widest">URGENT &amp; HIGH</span>
+          <span className="text-[10px] font-black uppercase text-red-400 block tracking-widest">URGENT & HIGH</span>
           <span className="text-2xl font-black text-red-400 mt-1 block">{stats.urgentHighCount}</span>
         </div>
 
@@ -568,7 +568,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
                     >
                       <option value="Unassigned">Unassigned (General Queue)</option>
                       <option value="Shaban Faridi">Shaban Faridi (Head Coach)</option>
-                      <option value="Sadeem (Strength & Conditioning)">Sadeem (Strength &amp; Conditioning)</option>
+                      <option value="Sadeem (Strength & Conditioning)">Sadeem (Strength & Conditioning)</option>
                       <option value="Moheeb Khan (Boxing Specialist)">Moheeb Khan (Boxing Specialist)</option>
                       <option value="CS Agent Desk">CS Agent Desk</option>
                       <option value="System Administrator">System Administrator</option>
@@ -682,7 +682,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
                           className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase rounded-lg transition-all shadow-md cursor-pointer flex items-center gap-1.5"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>SAVE &amp; MARK RESOLVED</span>
+                          <span>SAVE & MARK RESOLVED</span>
                         </button>
 
                         <button

@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { User, UserRole } from '../types';
 import { VelocityAPI } from '../services/api';
+import { clearAssessmentDraft } from '../utils/assessmentDraft';
 
 interface AuthContextType {
   user: User | null;
@@ -57,8 +58,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Cached profile details are fine to show, but only for the confirmed user and with the confirmed role
   const withConfirmedRole = (cached: User | null): User | null => {
     const confirmed = confirmedRef.current;
-    if (!cached || !confirmed || cached.id !== confirmed.id) return null;
-    return { ...cached, role: confirmed.role };
+    if (!cached) return null;
+    if (confirmed && cached.id === confirmed.id) {
+      return { ...cached, role: confirmed.role };
+    }
+    // Fall back to cached user role if confirmedRef is not yet initialized in this tab
+    if (cached.id && cached.role) {
+      return cached;
+    }
+    return null;
   };
 
   const syncUser = () => {
@@ -68,6 +76,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (currentUser && currentUser.isVerified !== false && storedToken) {
       setUser(currentUser);
       setToken(storedToken);
+      if (!confirmedRef.current && currentUser.id && currentUser.role) {
+        confirmedRef.current = { id: currentUser.id, role: currentUser.role };
+      }
     } else {
       signedOut();
     }
@@ -75,35 +86,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     let active = true;
-    // A full page refresh clears the in-memory access token. Keep protected routes
-    // waiting until the refresh cookie has been exchanged and the user is restored.
+    // A full page refresh restores the access token from tab storage. Keep protected routes
+    // rendered while background session verification is running.
     syncUser();
 
     const loadFromServer = async () => {
       try {
-        await VelocityAPI.refreshSession();
+        try {
+          await VelocityAPI.refreshSession();
+        } catch (refreshErr) {
+          console.warn('[AUTH] Background session refresh encountered transient error:', refreshErr);
+        }
 
-        // Do not treat a cached user as authenticated unless a usable access
-        // token was restored (or was already present in this page session).
-        if (!VelocityAPI.getAccessToken()) {
+        const currentAccessToken = VelocityAPI.getAccessToken();
+        const cachedUser = VelocityAPI.getCurrentUser();
+
+        // If no token exists at all and no cached user, then user is genuinely signed out
+        if (!currentAccessToken && !cachedUser) {
           if (!active) return;
           signedOut();
           return;
         }
 
-        const me = await VelocityAPI.fetchMe();
+        try {
+          const me = await VelocityAPI.fetchMe();
+          if (!active) return;
 
-        if (!active) return;
-
-        if (me && me.isVerified !== false) {
-          acceptServerUser(me, VelocityAPI.getAccessToken());
-        } else {
-          signedOut();
+          if (me && me.isVerified !== false) {
+            acceptServerUser(me, VelocityAPI.getAccessToken() || currentAccessToken);
+          } else if (me === null) {
+            // Server explicitly rejected with 401: session is genuinely expired
+            signedOut();
+          }
+        } catch (fetchErr) {
+          // Server unreachable or database transient timeout: maintain active session!
+          console.warn('[AUTH] Validation encountered transient server error, maintaining session:', fetchErr);
+          if (!active) return;
+          if (cachedUser) {
+            acceptServerUser(cachedUser, currentAccessToken);
+          }
         }
       } catch {
         if (!active) return;
-
-        // Server unreachable: keep an already-confirmed session going; a fresh page load stays signed out.
         syncUser();
       } finally {
         if (active) {
@@ -195,6 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const logout = () => {
+    clearAssessmentDraft();
     VelocityAPI.logout();
     signedOut();
   };

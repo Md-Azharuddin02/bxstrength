@@ -537,23 +537,85 @@ export interface SelfAssessmentData {
   submittedAt: string;
 }
 
+export interface AthleteAssessment {
+  id: string;
+  clientName: string;
+  clientEmail: string;
+  clientPhone?: string;
+  preferredContactMethod?: string;
+  primaryGoal: string;
+  mainObstacle?: string;
+  experienceLevel?: string;
+  weeklyCommitment?: string;
+  trainingLocation?: string;
+  equipment?: string;
+  trainingInterest?: string;
+  hasInjury?: string;
+  status: 'Pending' | 'Contacted' | 'Assigned' | 'Reviewed' | 'Completed' | 'Cancelled';
+  assignedCoachId?: string | null;
+  assignedCoachName?: string | null;
+  assignedBy?: string | null;
+  assignedAt?: string | null;
+  coachNotes?: string;
+  coachFeedback?: string;
+  recommendedPlan?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface ConsultationBooking {
   id: string;
   clientName: string;
   clientEmail: string;
   clientPhone?: string;
   goal: string;
-  coachPreference: string;
+  duration?: string;
+  coachPreference?: string;
   date: string;
   timeSlot: string;
-  status: 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled' | 'Rescheduled' | 'Missed';
+  additionalNotes?: string;
+  status: 'Pending' | 'Confirmed' | 'Assigned' | 'Completed' | 'Cancelled' | 'Rescheduled' | 'Missed';
   notes?: string;
+  assignedCoachId?: string | null;
+  assignedCoachName?: string | null;
+  assignedBy?: string | null;
+  assignedAt?: string | null;
+  meetingLink?: string;
   remindersSent?: {
     h24?: boolean;
     h2?: boolean;
     m30?: boolean;
   };
   createdAt: string;
+}
+
+export interface PaidPackageBooking {
+  id: string;
+  orderId?: string;
+  paymentId?: string;
+  userId?: string;
+  clientName: string;
+  clientEmail: string;
+  clientPhone?: string;
+  packageName: string;
+  packageType: 'standard' | 'weekly' | 'monthly' | 'custom';
+  totalPrice: number;
+  currency: string;
+  totalSessions: number;
+  completedSessions: number;
+  durationMinutes: number;
+  validityDays: number;
+  customizedDetails?: Record<string, any>;
+  sessionFocusList?: string[];
+  status: 'Active' | 'Scheduled' | 'Completed' | 'Cancelled';
+  assignedCoachId?: string | null;
+  assignedCoachName?: string | null;
+  assignedBy?: string | null;
+  assignedAt?: string | null;
+  meetingLink?: string | null;
+  coachNotes?: string | null;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface CoachVerification {

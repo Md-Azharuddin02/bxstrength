@@ -1,29 +1,33 @@
-import React, { useState, useEffect } from 'react';
-import { SupportTicket, TicketStatus, TicketPriority, TicketCategory, TicketSource, User, Booking, Subscription } from '../../types';
-import { VelocityAPI, getApiUrl } from '../../services/api';
+import React, { useState, useEffect, useMemo } from 'react';
+import { SupportTicket, TicketStatus, TicketPriority, TicketCategory, TicketSource, User, Booking, Subscription, PaidPackageBooking } from '../../types';
+import { PaidBookingsView } from '../head-coach/PaidBookingsView';
+import { CoachAvailabilityRoster } from './CoachAvailabilityRoster';
+import { normalizeRole } from '../../utils/auth';
+import { VelocityAPI, getApiUrl, decodeHtmlEntities } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { PhoneInput } from '../../components/PhoneInput';
 import { ProfileManagement } from '../client/ProfileManagement';
+import { FreeAssessmentsView } from '../head-coach/FreeAssessmentsView';
 import { 
   LifeBuoy, CheckCircle2, Clock, AlertCircle, MessageSquare, Search, Filter, ShieldAlert, 
   Send, Trash2, UserCheck, ArrowUpRight, Phone, Mail, Globe, Tag, ChevronRight, RefreshCw, 
   BarChart2, Lock, AlertTriangle, Plus, FileText, Check, ShieldCheck, X, Zap, CornerUpRight,
-  User as UserIcon, Settings, LogOut, Home
+  User as UserIcon, Settings, LogOut, Home, ClipboardCheck, Package, Users
 } from 'lucide-react';
 
 interface SupportDashboardViewProps {
   onShowToast?: (msg: string) => void;
   onNavigateHome?: () => void;
   onLogout?: () => void;
-  initialTab?: 'inbox' | 'analytics' | 'audit_logs' | 'account_settings';
+  initialTab?: 'inbox' | 'analytics' | 'audit_logs' | 'account_settings' | 'assessments' | 'paid_bookings' | 'coaches_workload';
 }
 
 export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({ 
   onShowToast = () => {},
   onNavigateHome,
   onLogout,
-  initialTab = 'inbox'
+  initialTab = 'paid_bookings'
 }) => {
   const { user } = useAuth();
 
@@ -32,7 +36,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     user?.role === 'admin' ? 'admin' : ((user?.role === 'headcoach' || user?.role === 'coach') ? user.role : 'customer_support')
   );
 
-  const [activeTab, setActiveTab] = useState<'inbox' | 'analytics' | 'audit_logs' | 'account_settings'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'inbox' | 'analytics' | 'audit_logs' | 'account_settings' | 'assessments' | 'paid_bookings' | 'coaches_workload'>(initialTab);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -84,6 +88,49 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     }
     if (isInitial) setIsLoading(false);
   };
+
+  // Live Coaches & Paid Bookings state for Customer Support Oversight
+  const [coaches, setCoaches] = useState<User[]>([]);
+  const [paidBookings, setPaidBookings] = useState<PaidPackageBooking[]>(() => {
+    try {
+      const raw = localStorage.getItem('bxstrength_paid_bookings');
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [];
+  });
+
+  const loadCoachesAndBookings = async () => {
+    try {
+      const [uList, bookings] = await Promise.all([
+        VelocityAPI.fetchUsers(),
+        VelocityAPI.fetchPaidBookings()
+      ]);
+      const staff = uList.filter(u => {
+        const r = normalizeRole(u.role);
+        return r === 'coach' || r === 'headcoach';
+      });
+      setCoaches(staff);
+      setPaidBookings(bookings);
+      try { localStorage.setItem('bxstrength_paid_bookings', JSON.stringify(bookings)); } catch {}
+    } catch (e) {
+      console.warn('Failed to load coaches/bookings in CS:', e);
+    }
+  };
+
+  const unassignedCount = useMemo(() => {
+    return paidBookings.filter(b => 
+      !b.assignedCoachName || 
+      b.assignedCoachName.toLowerCase() === 'unassigned' ||
+      !b.assignedCoachId
+    ).length;
+  }, [paidBookings]);
+
+  useEffect(() => {
+    loadCoachesAndBookings();
+    const handleBookingsUpdate = () => loadCoachesAndBookings();
+    window.addEventListener('bxstrength_paid_bookings_updated', handleBookingsUpdate);
+    return () => window.removeEventListener('bxstrength_paid_bookings_updated', handleBookingsUpdate);
+  }, []);
 
   useEffect(() => {
     fetchTickets(true);
@@ -301,130 +348,400 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
   return (
     <div className="bg-[#0a0a0c] min-h-screen text-white font-sans border-b border-zinc-800">
 
-      {/* TOP WORKSPACE HEADER & LOGOUT BAR */}
-      <div className="bg-[#121214] border-b border-zinc-800 py-3.5 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            {user && (
-              <img
-                src={user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.name)}`}
-                alt={user.name}
-                className="w-10 h-10 rounded-full object-cover border-2 border-[#CCFF00]"
-              />
-            )}
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-sm font-black uppercase text-white tracking-wide">
-                  {user?.name || 'CUSTOMER SUPPORT AGENT'}
-                </h1>
-                <span className="bg-[#CCFF00]/10 text-[#CCFF00] border border-[#CCFF00]/30 text-[9px] font-black uppercase px-2 py-0.5 rounded-full">
-                  CS WORKSPACE
-                </span>
+      {/* TOP WORKSPACE HEADER & NAVIGATION */}
+      <header className="bg-[#121214] border-b border-zinc-800 sticky top-0 z-40 backdrop-blur-md bg-opacity-95">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="py-3 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800/60">
+            {/* User Info */}
+            <div className="flex items-center gap-3">
+              {user && (
+                <img
+                  src={user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.name)}`}
+                  alt={user.name}
+                  className="w-10 h-10 rounded-full object-cover border-2 border-[#CCFF00]"
+                />
+              )}
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-sm font-black uppercase text-white tracking-wide">
+                    {user?.name || 'CUSTOMER SUPPORT AGENT'}
+                  </h1>
+                  <span className="bg-[#CCFF00]/10 text-[#CCFF00] border border-[#CCFF00]/30 text-[9px] font-black uppercase px-2 py-0.5 rounded-full">
+                    CS WORKSPACE
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-400 font-medium">
+                  Logged in as <span className="text-zinc-200 font-bold">{user?.email}</span>
+                </p>
               </div>
-              <p className="text-[11px] text-zinc-400 font-medium">
-                Logged in as <span className="text-zinc-200 font-bold">{user?.email}</span>
-              </p>
+            </div>
+
+            {/* Header Actions */}
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => setCreateTicketModalOpen(true)}
+                className="bg-[#CCFF00] hover:bg-[#b8e600] text-black text-xs font-black uppercase px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+              >
+                <Plus className="w-4 h-4 text-black stroke-[3]" />
+                <span>Log New Inquiry</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  fetchTickets(false);
+                  loadCoachesAndBookings();
+                  onShowToast('Dashboard refreshed');
+                }}
+                className="text-xs font-bold text-zinc-300 hover:text-white flex items-center gap-1.5 bg-[#18181b] hover:bg-zinc-800 px-3 py-2 rounded-xl border border-zinc-800 cursor-pointer transition-all active:scale-95"
+                title="Refresh Live Data Feed"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-[#CCFF00]" />
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
+
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 hover:border-red-500/50 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-red-400" />
+                  <span className="hidden sm:inline">Logout</span>
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
-            {onLogout && (
-              <button
-                onClick={onLogout}
-                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 hover:border-red-500/50 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-sm active:scale-95"
-                title="Sign Out of Customer Support Session"
-              >
-                <LogOut className="w-4 h-4 text-red-400" />
-                <span>LOGOUT SESSION</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* WORKSPACE CONTENT AREA */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-
-        {/* SECTION 1: DYNAMIC SUMMARY OVERVIEW CARDS (9 CARDS) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-3">
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">NEW ENQUIRIES</span>
-            <span className="text-xl font-black text-emerald-400 mt-1 block">{analytics.newEnquiries}</span>
-          </div>
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">OPEN TICKETS</span>
-            <span className="text-xl font-black text-white mt-1 block">{analytics.openTickets}</span>
-          </div>
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">IN PROGRESS</span>
-            <span className="text-xl font-black text-yellow-400 mt-1 block">{analytics.inProgress}</span>
-          </div>
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">AWAITING CLIENT</span>
-            <span className="text-xl font-black text-orange-400 mt-1 block">{analytics.waitingCustomer}</span>
-          </div>
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">RESOLVED</span>
-            <span className="text-xl font-black text-cyan-400 mt-1 block">{analytics.resolved}</span>
-          </div>
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">URGENT / ESCALATED</span>
-            <span className="text-xl font-black text-red-400 mt-1 block">{analytics.urgentEscalated}</span>
-          </div>
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">TODAY'S INQUIRIES</span>
-            <span className="text-xl font-black text-[#CCFF00] mt-1 block">{analytics.todaysEnquiries}</span>
-          </div>
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">TODAY'S BOOKINGS</span>
-            <span className="text-xl font-black text-purple-400 mt-1 block">{analytics.todaysBookings}</span>
-          </div>
-          <div className="bg-[#18181b] border border-zinc-800 p-3 rounded-xl">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">UNREAD CONVS</span>
-            <span className="text-xl font-black text-indigo-400 mt-1 block">{analytics.unreadCount}</span>
-          </div>
-        </div>
-
-        {/* WORKSPACE MAIN TABS */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Clean Top Navigation Bar */}
+          <nav className="flex items-center gap-1 sm:gap-2 overflow-x-auto py-2.5 scrollbar-none">
             <button
-              onClick={() => setActiveTab('inbox')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
-                activeTab === 'inbox' ? 'bg-[#CCFF00] text-black shadow-lg scale-102' : 'bg-[#18181b] text-zinc-400 hover:text-white border border-zinc-800'
+              onClick={() => setActiveTab('paid_bookings')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                activeTab === 'paid_bookings'
+                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
+                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
               }`}
             >
-              <Mail className="w-4 h-4 text-emerald-400" />
-              <span>📬 ALL ENQUIRIES &amp; TICKETS ({filteredTickets.length})</span>
+              <Package className="w-3.5 h-3.5" />
+              <span>Paid Bookings & Dispatch</span>
+              {unassignedCount > 0 ? (
+                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full font-black ${
+                  activeTab === 'paid_bookings' ? 'bg-black text-[#CCFF00]' : 'bg-amber-500 text-black'
+                }`}>
+                  {unassignedCount} New
+                </span>
+              ) : (
+                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                  activeTab === 'paid_bookings' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
+                }`}>
+                  {paidBookings.length}
+                </span>
+              )}
             </button>
+
+            <button
+              onClick={() => setActiveTab('coaches_workload')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                activeTab === 'coaches_workload'
+                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
+                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Coach Availability & Workload</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                activeTab === 'coaches_workload' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
+              }`}>
+                {coaches.length} Staff
+              </span>
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveTab('inbox');
+                setStatusFilter('all');
+                setPriorityFilter('all');
+              }}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                activeTab === 'inbox'
+                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
+                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
+              }`}
+            >
+              <Mail className="w-3.5 h-3.5" />
+              <span>Support Enquiries & Tickets</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                activeTab === 'inbox' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
+              }`}>
+                {filteredTickets.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('assessments')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                activeTab === 'assessments'
+                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
+                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
+              }`}
+            >
+              <ClipboardCheck className="w-3.5 h-3.5" />
+              <span>Athlete Assessments</span>
+            </button>
+
             <button
               onClick={() => setActiveTab('analytics')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
-                activeTab === 'analytics' ? 'bg-[#CCFF00] text-black shadow-lg scale-102' : 'bg-[#18181b] text-zinc-400 hover:text-white border border-zinc-800'
+              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                activeTab === 'analytics'
+                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
+                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
               }`}
             >
-              <BarChart2 className="w-4 h-4 text-blue-400" />
-              <span>📊 PERFORMANCE ANALYTICS</span>
+              <BarChart2 className="w-3.5 h-3.5" />
+              <span>Performance Analytics</span>
             </button>
+          </nav>
+        </div>
+      </header>
+
+      {/* WORKSPACE CONTENT AREA */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-6">
+
+        {/* SECTION 1: INTERACTIVE WORKLOAD & METRICS DESK (10 CLEAN CLICKABLE CARDS) */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-2.5">
+          {/* 1. Unassigned Bookings */}
+          <div
+            onClick={() => setActiveTab('paid_bookings')}
+            className={`p-3 rounded-xl border transition-all cursor-pointer select-none text-left relative overflow-hidden group hover:-translate-y-0.5 ${
+              unassignedCount > 0
+                ? 'bg-amber-950/60 border-amber-500 hover:border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
+                : 'bg-[#18181b] border-zinc-800 hover:border-zinc-700'
+            } ${activeTab === 'paid_bookings' ? 'ring-1 ring-amber-500/50' : ''}`}
+            title="Click to view unassigned bookings requiring coach dispatch"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider truncate block">
+                UNASSIGNED
+              </span>
+              {unassignedCount > 0 && <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>}
+            </div>
+            <span className="text-xl font-black text-amber-400 mt-1 block font-mono">{unassignedCount}</span>
+            <span className="text-[9px] text-zinc-400 group-hover:text-amber-300 font-semibold block mt-0.5">
+              Bookings &rarr;
+            </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCreateTicketModalOpen(true)}
-              className="bg-[#CCFF00] hover:bg-[#b8e600] text-black text-xs font-black uppercase px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow active:scale-95"
-            >
-              <Plus className="w-4 h-4 text-black" />
-              <span>LOG NEW INQUIRY</span>
-            </button>
-            <button
-              onClick={() => fetchTickets(false)}
-              className="text-xs font-bold text-zinc-300 hover:text-white flex items-center gap-1.5 bg-[#18181b] hover:bg-zinc-800 px-3.5 py-2 rounded-xl border border-zinc-800 cursor-pointer transition-all active:scale-95"
-            >
-              <RefreshCw className="w-3.5 h-3.5 text-[#CCFF00]" />
-              <span className="hidden sm:inline">REFRESH LIVE FEED</span>
-            </button>
+          {/* 2. Total Paid Bookings */}
+          <div
+            onClick={() => setActiveTab('paid_bookings')}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'paid_bookings' ? 'border-[#CCFF00] bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to view all paid bookings"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              PAID BOOKINGS
+            </span>
+            <span className="text-xl font-black text-purple-400 mt-1 block font-mono">{paidBookings.length}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-zinc-300 font-semibold block mt-0.5">
+              Total active &rarr;
+            </span>
+          </div>
+
+          {/* 3. Coaches Roster */}
+          <div
+            onClick={() => setActiveTab('coaches_workload')}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'coaches_workload' ? 'border-[#CCFF00] bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to view coach availability and workloads"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              COACH ROSTER
+            </span>
+            <span className="text-xl font-black text-sky-400 mt-1 block font-mono">{coaches.length}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-sky-300 font-semibold block mt-0.5">
+              Available &rarr;
+            </span>
+          </div>
+
+          {/* 4. New Enquiries */}
+          <div
+            onClick={() => {
+              setActiveTab('inbox');
+              setStatusFilter('new');
+              setPriorityFilter('all');
+              setSearchTerm('');
+            }}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'inbox' && statusFilter === 'new' ? 'border-emerald-500 bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to filter new inquiries"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              NEW ENQUIRIES
+            </span>
+            <span className="text-xl font-black text-emerald-400 mt-1 block">{analytics.newEnquiries}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-emerald-300 font-semibold block mt-0.5">
+              Filter inbox &rarr;
+            </span>
+          </div>
+
+          {/* 5. Open Tickets */}
+          <div
+            onClick={() => {
+              setActiveTab('inbox');
+              setStatusFilter('open');
+              setPriorityFilter('all');
+              setSearchTerm('');
+            }}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'inbox' && statusFilter === 'open' ? 'border-white bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to filter open tickets"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              OPEN TICKETS
+            </span>
+            <span className="text-xl font-black text-white mt-1 block">{analytics.openTickets}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-zinc-300 font-semibold block mt-0.5">
+              Filter inbox &rarr;
+            </span>
+          </div>
+
+          {/* 6. In Progress */}
+          <div
+            onClick={() => {
+              setActiveTab('inbox');
+              setStatusFilter('in_progress');
+              setPriorityFilter('all');
+              setSearchTerm('');
+            }}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'inbox' && statusFilter === 'in_progress' ? 'border-yellow-500 bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to filter in-progress tickets"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              IN PROGRESS
+            </span>
+            <span className="text-xl font-black text-yellow-400 mt-1 block">{analytics.inProgress}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-yellow-300 font-semibold block mt-0.5">
+              Filter inbox &rarr;
+            </span>
+          </div>
+
+          {/* 7. Awaiting Client */}
+          <div
+            onClick={() => {
+              setActiveTab('inbox');
+              setStatusFilter('waiting_customer');
+              setPriorityFilter('all');
+              setSearchTerm('');
+            }}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'inbox' && statusFilter === 'waiting_customer' ? 'border-orange-500 bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to filter tickets awaiting client response"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              AWAITING CLIENT
+            </span>
+            <span className="text-xl font-black text-orange-400 mt-1 block">{analytics.waitingCustomer}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-orange-300 font-semibold block mt-0.5">
+              Filter inbox &rarr;
+            </span>
+          </div>
+
+          {/* 8. Resolved */}
+          <div
+            onClick={() => {
+              setActiveTab('inbox');
+              setStatusFilter('resolved');
+              setPriorityFilter('all');
+              setSearchTerm('');
+            }}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'inbox' && statusFilter === 'resolved' ? 'border-cyan-500 bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to filter resolved tickets"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              RESOLVED
+            </span>
+            <span className="text-xl font-black text-cyan-400 mt-1 block">{analytics.resolved}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-cyan-300 font-semibold block mt-0.5">
+              Filter inbox &rarr;
+            </span>
+          </div>
+
+          {/* 9. Urgent / Escalated */}
+          <div
+            onClick={() => {
+              setActiveTab('inbox');
+              setPriorityFilter('urgent');
+              setStatusFilter('all');
+              setSearchTerm('');
+            }}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'inbox' && priorityFilter === 'urgent' ? 'border-red-500 bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to filter urgent and escalated tickets"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              URGENT / ESCALATED
+            </span>
+            <span className="text-xl font-black text-red-400 mt-1 block">{analytics.urgentEscalated}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-red-300 font-semibold block mt-0.5">
+              Filter inbox &rarr;
+            </span>
+          </div>
+
+          {/* 10. Today's Inquiries */}
+          <div
+            onClick={() => {
+              setActiveTab('inbox');
+              setStatusFilter('all');
+              setPriorityFilter('all');
+              setSearchTerm('');
+            }}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'inbox' && statusFilter === 'all' && priorityFilter === 'all' ? 'border-[#CCFF00] bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to view all inquiries logged today"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
+              TODAY'S INQUIRIES
+            </span>
+            <span className="text-xl font-black text-[#CCFF00] mt-1 block">{analytics.todaysEnquiries}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-[#CCFF00] font-semibold block mt-0.5">
+              Show all &rarr;
+            </span>
           </div>
         </div>
+
+        {/* TAB 0A: LIVE PAID BOOKINGS & DISPATCH DESK */}
+        {activeTab === 'paid_bookings' && user && (
+          <div className="space-y-4">
+            <PaidBookingsView
+              user={user}
+              coaches={coaches}
+              onShowToast={onShowToast}
+            />
+          </div>
+        )}
+
+        {/* TAB 0B: COACH AVAILABILITY & WORKLOAD ROSTER */}
+        {activeTab === 'coaches_workload' && (
+          <div className="space-y-4">
+            <CoachAvailabilityRoster
+              coaches={coaches}
+              paidBookings={paidBookings}
+              onBookingsUpdated={loadCoachesAndBookings}
+              onShowToast={onShowToast}
+            />
+          </div>
+        )}
 
         {/* TAB 1: CENTRAL TICKET INBOX & 360 WORKSPACE */}
         {activeTab === 'inbox' && (
@@ -471,7 +788,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
                     : 'bg-[#18181b] text-zinc-400 hover:text-white border border-zinc-800'
                 }`}
               >
-                📅 Consultations &amp; Bookings ({tickets.filter(t => t.source?.toLowerCase().includes('book') || t.source?.toLowerCase().includes('assessment')).length})
+                📅 Consultations & Bookings ({tickets.filter(t => t.source?.toLowerCase().includes('book') || t.source?.toLowerCase().includes('assessment')).length})
               </button>
               <button
                 onClick={() => setPriorityFilter(priorityFilter === 'urgent' ? 'all' : 'urgent')}
@@ -538,7 +855,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
                     <option value="Website Contact Form">Channel: Website Contact Form</option>
                     <option value="Chatbot">Channel: Chatbot AI</option>
                     <option value="Booking">Channel: Consultation / Booking</option>
-                    <option value="Payment">Channel: Payment &amp; Billing</option>
+                    <option value="Payment">Channel: Payment & Billing</option>
                     <option value="WhatsApp">Channel: WhatsApp Support</option>
                     <option value="Callback Request">Channel: Phone Callback</option>
                   </select>
@@ -716,7 +1033,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
                       <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
                         <span className="text-xs font-black uppercase tracking-wider text-[#CCFF00] flex items-center gap-1.5">
                           <UserCheck className="w-4 h-4 text-[#CCFF00]" />
-                          360° CLIENT PROFILE &amp; SYSTEM DATA
+                          360° CLIENT PROFILE & SYSTEM DATA
                         </span>
                       </div>
 
@@ -767,7 +1084,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
                     {/* CONVERSATION HISTORY TIMELINE */}
                     <div className="space-y-3">
                       <span className="text-xs font-black uppercase tracking-wider text-zinc-400 block">
-                        COMMUNICATION TIMELINE &amp; LOGS
+                        COMMUNICATION TIMELINE & LOGS
                       </span>
 
                       <div className="space-y-3">
@@ -839,7 +1156,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
               <div>
                 <h2 className="text-lg font-black uppercase text-white">SUPPORT SYSTEM PERFORMANCE ANALYTICS</h2>
                 <p className="text-xs text-zinc-400 mt-1">
-                  Metrics dynamically computed from authentic database ticket &amp; booking logs.
+                  Metrics dynamically computed from authentic database ticket & booking logs.
                 </p>
               </div>
 
@@ -899,7 +1216,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
           <div className="bg-[#121214] border border-zinc-800 p-6 rounded-2xl space-y-4">
             <div>
               <h2 className="text-lg font-black uppercase text-white flex items-center gap-2">
-                <Lock className="w-5 h-5 text-[#CCFF00]" /> AUDIT LOGS &amp; PCI-DSS COMPLIANCE
+                <Lock className="w-5 h-5 text-[#CCFF00]" /> AUDIT LOGS & PCI-DSS COMPLIANCE
               </h2>
               <p className="text-xs text-zinc-400 mt-1">
                 Timestamped audit records of ticket creations, escalations, internal notes, and administrative actions.
@@ -929,7 +1246,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
             <div className="border-b border-zinc-800 pb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-black uppercase text-white flex items-center gap-2">
-                  <UserCheck className="w-5 h-5 text-[#CCFF00]" /> ACCOUNT &amp; PASSWORD SETTINGS
+                  <UserCheck className="w-5 h-5 text-[#CCFF00]" /> ACCOUNT & PASSWORD SETTINGS
                 </h2>
                 <p className="text-xs text-zinc-400 mt-1">
                   Manage your customer support employee profile, avatar image, phone number, security credentials, and password.
@@ -959,6 +1276,14 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
               </div>
             )}
           </div>
+        )}
+
+        {/* TAB 5: ATHLETE ASSESSMENTS DESK */}
+        {activeTab === 'assessments' && user && (
+          <FreeAssessmentsView
+            user={user}
+            onShowToast={onShowToast}
+          />
         )}
 
       </div>

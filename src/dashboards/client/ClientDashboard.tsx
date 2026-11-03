@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, BodyStat, Booking, WorkoutProgram, NutritionPlan, Announcement, Subscription, Enquiry, InAppNotification, ClassSchedule } from '../../types';
+import { User, BodyStat, Booking, WorkoutProgram, NutritionPlan, Announcement, Subscription, Enquiry, InAppNotification, ClassSchedule, ConsultationBooking, AthleteAssessment } from '../../types';
 import { VelocityAPI } from '../../services/api';
 import { DashboardOverview } from './DashboardOverview';
 import { ProfileManagement } from './ProfileManagement';
@@ -9,9 +9,11 @@ import { NutritionPlanView } from './NutritionPlanView';
 import { MyBookingsView } from './MyBookingsView';
 import { SubscriptionView } from './SubscriptionView';
 import { SupportTicketsView } from './SupportTicketsView';
+import { FreeDemoView } from './FreeDemoView';
+import { MyAssessmentsView } from './MyAssessmentsView';
 import {
   LayoutDashboard, UserCheck, Scale, Dumbbell, Utensils,
-  Calendar, Award, CreditCard, LogOut, CheckCircle2, X, LifeBuoy, Bell, ExternalLink, ShieldCheck, Menu
+  Calendar, Award, CreditCard, LogOut, CheckCircle2, X, LifeBuoy, Bell, ExternalLink, ShieldCheck, Menu, Sparkles, ClipboardCheck
 } from 'lucide-react';
 
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
@@ -21,90 +23,75 @@ interface ClientDashboardProps {
   onLogout: () => void;
   onNavigateHome: () => void;
   onOpenBooking?: () => void;
+  onOpenAssessment?: () => void;
 }
 
 export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   user,
   onLogout,
-  onNavigateHome
+  onNavigateHome,
+  onOpenBooking,
+  onOpenAssessment
 }) => {
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false);
 
-  // Loaded data state
-  const [bodyStats, setBodyStats] = useState<BodyStat[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [programs, setPrograms] = useState<WorkoutProgram[]>([]);
-  const [nutritionPlans, setNutritionPlans] = useState<NutritionPlan[]>([]);
-  const [classSchedules, setClassSchedules] = useState<ClassSchedule[]>([]);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
+  // Loaded data state - Instant Stale-While-Revalidate render from local cache
+  const [bodyStats, setBodyStats] = useState<BodyStat[]>(() => VelocityAPI.getBodyStats(user.id));
+  const [bookings, setBookings] = useState<Booking[]>(() => VelocityAPI.getBookings(user.id));
+  const [programs, setPrograms] = useState<WorkoutProgram[]>(() => VelocityAPI.getPrograms(user.id));
+  const [nutritionPlans, setNutritionPlans] = useState<NutritionPlan[]>(() => VelocityAPI.getNutritionPlans(user.id));
+  const [classSchedules, setClassSchedules] = useState<ClassSchedule[]>(() => {
+    const localClasses = VelocityAPI.getClasses();
+    return localClasses.filter(c => {
+      const isClientMatch = c.assignedToUserId === user.id || (c.assignedToUserName && c.assignedToUserName.toLowerCase().trim() === user.name.toLowerCase().trim()) || !c.assignedToUserId;
+      const isApprovedOrPublished = c.isPublishedToClient !== false || c.status === 'approved' || c.status === 'published_to_client';
+      return isClientMatch && isApprovedOrPublished;
+    });
+  });
+  const [announcements, setAnnouncements] = useState<Announcement[]>(() => VelocityAPI.getAnnouncements());
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => VelocityAPI.getSubscriptions());
+  const [enquiries, setEnquiries] = useState<Enquiry[]>(() => VelocityAPI.getEnquiries(user.email));
   const [notifications, setNotifications] = useState<InAppNotification[]>([]);
+  const [consultations, setConsultations] = useState<ConsultationBooking[]>([]);
+  const [assessments, setAssessments] = useState<AthleteAssessment[]>([]);
   const [showNotificationsMenu, setShowNotificationsMenu] = useState<boolean>(false);
 
-  const loadDashboardData = async (isInitial = false) => {
-    if (isInitial) {
-      setIsLoading(true);
-    }
-
-    const statsData = VelocityAPI.getBodyStats(user.id);
-    setBodyStats(statsData);
-
-    const bookingsData = VelocityAPI.getBookings(user.id);
-    setBookings(bookingsData);
-
+  const loadDashboardData = async (_isInitial = false) => {
     try {
-      const progData = await VelocityAPI.fetchPrograms(user.id);
-      setPrograms(progData);
-    } catch {
-      setPrograms(VelocityAPI.getPrograms(user.id));
-    }
+      // Fire all background API fetches in parallel for maximum speed
+      const [progRes, nutRes, classRes, subRes, consRes, notifRes] = await Promise.allSettled([
+        VelocityAPI.fetchPrograms(user.id),
+        VelocityAPI.fetchNutritionPlans(user.id),
+        VelocityAPI.fetchClasses(),
+        VelocityAPI.fetchSubscriptions(),
+        VelocityAPI.fetchConsultations(user.email),
+        VelocityAPI.fetchInAppNotifications(user.email)
+      ]);
 
-    try {
-      const nutData = await VelocityAPI.fetchNutritionPlans(user.id);
-      setNutritionPlans(nutData);
-    } catch {
-      setNutritionPlans(VelocityAPI.getNutritionPlans(user.id));
-    }
+      if (progRes.status === 'fulfilled' && Array.isArray(progRes.value)) setPrograms(progRes.value);
+      if (nutRes.status === 'fulfilled' && Array.isArray(nutRes.value)) setNutritionPlans(nutRes.value);
+      if (classRes.status === 'fulfilled' && Array.isArray(classRes.value)) {
+        const userClasses = classRes.value.filter(c => {
+          const isClientMatch = c.assignedToUserId === user.id || (c.assignedToUserName && c.assignedToUserName.toLowerCase().trim() === user.name.toLowerCase().trim()) || !c.assignedToUserId;
+          const isApprovedOrPublished = c.isPublishedToClient !== false || c.status === 'approved' || c.status === 'published_to_client';
+          return isClientMatch && isApprovedOrPublished;
+        });
+        setClassSchedules(userClasses);
+      }
+      if (subRes.status === 'fulfilled' && Array.isArray(subRes.value)) setSubscriptions(subRes.value);
+      if (consRes.status === 'fulfilled' && Array.isArray(consRes.value)) setConsultations(consRes.value);
+      if (notifRes.status === 'fulfilled' && Array.isArray(notifRes.value)) setNotifications(notifRes.value);
 
-    try {
-      const allClasses = await VelocityAPI.fetchClasses();
-      const userClasses = allClasses.filter(c => {
-        const isClientMatch = c.assignedToUserId === user.id || (c.assignedToUserName && c.assignedToUserName.toLowerCase().trim() === user.name.toLowerCase().trim()) || !c.assignedToUserId;
-        const isApprovedOrPublished = c.isPublishedToClient !== false || c.status === 'approved' || c.status === 'published_to_client';
-        return isClientMatch && isApprovedOrPublished;
-      });
-      setClassSchedules(userClasses);
-    } catch {
-      const localClasses = VelocityAPI.getClasses();
-      const userClasses = localClasses.filter(c => {
-        const isClientMatch = c.assignedToUserId === user.id || (c.assignedToUserName && c.assignedToUserName.toLowerCase().trim() === user.name.toLowerCase().trim()) || !c.assignedToUserId;
-        const isApprovedOrPublished = c.isPublishedToClient !== false || c.status === 'approved' || c.status === 'published_to_client';
-        return isClientMatch && isApprovedOrPublished;
-      });
-      setClassSchedules(userClasses);
-    }
-
-    const annData = VelocityAPI.getAnnouncements();
-    setAnnouncements(annData);
-
-    const subData = await VelocityAPI.fetchSubscriptions();
-    setSubscriptions(subData);
-
-    const enqData = VelocityAPI.getEnquiries(user.email);
-    setEnquiries(enqData);
-
-    try {
-      const notifs = await VelocityAPI.fetchInAppNotifications(user.email);
-      setNotifications(notifs);
-    } catch {
-      setNotifications([]);
-    }
-
-    if (isInitial) {
+      setBodyStats(VelocityAPI.getBodyStats(user.id));
+      setBookings(VelocityAPI.getBookings(user.id));
+      setAnnouncements(VelocityAPI.getAnnouncements());
+      setEnquiries(VelocityAPI.getEnquiries(user.email));
+    } catch (err: any) {
+      console.warn('Dashboard sync background error:', err?.message);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -116,6 +103,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     window.addEventListener('bxstrength_nutrition_updated', handleSync);
     window.addEventListener('bxstrength_assignments_updated', handleSync);
     window.addEventListener('bxstrength_notifications_updated', handleSync);
+    window.addEventListener('bxstrength_consultations_updated', handleSync);
+    window.addEventListener('bxstrength_assessments_updated', handleSync);
 
     const interval = setInterval(() => { if (!document.hidden) loadDashboardData(false); }, 30000);
 
@@ -124,6 +113,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       window.removeEventListener('bxstrength_nutrition_updated', handleSync);
       window.removeEventListener('bxstrength_assignments_updated', handleSync);
       window.removeEventListener('bxstrength_notifications_updated', handleSync);
+      window.removeEventListener('bxstrength_consultations_updated', handleSync);
+      window.removeEventListener('bxstrength_assessments_updated', handleSync);
       clearInterval(interval);
     };
   }, [user.id]);
@@ -144,10 +135,12 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
   const navItems = [
     { id: 'overview', label: 'OVERVIEW', icon: LayoutDashboard },
+    { id: 'bookings', label: 'MY BOOKINGS & SESSIONS', icon: Calendar },
+    { id: 'free-demo', label: 'FREE DEMO (15-MIN)', icon: Sparkles },
+    { id: 'assessments', label: 'MY ASSESSMENT', icon: ClipboardCheck },
     { id: 'stats', label: 'BODY STATS & BMI', icon: Scale },
     ...(permissions.showUserWorkoutLogger !== false ? [{ id: 'workouts', label: 'WORKOUT PLANS', icon: Dumbbell }] : []),
     ...(permissions.showUserNutritionTracker !== false ? [{ id: 'nutrition', label: 'NUTRITION DIET', icon: Utensils }] : []),
-    { id: 'bookings', label: 'MY BOOKINGS', icon: Calendar },
     { id: 'tickets', label: 'SUPPORT TICKETS', icon: LifeBuoy },
     ...(permissions.showUserBillingHistory !== false ? [{ id: 'subscription', label: 'SUBSCRIPTION', icon: CreditCard }] : []),
     { id: 'profile', label: 'MY PROFILE', icon: UserCheck }
@@ -358,6 +351,27 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 nutritionPlan={nutritionPlans.find(n => n.assignedToUserId === user.id) || nutritionPlans[0]}
                 announcements={announcements}
                 enquiries={enquiries}
+                consultations={consultations}
+
+
+                onNavigateTab={(tab) => setActiveTab(tab)}
+              />
+            )}
+
+                        {activeTab === 'free-demo' && (
+              <FreeDemoView
+                user={user}
+                consultation={consultations.find(c => c.status !== 'Cancelled') || null}
+                onOpenBooking={onOpenBooking}
+                onNavigateTab={(tab) => setActiveTab(tab)}
+              />
+            )}
+
+            {activeTab === 'assessments' && (
+              <MyAssessmentsView
+                user={user}
+                assessments={assessments}
+                onOpenAssessment={onOpenAssessment}
                 onNavigateTab={(tab) => setActiveTab(tab)}
               />
             )}
@@ -387,6 +401,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
             {activeTab === 'bookings' && (
               <MyBookingsView
+                user={user}
                 bookings={bookings}
                 enquiries={enquiries}
                 classSchedules={classSchedules}

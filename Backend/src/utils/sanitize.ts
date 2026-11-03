@@ -1,13 +1,33 @@
+export function decodeHtmlEntities(str: string): string {
+  if (!str || typeof str !== 'string') return '';
+  let decoded = str;
+  // Recursively decode in case of double/triple encoding (&amp;amp; -> &amp; -> &)
+  while (/&(amp|lt|gt|quot|#x27|#39|#x2F|#47);/i.test(decoded)) {
+    const next = decoded
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#x27;/g, "'")
+      .replace(/&#39;/g, "'")
+      .replace(/&#x2F;/g, '/')
+      .replace(/&#47;/g, '/');
+    if (next === decoded) break;
+    decoded = next;
+  }
+  return decoded;
+}
+
 export function sanitizeInput(str: string): string {
   if (typeof str !== 'string') return '';
   if (str.startsWith('data:image/')) return str;
-  return str
-    .replace(/&/g, '&amp;')
+  // First decode any previously encoded HTML entities so double-encoding never occurs
+  const decoded = decodeHtmlEntities(str);
+  return decoded
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;')
     .trim();
 }
 

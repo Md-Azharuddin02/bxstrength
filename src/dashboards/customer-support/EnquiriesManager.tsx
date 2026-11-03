@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { PhoneInput } from '../../components/PhoneInput';
+import { normalizeRole } from '../../utils/auth';
 
 interface EnquiriesManagerProps {
   enquiries: Enquiry[];
@@ -63,6 +64,20 @@ const normalizeAndDeduplicateEnquiries = (rawList: any[]): Enquiry[] => {
     const phone = String(item.phone || item.client_phone || item.userPhone || '').trim();
     const subject = String(item.subject || item.title || 'General Website Enquiry').trim();
     const message = String(item.message || item.notes || item.description || '').trim();
+
+    // Filter out consultation demos and athlete assessments - they belong in their dedicated views
+    const lowerSubj = subject.toLowerCase();
+    const lowerMsg = message.toLowerCase();
+    if (
+      lowerMsg.includes('[free consultation booked]') ||
+      lowerSubj.includes('free consultation') ||
+      lowerMsg.includes('[self assessment diagnostic]') ||
+      lowerSubj.includes('diagnostic assessment') ||
+      lowerSubj.includes('digital diagnostic') ||
+      lowerSubj.startsWith('diagnostic:')
+    ) {
+      return; // Skip duplicate records
+    }
     const category = item.category || '1-on-1 Coaching';
     const priority = item.priority || 'normal';
     const weightage = item.weightage || (priority === 'urgent' ? 'High Weightage (95/100)' : 'Normal Weightage (50/100)');
@@ -130,10 +145,11 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
   onShowToast
 }) => {
   const currentUser = user || VelocityAPI.getCurrentUser();
-  const isAdmin = currentUser?.role === 'admin';
-  const isHeadCoachRole = currentUser?.role === 'headcoach' || (currentUser?.role === 'coach' && Boolean(currentUser.coachPosition?.toLowerCase().includes('head')));
+  const normRole = normalizeRole(currentUser?.role);
+  const isAdmin = normRole === 'admin';
+  const isHeadCoachRole = normRole === 'headcoach' || (normRole === 'coach' && Boolean(currentUser?.coachPosition?.toLowerCase().includes('head')));
   const isHeadCoachOrAdmin = isAdmin || isHeadCoachRole || !currentUser;
-  const isCoachOnly = currentUser && currentUser.role === 'coach' && !isHeadCoachRole && !isAdmin;
+  const isCoachOnly = currentUser && normRole === 'coach' && !isHeadCoachRole && !isAdmin;
 
   // Dynamic coach list computation so newly onboarded coaches automatically appear
   const availableCoachOptions = useMemo(() => {
@@ -411,9 +427,9 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
           </h2>
           <p className="text-xs text-zinc-400 mt-1 max-w-2xl">
             {isAdmin
-              ? 'Master administrative control to view, edit, update, assign coaches, and audit all client website enquiries & diagnostic leads.'
+              ? 'Master administrative control to view, edit, update, assign coaches, and audit authentic client website contact form enquiries.'
               : isHeadCoachRole
-              ? 'Review website enquiries, 15-minute consultation calls, and Customer Support transferred leads. Assess requirements and assign specialized UK coaches in real-time.'
+              ? 'Review authentic website contact form enquiries and client messages. Assess requirements and assign specialized UK coaches in real-time.'
               : 'View and manage your assigned client training enquiries, update progress notes, and maintain full activity logs.'}
           </p>
         </div>
@@ -660,7 +676,7 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
                   
                   {e.assignedNotes && (
                     <div className="mt-2 pt-2 border-t border-zinc-800 text-[11px] text-amber-300 bg-amber-950/30 p-2.5 rounded border border-amber-900/40">
-                      <strong>Coach Notes &amp; Requirements:</strong> {e.assignedNotes}
+                      <strong>Coach Notes & Requirements:</strong> {e.assignedNotes}
                     </div>
                   )}
                 </div>
@@ -697,7 +713,7 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
                   <div className="bg-[#18181c] border border-zinc-800 p-4 rounded-xl space-y-3 animate-in fade-in">
                     <span className="text-[11px] font-black uppercase tracking-wider text-[#CCFF00] flex items-center gap-1.5 border-b border-zinc-800 pb-2">
                       <History className="w-4 h-4 text-[#CCFF00]" />
-                      COMPLETE ACTIVITY &amp; AUDIT TRAIL (REAL-TIME LOG)
+                      COMPLETE ACTIVITY & AUDIT TRAIL (REAL-TIME LOG)
                     </span>
 
                     {(!e.activityLog || e.activityLog.length === 0) ? (
@@ -843,8 +859,8 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
                   >
                     <option value="1-on-1 Coaching">1-on-1 Personal Coaching</option>
                     <option value="Transformation Package">Transformation Package</option>
-                    <option value="Rehab & Recovery">Injury Rehab &amp; Recovery</option>
-                    <option value="Nutrition & Recomp">Nutrition &amp; Recomp</option>
+                    <option value="Rehab & Recovery">Injury Rehab & Recovery</option>
+                    <option value="Nutrition & Recomp">Nutrition & Recomp</option>
                     <option value="Head Coach Consultation">Head Coach Consultation</option>
                   </select>
                 </div>
@@ -852,7 +868,7 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase text-zinc-300 mb-1">Priority &amp; Weightage *</label>
+                  <label className="block text-[11px] font-bold uppercase text-zinc-300 mb-1">Priority & Weightage *</label>
                   <select
                     value={createPriority}
                     onChange={(e) => setCreatePriority(e.target.value as any)}
@@ -920,7 +936,7 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
                 className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase tracking-wider py-3.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer mt-2"
               >
                 <Plus className="w-4 h-4 text-black" />
-                <span>Create &amp; Transfer Enquiry Lead</span>
+                <span>Create & Transfer Enquiry Lead</span>
               </button>
             </form>
           </div>

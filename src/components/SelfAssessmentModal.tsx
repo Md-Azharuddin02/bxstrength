@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { isValidUkMobile, UK_PHONE_ERROR_MSG } from '../utils/phoneValidation';
 import { PhoneInput } from './PhoneInput';
 import { apiFetch, getApiUrl } from '../services/core/http';
+import { loadAssessmentDraft, saveAssessmentDraft } from '../utils/assessmentDraft';
 
 // Equipment options depend on where the client trains
 const EQUIPMENT_BY_LOCATION: Record<string, { title: string; desc: string }[]> = {
@@ -47,8 +48,10 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
   onCompleteAndBookConsultation,
 }) => {
   const { user } = useAuth();
-  const [step, setStep] = useState<number>(1);
-  const [formData, setFormData] = useState<SelfAssessmentData>({
+  const [step, setStep] = useState<number>(() => loadAssessmentDraft()?.step ?? 1);
+  const [formData, setFormData] = useState<SelfAssessmentData>(
+    () =>
+      loadAssessmentDraft()?.formData ?? {
     goal: '',
     fitnessLevel: '',
     trainingDays: '',
@@ -64,7 +67,8 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
     phone: user?.phone || '',
     preferredContactMethod: '',
     submittedAt: '',
-  });
+  },
+);
 
   // Auto-fill user details whenever user or modal state updates
   useEffect(() => {
@@ -78,9 +82,15 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
     }
   }, [user, isOpen]);
 
-  const [isCompleted, setIsCompleted] = useState<boolean>(false);
+  const [isCompleted, setIsCompleted] = useState<boolean>(
+    () => loadAssessmentDraft()?.isCompleted ?? false,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+
+  useEffect(() => {
+    saveAssessmentDraft({ formData, step, isCompleted });
+  }, [formData, step, isCompleted]);
 
   if (!isOpen) return null;
 
@@ -129,6 +139,11 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanName = formData.name.trim();
+    if (!cleanName) {
+      setSubmitError('Please enter your full name.');
+      return;
+    }
     if (formData.phone && !isValidUkMobile(formData.phone)) {
       alert(UK_PHONE_ERROR_MSG);
       return;
@@ -141,7 +156,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: formData.name,
+          name: cleanName,
           email: formData.email,
           phone: formData.phone,
           preferredContactMethod: formData.preferredContactMethod,
@@ -161,21 +176,13 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
         throw new Error(payload.error || 'Could not save your assessment. Please try again.');
       }
 
-      const finalAssessment = { ...formData, submittedAt: new Date().toISOString() };
-      try {
-        VelocityAPI.createEnquiry({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          preferredContactMethod: formData.preferredContactMethod || undefined,
-          subject: `Diagnostic Assessment: ${formData.goal}`,
-          message: `[SELF ASSESSMENT DIAGNOSTIC]\n1. Main Goal: ${formData.goal}\n2. Fitness Level: ${formData.fitnessLevel || 'N/A'}\n3. Training Days/Wk: ${formData.trainingDays || 'N/A'}\n4. Training Location: ${formData.trainingLocation || 'N/A'}\n5. Equipment: ${formData.equipment || 'N/A'}\n6. Injury/Medical Restriction: ${formData.hasInjury || 'N/A'}\n7. Preferred Contact Method: ${formData.preferredContactMethod}`,
-        });
-      } catch (error) {
-        console.error('Diagnostic enquiry local sync error:', error);
-      }
+      const finalAssessment = { ...formData,name: cleanName, submittedAt: new Date().toISOString() };
+// Assessment saved in assessments table & state
       setFormData(finalAssessment);
       setIsCompleted(true);
+      try {
+        window.dispatchEvent(new CustomEvent('bxstrength_assessments_updated'));
+      } catch (_) {}
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Could not save your assessment. Please try again.');
     } finally {

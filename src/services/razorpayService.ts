@@ -154,7 +154,7 @@ export const openRazorpayCheckout = async (
   try {
     if (
       options.simulateSuccess &&
-      canUseMockPayments(import.meta.env.MODE !== 'production', import.meta.env.VITE_ENABLE_MOCK_PAYMENTS)
+      canUseMockPayments(import.meta.env.MODE !== 'production', import.meta.env.ENABLE_MOCK_PAYMENTS)
     ) {
       options.onSuccess({
         razorpay_order_id: `test_order_${Date.now()}`,

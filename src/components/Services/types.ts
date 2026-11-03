@@ -23,7 +23,13 @@ export interface ServiceItem {
 
 import type { ElementType } from 'react';
 
+export interface TrainYourWayFeature {
+  key: string;
+  icon: ElementType;
+  label: string;
+}
+
 export interface TrainYourWayService extends ServiceItem {
-  features: { icon: ElementType; text: string }[];
-  specialBadge?: string;
+  // Keys from the canonical feature list this tier includes; the rest render dimmed.
+  includes: string[];
 }

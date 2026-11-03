@@ -1,6 +1,8 @@
 /**
- * Mobile phone validation. BxStrength serves UK clients only, so only UK mobiles are accepted.
+ * Mobile phone validation. BxStrength serves the UK and India (and accepts any valid
+ * international mobile), so numbers are validated with libphonenumber-js.
  */
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 export const isValidPhone = (phone: string | null | undefined): boolean => {
   if (!phone || !phone.trim()) return true;
@@ -8,12 +10,18 @@ export const isValidPhone = (phone: string | null | undefined): boolean => {
   return /^\d{7,15}$/.test(cleaned);
 };
 
-// UK mobiles: 07xxx xxxxxx, +44 7xxx xxxxxx, 0044 7xxx xxxxxx (also tolerates +44 (0)7xxx…)
-export const isValidUkMobile = (phone: string | null | undefined): boolean => {
+// Accepts any valid international mobile (expects a leading + and dial code, which the
+// PhoneInput component always supplies). Empty is allowed so callers decide if it's required.
+export const isValidMobile = (phone: string | null | undefined): boolean => {
   if (!phone || !phone.trim()) return true;
-  const cleaned = phone.trim().replace(/[\s\-\(\)\+\.]/g, '');
-  return /^(?:07\d{9}|447\d{9}|4407\d{9}|00447\d{9})$/.test(cleaned);
+  const parsed = parsePhoneNumberFromString(phone.trim());
+  return !!parsed?.isValid();
 };
 
-export const UK_PHONE_ERROR_MSG = 'Please enter a valid UK mobile number, e.g. 07911 123456 or +44 7911 123456.';
-export const PHONE_ERROR_MSG = 'Please enter a valid mobile phone number (7 to 15 digits).';
+// Back-compat alias: existing callers kept their import name while the rule widened to international.
+export const isValidUkMobile = isValidMobile;
+
+export const PHONE_ERROR_MSG =
+  'Please enter a valid mobile number including the country code, e.g. +44 7911 123456 or +91 98765 43210.';
+// Back-compat alias for the old constant name.
+export const UK_PHONE_ERROR_MSG = PHONE_ERROR_MSG;

@@ -234,7 +234,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                     </button>
                   )}
                   <span className="text-xs font-black uppercase tracking-widest text-zinc-300">
-                    STEP {step} OF {totalSteps} {step === 7 && '(FINAL DETAILS)'}
+                    QUESTION {step} OF {totalSteps} {step === 7 && '(FINAL DETAILS)'}
                   </span>
                 </div>
 
@@ -253,17 +253,15 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
               {step === 1 && (
                 <div className="space-y-5 animate-in fade-in duration-150">
                   <div>
-                    <span className="text-[10px] font-black text-[#CCFF00] uppercase tracking-widest block mb-1">
-                      QUESTION 1 OF 6
-                    </span>
                     <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white mb-1.5">
                       What is your main goal?
                     </h2>
-                    <p className="text-xs text-zinc-400">Select the primary outcome you want to achieve with BxStrength coaching.</p>
+                    <p className="text-xs text-zinc-400">Select the primary outcome you want to achieve with your
+BxStrength sessions</p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {[
-                      { title: 'Fat loss', desc: 'Reduce body fat & lean recomposition' },
+                      { title: 'Fat loss', desc: 'Reduce body fat & improve body composition' },
                       { title: 'Strength', desc: 'Build raw strength & compound power' },
                       { title: 'Boxing', desc: 'Technique, speed & fight conditioning' },
                       { title: 'Mobility', desc: 'Flexibility, joint health & posture' },
@@ -297,13 +295,10 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
               {step === 2 && (
                 <div className="space-y-5 animate-in fade-in duration-150">
                   <div>
-                    <span className="text-[10px] font-black text-[#CCFF00] uppercase tracking-widest block mb-1">
-                      QUESTION 2 OF 6
-                    </span>
                     <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white mb-1.5">
                       What is your current fitness level?
                     </h2>
-                    <p className="text-xs text-zinc-400">Be honest — we tailor programs for absolute beginners to advanced athletes.</p>
+                    <p className="text-xs text-zinc-400">Be honest — we tailor programmes for the UK audience.</p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {[
@@ -336,9 +331,6 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
               {step === 3 && (
                 <div className="space-y-5 animate-in fade-in duration-150">
                   <div>
-                    <span className="text-[10px] font-black text-[#CCFF00] uppercase tracking-widest block mb-1">
-                      QUESTION 3 OF 6
-                    </span>
                     <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white mb-1.5">
                       How many days per week can you train?
                     </h2>
@@ -376,9 +368,6 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
               {step === 4 && (
                 <div className="space-y-5 animate-in fade-in duration-150">
                   <div>
-                    <span className="text-[10px] font-black text-[#CCFF00] uppercase tracking-widest block mb-1">
-                      QUESTION 4 OF 6
-                    </span>
                     <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white mb-1.5">
                       Where will you train?
                     </h2>
@@ -415,9 +404,6 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
               {step === 5 && (
                 <div className="space-y-5 animate-in fade-in duration-150">
                   <div>
-                    <span className="text-[10px] font-black text-[#CCFF00] uppercase tracking-widest block mb-1">
-                      QUESTION 5 OF 6
-                    </span>
                     <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white mb-1.5">
                       What equipment do you have?
                     </h2>
@@ -427,7 +413,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {(EQUIPMENT_BY_LOCATION[formData.trainingLocation] ?? EQUIPMENT_BY_LOCATION.Home).map((item) => (
-                      <button
+                        <button
                         key={item.title}
                         type="button"
                         onClick={() => handleSelectEquipment(item.title)}
@@ -452,9 +438,6 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
               {step === 6 && (
                 <div className="space-y-5 animate-in fade-in duration-150">
                   <div>
-                    <span className="text-[10px] font-black text-[#CCFF00] uppercase tracking-widest block mb-1">
-                      QUESTION 6 OF 6
-                    </span>
                     <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white mb-1.5">
                       Do you currently have an injury, significant pain, medical restriction, or recent surgery?
                     </h2>
@@ -489,13 +472,11 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
               {step === 7 && (
                 <form onSubmit={handleSubmit} className="space-y-5 animate-in fade-in duration-150">
                   <div>
-                    <span className="text-[10px] font-black text-[#CCFF00] uppercase tracking-widest block mb-1">
-                      FINAL STEP 7 OF 7
-                    </span>
                     <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white mb-1.5">
-                      Generate Your Diagnostic Report
+                      Generate Your Assessment Report
                     </h2>
-                    <p className="text-xs text-zinc-400">Enter your details so your assigned head coach can review your profile before your 15-min session.</p>
+                    <p className="text-xs text-zinc-400">Enter your details so we can review your profile before
+your free 15-minute intro session.</p>
                   </div>
 
                   <div className="space-y-4 bg-[#18181b] p-5 rounded-xl border border-zinc-800">
@@ -508,7 +489,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                         required
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="e.g. Rahul Sharma"
+                        placeholder="e.g. Alex Morgan"
                         className="w-full bg-[#121214] border border-zinc-700 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-[#CCFF00] transition-colors"
                       />
                     </div>
@@ -572,7 +553,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                       className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs tracking-widest uppercase py-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-xl cursor-pointer active:scale-[0.99] disabled:opacity-60 disabled:cursor-wait"
                     >
                       <Activity className="w-4 h-4" />
-                      <span>{isSubmitting ? 'SAVING YOUR ASSESSMENT…' : 'SUBMIT & VIEW DIAGNOSTIC RESULT'}</span>
+                      <span>{isSubmitting ? 'SAVING YOUR ASSESSMENT…' : 'SUBMIT & VIEW ASSESSMENT RESULT'}</span>
                     </button>
                   </div>
                 </form>

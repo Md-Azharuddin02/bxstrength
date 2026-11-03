@@ -8,6 +8,7 @@ import {
   TRAINERS_DATA
 } from '../data/gymData';
 import { FitnessClass, Trainer, ServiceItem, BlogPost, MembershipPlan, ViewPage, User } from '../types';
+import { PhoneInput } from './PhoneInput';
 import { VelocityAPI } from '../services/api';
 
 interface SearchModalProps {
@@ -521,18 +522,12 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-black uppercase text-zinc-400 tracking-wider mb-1">
-                        Phone Number (Optional)
-                      </label>
-                      <input
-                        type="tel"
-                        value={clientPhone}
-                        onChange={(e) => setClientPhone(e.target.value)}
-                        placeholder="+44 7123 456789"
-                        className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2.5 text-xs text-white outline-none rounded focus:border-emerald-500"
-                      />
-                    </div>
+                    <PhoneInput
+                      label="Phone Number (Optional)"
+                      value={clientPhone}
+                      onChange={setClientPhone}
+                      inputClassName="w-full bg-zinc-900 border border-zinc-800 pl-[104px] pr-3 py-2.5 text-xs text-white outline-none rounded focus:border-emerald-500"
+                    />
                     <div>
                       <label className="block text-[10px] font-black uppercase text-zinc-400 tracking-wider mb-1">
                         Symptom Duration / Details

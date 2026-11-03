@@ -162,7 +162,7 @@ export const OnboardingTermsView: React.FC = () => {
           <div className="bg-[#18181c] border border-zinc-800 p-4 rounded-xl space-y-2">
             <h4 className="text-xs font-black uppercase text-[#CCFF00]">Mandatory Declaration Statement:</h4>
             <p className="text-xs text-white font-mono bg-black p-3 rounded-lg border border-zinc-800">
-              "I have read and agree to the BXStrength Terms & Conditions and Privacy Policy, including the booking, Session Pack validity, cancellation, refund, virtual-participation and health & safety terms that apply to my purchase."
+              "I have read and agree to the  Terms & Conditions and Privacy Policy, including the booking, Session Pack validity, cancellation, refund, virtual-participation and health & safety terms that apply to my purchase."
             </p>
           </div>
 

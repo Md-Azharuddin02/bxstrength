@@ -11,8 +11,14 @@ export function sanitizeInput(str: string): string {
     .trim();
 }
 
-export function isValidUkMobile(phone: string | null | undefined): boolean {
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
+
+// Accepts any valid international mobile. The client's PhoneInput always sends the number with
+// its + dial code, so validation needs no default country. Empty is allowed (phone is optional).
+export function isValidMobile(phone: string | null | undefined): boolean {
   if (!phone || !phone.trim()) return true;
-  const cleaned = phone.trim().replace(/[\s\-\(\)\+\.]/g, '');
-  return /^\d{7,15}$/.test(cleaned);
+  return !!parsePhoneNumberFromString(phone.trim())?.isValid();
 }
+
+// Back-compat alias: the rule widened from UK-only to international but callers kept the import name.
+export const isValidUkMobile = isValidMobile;

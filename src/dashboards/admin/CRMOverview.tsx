@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, ClassSchedule, Subscription, AuditLog, Enquiry, LeadPipelineStage } from '../../types';
 import { VelocityAPI, getApiUrl, apiFetch } from '../../services/api';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { PhoneInput } from '../../components/PhoneInput';
 import { AssignedTasksSection } from '../head-coach/AssignedTasksSection';
 import { 
   Users, DollarSign, Dumbbell, ShieldCheck, Activity, TrendingUp, 
@@ -537,7 +538,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
             </h3>
             <p className="text-xs text-zinc-400 mt-0.5">
               {isCoach
-                ? 'Review diagnostic submissions, 15-min strategy call bookings, and client status.'
+                ? 'Review Assessment submissions, 15-min strategy call bookings, and client status.'
                 : 'Manage lead conversion pipeline, update stages, and view assigned specialist coaches.'}
             </p>
           </div>
@@ -563,7 +564,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
               <p className="text-xs text-zinc-400 max-w-md mx-auto mt-1 leading-relaxed">
                 {selectedFilterStage !== 'All' 
                   ? `No leads currently match the stage filter "${selectedFilterStage}". Reset filters or add a new lead entry.`
-                  : 'No CRM leads or client diagnostic entries recorded yet. Add your first lead to begin tracking client conversions.'}
+                  : 'No CRM leads or client Assessment entries recorded yet. Add your first lead to begin tracking client conversions.'}
               </p>
             </div>
           </div>
@@ -724,18 +725,12 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase text-zinc-300 mb-1">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    placeholder="+44 7700 900123"
-                    value={phoneInput}
-                    onChange={(e) => setPhoneInput(e.target.value)}
-                    className="w-full bg-[#18181b] border border-zinc-800 rounded-lg px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600"
-                  />
-                </div>
+                <PhoneInput
+                  label="Phone Number"
+                  value={phoneInput}
+                  onChange={setPhoneInput}
+                  inputClassName="w-full bg-[#18181b] border border-zinc-800 rounded-lg pl-[104px] pr-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600"
+                />
               </div>
 
               <div>

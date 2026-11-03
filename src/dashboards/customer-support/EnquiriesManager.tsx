@@ -6,6 +6,7 @@ import {
   UserCheck, Clock, ShieldAlert, Plus, Tag, Flame, Zap, Check, ChevronDown, ChevronUp, History, MessageSquare, Award, CornerUpRight
 } from 'lucide-react';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { PhoneInput } from '../../components/PhoneInput';
 
 interface EnquiriesManagerProps {
   enquiries: Enquiry[];
@@ -827,16 +828,12 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-zinc-300 mb-1">Mobile Phone Number</label>
-                  <input
-                    type="text"
-                    value={createPhone}
-                    onChange={(e) => setCreatePhone(e.target.value)}
-                    placeholder="+44 7700 900123"
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-white outline-none"
-                  />
-                </div>
+                <PhoneInput
+                  label="Mobile Phone Number"
+                  value={createPhone}
+                  onChange={setCreatePhone}
+                  inputClassName="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-[104px] pr-2.5 py-2.5 text-white outline-none"
+                />
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-zinc-300 mb-1">Enquiry Category *</label>
                   <select

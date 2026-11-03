@@ -514,21 +514,31 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate, onOpenBooking 
             </p>
           </div>
 
-          <div className="bg-[#121215] border border-zinc-800 p-6 sm:p-8 rounded-3xl max-w-3xl mx-auto space-y-6 shadow-2xl">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs sm:text-sm">
-              <div className="space-y-1">
-                <span className="text-zinc-500 font-bold uppercase block text-[11px]">Official Brand Identity</span>
-                <span className="text-white font-black text-base">BXStrength</span>
+          <div className="bg-[#121215] border border-zinc-800 p-6 sm:p-10 rounded-3xl max-w-3xl mx-auto space-y-8 shadow-2xl">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-8 text-xs sm:text-sm">
+              <div className="space-y-1.5">
+                <span className="text-zinc-500 font-bold uppercase block text-[11px]">Official Brand/Legal Operator</span>
+                <span className="text-white font-black text-base">BXStrength is a trading brand operated by 7Seas Exim, India.</span>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <span className="text-zinc-500 font-bold uppercase block text-[11px]">Primary Operating Regions</span>
                 <span className="text-[#CCFF00] font-bold">United Kingdom</span>
               </div>
-              <div className="space-y-1 sm:col-span-2">
+              <div className="space-y-1.5">
                 <span className="text-zinc-500 font-bold uppercase block text-[11px]">Customer Support Email</span>
                 <a href="mailto:support@bxstrength.com" className="text-white font-bold hover:text-[#CCFF00] transition-colors">
                   support@bxstrength.com
                 </a>
+              </div>
+            </div>
+
+            <div className="pt-6 border-t border-zinc-800 flex items-start gap-3">
+              <MapPin className="w-5 h-5 text-[#CCFF00] shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <span className="text-zinc-500 font-bold uppercase block text-[11px]">Company Registered Address</span>
+                <span className="text-white font-medium text-xs sm:text-sm">
+                  185/A, Street No. 3, Zakir Nagar, Okhla, New Delhi - 110025, India
+                </span>
               </div>
             </div>
           </div>

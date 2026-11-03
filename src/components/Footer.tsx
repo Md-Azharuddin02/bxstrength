@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewPage } from '../types';
-import { Mail, ArrowRight, Instagram, Facebook, Youtube, X, Linkedin } from 'lucide-react';
+import { Mail, MapPin, ArrowRight, Instagram, Facebook, Youtube, X, Linkedin } from 'lucide-react';
 import { cloudinaryImage } from '../utils/image';
 
 interface FooterProps {
@@ -32,10 +32,15 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             </div>
             
             <p className="text-xs text-zinc-400 leading-relaxed">
-              UK Direct Boxing, Strength &amp; Conditioning Coaching Platform. Engineered by our Head Coach &amp; Team for elite physical transformation.
+              BXStrength is a trading brand operated by 7Seas Exim, India. Live virtual fitness coaching available to clients across the United Kingdom.
             </p>
 
             <div className="space-y-3.5 text-xs pt-1">
+              <p className="flex items-center gap-2.5 text-zinc-300">
+                <MapPin className="w-4 h-4 text-[#CCFF00] shrink-0" />
+                <span>New Delhi, India.</span>
+              </p>
+
               <p className="flex items-center gap-2.5 text-zinc-300">
                 <Mail className="w-4 h-4 text-[#CCFF00] shrink-0" />
                 <a href="mailto:support@bxstrength.com" className="hover:text-[#CCFF00] transition-colors font-bold text-white">support@bxstrength.com</a>
@@ -55,10 +60,21 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 </button>
               </li>
               <li>
-                <button onClick={() => handleNav('about')} className="hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer">
-                  <ArrowRight className="w-3 h-3 text-zinc-500" /> About BxStrength
+                <button onClick={() => handleNav('services')} className="hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer">
+                  <ArrowRight className="w-3 h-3 text-zinc-500" /> Service
                 </button>
               </li>
+              <li>
+                <button onClick={() => handleNav('about')} className="hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer">
+                  <ArrowRight className="w-3 h-3 text-zinc-500" /> About
+                </button>
+              </li>
+              <li>
+                <button onClick={() => handleNav('trainers')} className="hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer">
+                  <ArrowRight className="w-3 h-3 text-zinc-500" /> Coaches
+                </button>
+              </li>
+              
               {/* <li>
                 <button onClick={() => handleNav('trainers')} className="hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer">
                   <ArrowRight className="w-3 h-3 text-zinc-500" /> Coaching Roster
@@ -67,7 +83,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
 
               <li>
                 <button onClick={() => handleNav('blog')} className="hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer">
-                  <ArrowRight className="w-3 h-3 text-zinc-500" /> Articles &amp; Insights
+                  <ArrowRight className="w-3 h-3 text-zinc-500" /> Blog
                 </button>
               </li>
               <li>

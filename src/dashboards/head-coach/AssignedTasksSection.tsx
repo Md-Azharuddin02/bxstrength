@@ -283,7 +283,9 @@ export const AssignedTasksSection: React.FC<AssignedTasksSectionProps> = ({
             ASSIGNED TASKS & COACHING ACTIVITIES ({filteredAssignments.length})
           </h2>
           <p className="text-xs text-zinc-400 mt-1 max-w-3xl">
-            Real-time coaching assignments from Head Coach Shaban Faridi. Review, manage, update, and publish workout programs, class schedules, diet plans, consultations, and tasks.
+            {isHeadCoachOrAdmin
+              ? 'Manage active client assignments, session bookings, nutrition plans, and coach task handovers across your team.'
+              : 'Real-time coaching assignments from Head Coach Shaban Faridi. Review, manage, update, and publish workout programs, class schedules, diet plans, consultations, and tasks.'}
           </p>
         </div>
 

@@ -135,9 +135,9 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
     { id: 'free_consultations', label: isCoach && !isHeadCoach ? 'MY ASSIGNED DEMOS' : 'FREE DEMO / CONSULTATIONS', icon: Video },
     { id: 'free_assessments', label: 'ATHLETE ASSESSMENTS', icon: ClipboardCheck },
     { id: 'users', label: isCoach ? 'CLIENT ROSTER' : 'USER DIRECTORY', icon: Users },
-    { id: 'schedule', label: 'CLASS SCHEDULES', icon: Calendar },
-    { id: 'programs', label: 'WORKOUT PROGRAMS', icon: Dumbbell },
-    { id: 'nutrition', label: 'DIET PLANS', icon: Utensils },
+    { id: 'schedule', label: 'SESSION SCHEDULES', icon: Calendar },
+    { id: 'programs', label: 'WORKOUT PROGRAMMES', icon: Dumbbell },
+    { id: 'nutrition', label: 'NUTRITION GUIDANCE', icon: Utensils },
     { id: 'subscriptions', label: 'FINANCIAL BILLING', icon: CreditCard },
     { id: 'enquiries', label: isCoach && !isHeadCoach ? 'ENQUIRIES' : (isHeadCoach ? 'HEAD COACH ENQUIRIES' : 'WEBSITE ENQUIRIES'), icon: Mail },
     { id: 'announcements', label: 'ANNOUNCEMENTS', icon: ShieldAlert },
@@ -162,9 +162,9 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
     {
       category: 'ATHLETIC PROGRAMMING',
       items: [
-        { id: 'schedule', label: 'CLASS SCHEDULES', icon: Calendar },
-        { id: 'programs', label: 'WORKOUT PROGRAMS', icon: Dumbbell },
-        { id: 'nutrition', label: 'DIET PLANS', icon: Utensils },
+        { id: 'schedule', label: 'SESSION SCHEDULES', icon: Calendar },
+        { id: 'programs', label: 'WORKOUT PROGRAMMES', icon: Dumbbell },
+        { id: 'nutrition', label: 'NUTRITION GUIDANCE', icon: Utensils },
       ]
     },
     {

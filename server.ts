@@ -20,6 +20,7 @@ import { ensureSubscriptionForPayment } from './Backend/src/services/subscriptio
 import authRoutes from './Backend/src/routes/authRoutes.ts';
 import subscriptionRoutes from './Backend/src/routes/subscriptionRoutes.ts';
 import workoutProgramRoutes from './Backend/src/routes/workoutProgramRoutes.ts';
+import bodyStatRoutes from './Backend/src/routes/bodyStatRoutes.ts';
 import nutritionPlanRoutes from './Backend/src/routes/nutritionPlanRoutes.ts';
 import emailRoutes from './Backend/src/routes/emailRoutes.ts';
 import reviewRoutes from './Backend/src/routes/reviewRoutes.ts';
@@ -1708,6 +1709,23 @@ if (dbPool) {
             timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
 
+          CREATE TABLE IF NOT EXISTS body_stats (
+            id VARCHAR(64) PRIMARY KEY,
+            user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
+            date DATE NOT NULL,
+            weight_kg NUMERIC(5,2) NOT NULL,
+            height_cm NUMERIC(5,2) NOT NULL,
+            bmi NUMERIC(4,1) NOT NULL,
+            bmi_category VARCHAR(50) NOT NULL,
+            body_fat_percentage NUMERIC(4,1),
+            chest_cm NUMERIC(5,2),
+            waist_cm NUMERIC(5,2),
+            biceps_cm NUMERIC(5,2),
+            thighs_cm NUMERIC(5,2),
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE INDEX IF NOT EXISTS idx_body_stats_user_date ON body_stats (user_id, date DESC);
+
           CREATE TABLE IF NOT EXISTS uk_booking_journeys (
             id VARCHAR(64) PRIMARY KEY,
             session_id VARCHAR(128),
@@ -2025,6 +2043,7 @@ app.get('/api/health', async (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/workout-programs', workoutProgramRoutes);
+app.use('/api/body-stats', bodyStatRoutes);
 app.use('/api/nutrition-plans', nutritionPlanRoutes);
 app.use('/api/send-email', emailRoutes);
 app.use('/api/reviews', reviewRoutes);

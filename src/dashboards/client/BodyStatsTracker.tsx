@@ -27,19 +27,20 @@ const showNum = (value: number) => (value > 0 ? String(value) : '');
 const mainInputClass = 'w-full bg-gray-900 border border-gray-800 focus:border-[#E52165] text-white px-3.5 py-2.5 text-sm rounded-none outline-none font-mono';
 
 interface BodyStatsTrackerProps {
-  userId: string;
   stats: BodyStat[];
+  status: 'loading' | 'ready' | 'error';
   onStatsUpdated: () => void;
   onShowToast: (msg: string) => void;
 }
 
 export const BodyStatsTracker: React.FC<BodyStatsTrackerProps> = ({
-  userId,
   stats,
+  status,
   onStatsUpdated,
   onShowToast
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Form fields
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
@@ -111,17 +112,16 @@ export const BodyStatsTracker: React.FC<BodyStatsTrackerProps> = ({
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (calculatedBmi <= 0) {
       onShowToast('Please enter valid weight and height values.');
       return;
     }
 
+    setIsSaving(true);
     try {
-      VelocityAPI.addBodyStat({
-        userId,
-        date: new Date().toISOString().split('T')[0],
+      const saved = await VelocityAPI.addBodyStat({
         weightKg: weightNum,
         heightCm: heightNum,
         bodyFatPercentage: parseFloat(bodyFat) || undefined,
@@ -131,11 +131,13 @@ export const BodyStatsTracker: React.FC<BodyStatsTrackerProps> = ({
         thighsCm: tapeCm(tape.thighs)
       });
 
-      onShowToast(`Logged weight ${formatWeight(weightNum, isImperial ? 'st' : 'kg')} with BMI ${calculatedBmi}!`);
+      onShowToast(`Logged weight ${formatWeight(saved.weightKg, isImperial ? 'st' : 'kg')} with BMI ${saved.bmi}!`);
       setShowAddForm(false);
       onStatsUpdated();
     } catch (err: any) {
       onShowToast(err.message || 'Failed to log stats');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -330,9 +332,10 @@ export const BodyStatsTracker: React.FC<BodyStatsTrackerProps> = ({
 
             <button
               type="submit"
-              className="bg-[#E52165] hover:bg-[#c41551] text-white text-xs font-black tracking-widest px-6 py-3 uppercase transition-all"
+              disabled={isSaving}
+              className="bg-[#E52165] hover:bg-[#c41551] disabled:opacity-50 text-white text-xs font-black tracking-widest px-6 py-3 uppercase transition-all"
             >
-              SAVE BODY STAT ENTRY
+              {isSaving ? 'SAVING...' : 'SAVE BODY STAT ENTRY'}
             </button>
           </form>
         </div>
@@ -378,9 +381,11 @@ export const BodyStatsTracker: React.FC<BodyStatsTrackerProps> = ({
 
         {stats.length === 0 ? (
           <div className="text-center py-8 text-xs text-gray-400">
-            {showAddForm
+            {status === 'loading' && 'Loading your body stats...'}
+            {status === 'error' && 'Your body stats could not be loaded.'}
+            {status === 'ready' && (showAddForm
               ? 'No body stat entries recorded yet. Complete the form above to log your first entry.'
-              : 'No body stat entries recorded yet. Select "Log New Weight" above to log your first entry.'}
+              : 'No body stat entries recorded yet. Select "Log New Weight" above to log your first entry.')}
           </div>
         ) : (
           <div className="overflow-x-auto">

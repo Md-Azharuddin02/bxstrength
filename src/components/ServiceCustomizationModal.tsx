@@ -363,7 +363,7 @@ export const ServiceCustomizationModal: React.FC<
   // Payment states
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const canTestMockPayment = canUseMockPayments(
-    import.meta.env.DEV,
+    import.meta.env.MODE !== 'production',
     import.meta.env.VITE_ENABLE_MOCK_PAYMENTS,
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -1384,9 +1384,6 @@ export const ServiceCustomizationModal: React.FC<
                 </div>
               )}
 
-              {/* -------------------------------------------------------------
-                  B. CUSTOM PLAN CONFIGURATOR (ALIGNED & FORMATTED PER TARGET DESIGN)
-                 ------------------------------------------------------------- */}
               {isCustomPlan && (
                 <div className="space-y-5 sm:space-y-6">
                   {/* Top Header Section: Left Title & Right "How it works?" box */}
@@ -1402,7 +1399,7 @@ export const ServiceCustomizationModal: React.FC<
                         </span>
                       </div>
                       <h3 className="text-xs sm:text-sm font-black text-zinc-200 uppercase tracking-wider">
-                        BUILD YOUR OWN BX PLAN
+                        BUILD YOUR OWN BX SESSION.
                       </h3>
                       <p className="text-xs text-zinc-400 leading-relaxed">
                         Choose only the training elements you need. Each element

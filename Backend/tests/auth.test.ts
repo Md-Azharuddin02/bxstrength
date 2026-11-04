@@ -7,6 +7,7 @@ import { JWT_SECRET } from '../src/config/env';
 import { redis } from '../src/config/redis';
 import { authenticate, requireRefreshSession } from '../src/middlewares/authMiddleware';
 import apiGuard from '../src/middlewares/apiGuard';
+import { requireCoachOwnsBooking } from '../src/middlewares/paidBookingAccess';
 import { resetPassword } from '../src/controllers/authController';
 import {
   startSession, verifyAccessToken, verifyRefreshToken, revokeToken, revokeAllSessions,
@@ -174,6 +175,7 @@ test('reset password rejects a login token', async () => {
 
 const startGuardedApp = async () => {
   const app = express();
+  app.use(express.json());
   app.use('/api', apiGuard);
   app.use((_req, res) => { res.json({ reached: true }); });
   const server = app.listen(0);
@@ -242,6 +244,197 @@ test('roles decide what a logged in user can reach', async () => {
     assert.equal(await call(base, 'DELETE', '/audit-logs', coach), 403);
     assert.equal(await call(base, 'DELETE', '/audit-logs', admin), 200);
     assert.equal(await call(base, 'GET', '/admin/purge-reviews', coach), 403);
+  } finally {
+    server.close();
+  }
+});
+
+test('paid bookings reject every method without a token', async () => {
+  const { server, base } = await startGuardedApp();
+  try {
+    for (const [method, path] of [
+      ['GET', '/paid-bookings'], ['GET', '/paid-bookings?email=client%40example.com'], ['POST', '/paid-bookings'],
+      ['PATCH', '/paid-bookings/b1/assign'], ['PATCH', '/paid-bookings/b1/session'], ['DELETE', '/paid-bookings/b1']
+    ]) {
+      assert.equal(await call(base, method, path), 401, `${method} ${path}`);
+    }
+  } finally {
+    server.close();
+  }
+});
+
+test('paid booking lists are limited by role', async () => {
+  const { server, base } = await startGuardedApp();
+  const clientId = newUserId();
+  const coachId = newUserId();
+  const client = tokenFor('client', clientId);
+  const coach = tokenFor('coach', coachId);
+  try {
+    assert.equal(await call(base, 'GET', `/paid-bookings?email=${clientId}%40example.com`, client), 200);
+    assert.equal(await call(base, 'GET', `/paid-bookings?email=${clientId.toUpperCase()}%40EXAMPLE.COM`, client), 200);
+    assert.equal(await call(base, 'GET', '/paid-bookings?email=other%40example.com', client), 403);
+    assert.equal(await call(base, 'GET', '/paid-bookings', client), 403);
+    assert.equal(await call(base, 'GET', `/paid-bookings?coachId=${coachId}`, client), 403);
+    // These shapes make the route drop its email filter, so they must never pass
+    assert.equal(await call(base, 'GET', `/paid-bookings?email[]=${clientId}%40example.com`, client), 403);
+    assert.equal(await call(base, 'GET', `/paid-bookings?email=${clientId}%40example.com&email=other%40example.com`, client), 403);
+
+    assert.equal(await call(base, 'GET', `/paid-bookings?coachId=${coachId}`, coach), 200);
+    assert.equal(await call(base, 'GET', '/paid-bookings?coachId=other-coach', coach), 403);
+    assert.equal(await call(base, 'GET', `/paid-bookings?coachId[]=${coachId}`, coach), 403);
+    assert.equal(await call(base, 'GET', '/paid-bookings', coach), 403);
+
+    for (const role of ['admin', 'headcoach', 'customer_support']) {
+      assert.equal(await call(base, 'GET', '/paid-bookings', tokenFor(role)), 200, role);
+    }
+  } finally {
+    server.close();
+  }
+});
+
+test('a customer can only create a paid booking for themselves', async () => {
+  const { server, base } = await startGuardedApp();
+  const id = newUserId();
+  const token = tokenFor('client', id);
+  const post = (body: object) => fetch(`${base}/paid-bookings`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(r => r.status);
+  try {
+    assert.equal(await post({ clientEmail: `${id}@example.com`, userId: id }), 200);
+    assert.equal(await post({ clientEmail: ` ${id.toUpperCase()}@EXAMPLE.COM ` }), 200);
+    assert.equal(await post({ clientEmail: 'other@example.com' }), 403);
+    assert.equal(await post({ clientEmail: `${id}@example.com`, userId: 'someone-else' }), 403);
+    assert.equal(await post({}), 403);
+    assert.equal(await post({ clientEmail: [`${id}@example.com`] }), 403);
+  } finally {
+    server.close();
+  }
+});
+
+test('changing paid bookings is limited by role', async () => {
+  const { server, base } = await startGuardedApp();
+  const client = tokenFor('client');
+  const coach = tokenFor('coach');
+  const support = tokenFor('customer_support');
+  const admin = tokenFor('admin');
+  const headCoach = tokenFor('headcoach');
+  try {
+    assert.equal(await call(base, 'PATCH', '/paid-bookings/b1/assign', client), 403);
+    assert.equal(await call(base, 'PATCH', '/paid-bookings/b1/session', client), 403);
+    assert.equal(await call(base, 'DELETE', '/paid-bookings/b1', client), 403);
+    assert.equal(await call(base, 'PATCH', '/paid-bookings/b1/assign', coach), 200);
+    assert.equal(await call(base, 'PATCH', '/paid-bookings/b1/session', support), 200);
+    assert.equal(await call(base, 'DELETE', '/paid-bookings/b1', coach), 403);
+    assert.equal(await call(base, 'DELETE', '/paid-bookings/b1', support), 403);
+    assert.equal(await call(base, 'DELETE', '/paid-bookings/b1', admin), 200);
+    assert.equal(await call(base, 'DELETE', '/paid-bookings/b1', headCoach), 200);
+  } finally {
+    server.close();
+  }
+});
+
+test('a coach can only change paid bookings assigned to them', async () => {
+  const run = async (role: string, assigned: () => Promise<string | null | undefined>) => {
+    const req: any = { user: { id: 'coach-1', role }, params: { id: 'b1' } };
+    const res = fakeRes();
+    let passed = false;
+    await requireCoachOwnsBooking(assigned)(req, res, () => { passed = true; });
+    return { passed, status: res.statusCode };
+  };
+
+  assert.deepEqual(await run('coach', async () => 'coach-1'), { passed: true, status: 200 });
+  assert.deepEqual(await run('coach', async () => 'coach-2'), { passed: false, status: 403 });
+  assert.deepEqual(await run('coach', async () => null), { passed: false, status: 403 });
+  assert.deepEqual(await run('coach', async () => undefined), { passed: false, status: 403 });
+  assert.deepEqual(await run('coach', async () => { throw new Error('db down'); }), { passed: false, status: 503 });
+  assert.deepEqual(await run('customer_support', async () => 'coach-2'), { passed: true, status: 200 });
+  assert.deepEqual(await run('admin', async () => null), { passed: true, status: 200 });
+});
+
+test('consultations, assessments and enquiries reject reads and changes without a token', async () => {
+  const { server, base } = await startGuardedApp();
+  try {
+    for (const [method, path] of [
+      ['GET', '/consultations'], ['GET', '/consultations?email=client%40example.com'], ['PATCH', '/consultations/c1/assign'],
+      ['PATCH', '/consultations/c1/status'], ['DELETE', '/consultations/c1'],
+      ['GET', '/assessments'], ['GET', '/assessments?email=client%40example.com'], ['PATCH', '/assessments/a1/assign'],
+      ['PATCH', '/assessments/a1/status'], ['DELETE', '/assessments/a1'],
+      ['GET', '/enquiries'], ['DELETE', '/enquiries/e1']
+    ]) {
+      assert.equal(await call(base, method, path), 401, `${method} ${path}`);
+    }
+  } finally {
+    server.close();
+  }
+});
+
+test('public forms can still be submitted without a login', async () => {
+  const { server, base } = await startGuardedApp();
+  try {
+    for (const path of ['/consultations', '/assessments', '/enquiries']) {
+      assert.equal(await call(base, 'POST', path), 200, path);
+    }
+  } finally {
+    server.close();
+  }
+});
+
+test('consultation and assessment lists are limited by role', async () => {
+  const { server, base } = await startGuardedApp();
+  const clientId = newUserId();
+  const coachId = newUserId();
+  const client = tokenFor('client', clientId);
+  const coach = tokenFor('coach', coachId);
+  try {
+    for (const path of ['/consultations', '/assessments']) {
+      assert.equal(await call(base, 'GET', `${path}?email=${clientId}%40example.com`, client), 200, path);
+      assert.equal(await call(base, 'GET', `${path}?email=other%40example.com`, client), 403, path);
+      assert.equal(await call(base, 'GET', `${path}?email[]=${clientId}%40example.com`, client), 403, path);
+      assert.equal(await call(base, 'GET', path, client), 403, path);
+      assert.equal(await call(base, 'GET', `${path}?coachId=${coachId}`, coach), 200, path);
+      assert.equal(await call(base, 'GET', `${path}?coachId=other-coach`, coach), 403, path);
+      assert.equal(await call(base, 'GET', path, coach), 403, path);
+      assert.equal(await call(base, 'GET', path, tokenFor('customer_support')), 200, path);
+      assert.equal(await call(base, 'GET', path, tokenFor('headcoach')), 200, path);
+    }
+  } finally {
+    server.close();
+  }
+});
+
+test('changing consultations and assessments is limited by role', async () => {
+  const { server, base } = await startGuardedApp();
+  const client = tokenFor('client');
+  const coach = tokenFor('coach');
+  const support = tokenFor('customer_support');
+  const headCoach = tokenFor('headcoach');
+  try {
+    for (const path of ['/consultations/x1', '/assessments/x1']) {
+      assert.equal(await call(base, 'PATCH', `${path}/status`, client), 403, path);
+      assert.equal(await call(base, 'PATCH', `${path}/assign`, client), 403, path);
+      assert.equal(await call(base, 'DELETE', path, client), 403, path);
+      assert.equal(await call(base, 'PATCH', `${path}/status`, coach), 200, path);
+      assert.equal(await call(base, 'PATCH', `${path}/assign`, coach), 403, path);
+      assert.equal(await call(base, 'DELETE', path, coach), 403, path);
+      assert.equal(await call(base, 'PATCH', `${path}/status`, support), 200, path);
+      assert.equal(await call(base, 'DELETE', path, support), 403, path);
+      assert.equal(await call(base, 'PATCH', `${path}/assign`, headCoach), 200, path);
+      assert.equal(await call(base, 'DELETE', path, headCoach), 200, path);
+    }
+  } finally {
+    server.close();
+  }
+});
+
+test('only staff can read website enquiries', async () => {
+  const { server, base } = await startGuardedApp();
+  try {
+    assert.equal(await call(base, 'GET', '/enquiries', tokenFor('client')), 403);
+    assert.equal(await call(base, 'GET', '/enquiries', tokenFor('coach')), 200);
+    assert.equal(await call(base, 'GET', '/enquiries', tokenFor('customer_support')), 200);
+    assert.equal(await call(base, 'DELETE', '/enquiries/e1', tokenFor('customer_support')), 403);
   } finally {
     server.close();
   }

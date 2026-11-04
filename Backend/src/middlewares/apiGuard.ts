@@ -31,13 +31,27 @@ const ownNotificationsOnly = (req: Request, res: Response, next: NextFunction) =
   return res.status(403).json({ error: 'Forbidden: You can only view your own notifications.' });
 };
 
+// Paid bookings, consultations and assessments: every record belongs to a client and may be assigned to a coach.
+const ownClientRecordsOnly = (req: Request, res: Response, next: NextFunction) => {
+  const user = (req as any).user;
+  const role = String(user.role || '').toLowerCase();
+  if (MANAGERS.includes(role) || role === 'customer_support' || role === 'support') return next();
+  if (role === 'coach' && req.query.coachId === user.id) return next();
+  // Must be a plain string: the routes ignore any other shape, which would drop the filter and list every record
+  if (typeof req.query.email === 'string' && sameText(req.query.email, user.email)) return next();
+  return res.status(403).json({ error: 'Forbidden: You can only view your own records.' });
+};
+
+const ownPaidBookingBodyOnly = (req: Request, res: Response, next: NextFunction) => {
+  const user = (req as any).user;
+  const { clientEmail, userId } = req.body || {};
+  if (typeof clientEmail === 'string' && sameText(clientEmail.trim(), user.email) && (!userId || userId === user.id)) return next();
+  return res.status(403).json({ error: 'Forbidden: You can only create bookings for yourself.' });
+};
+
 const guard = Router();
 
 guard.use('/auth', open); // the auth router does its own checks
-guard.use('/consultations', open);
-guard.use('/assessments', open);
-guard.use('/enquiries', open);
-guard.use('/paid-bookings', open);
 guard.get('/health', open);
 
 guard.get(['/trainers', '/classes', '/reviews', '/announcements'], open);
@@ -64,7 +78,18 @@ guard.get('/users', allow(STAFF));
 guard.post('/users', allow(MANAGERS));
 guard.delete('/users/:id', allow(['admin']));
 
+guard.get('/enquiries', allow(STAFF));
 guard.delete('/enquiries/:id', allow(['admin']));
+
+guard.get('/paid-bookings', ownClientRecordsOnly);
+guard.post('/paid-bookings', ownPaidBookingBodyOnly);
+guard.patch(['/paid-bookings/:id/assign', '/paid-bookings/:id/session'], allow(STAFF));
+guard.delete('/paid-bookings/:id', allow(MANAGERS));
+
+guard.get(['/consultations', '/assessments'], ownClientRecordsOnly);
+guard.patch(['/consultations/:id/assign', '/assessments/:id/assign'], allow(MANAGERS));
+guard.patch(['/consultations/:id/status', '/assessments/:id/status'], allow(STAFF));
+guard.delete(['/consultations/:id', '/assessments/:id'], allow(MANAGERS));
 
 guard.post('/trainers', allow(COACHES));
 guard.put('/trainers/:id', allow(COACHES));

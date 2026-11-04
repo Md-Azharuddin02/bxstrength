@@ -35,6 +35,9 @@ interface CRMOverviewProps {
 
 const STORAGE_LEADS_KEY = 'bxstrength_crm_leads';
 
+// Display only: 'Recommendation' stays the stored stage value on saved leads.
+const stageLabel = (stage: string) => (stage === 'Recommendation' ? 'Proposal' : stage);
+
 export const CRMOverview: React.FC<CRMOverviewProps> = ({
   users,
   classes,
@@ -340,7 +343,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
       };
 
       setLeads(prev => [newLead, ...prev]);
-      setToastMessage(`Lead "${newLead.name}" added successfully to ${newLead.stage} stage.`);
+      setToastMessage(`Lead "${newLead.name}" added successfully to ${stageLabel(newLead.stage)} stage.`);
     }
 
     setShowAddModal(false);
@@ -408,7 +411,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
                 ? 'Head Coach Operations: Manage coach roster, assign client leads, review transferred enquiries, and direct coaching operations.'
                 : isCoach
                 ? 'Coach Operations: View your assigned client leads, enquiries assigned by Head Coach or Customer Support, workout programs, and diet plans.'
-                : 'Track real lead progress from digital assessment to consultation, coach assignment, active retention, and client renewals.'}
+                : 'Monitor enquiries from initial consultation and coach matching through to active training and renewals.'}
             </p>
           </div>
 
@@ -469,7 +472,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
             >
               <option value="All">All Pipeline Stages</option>
               {pipelineStages.map((stg) => (
-                <option key={stg} value={stg}>{stg}</option>
+                <option key={stg} value={stg}>{stageLabel(stg)}</option>
               ))}
             </select>
           </div>
@@ -489,7 +492,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-10 gap-2 text-center pt-2">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(108px,1fr))] gap-2 text-center pt-2">
             {pipelineStages.map((stage, idx) => {
               const count = pipelineCounts[stage] || 0;
               const isSelected = selectedFilterStage === stage;
@@ -507,8 +510,8 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
                   <span className={`text-base font-black my-1 ${count > 0 ? 'text-white' : 'text-zinc-600'}`}>
                     {count}
                   </span>
-                  <span className="text-[10px] font-bold text-zinc-300 uppercase truncate group-hover:text-white">
-                    {stage}
+                  <span className="text-[10px] font-bold text-zinc-300 uppercase group-hover:text-white">
+                    {stageLabel(stage)}
                   </span>
                 </div>
               );
@@ -565,7 +568,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
               <h4 className="text-lg font-black uppercase text-white tracking-tight">NO LEADS AVAILABLE</h4>
               <p className="text-xs text-zinc-400 max-w-md mx-auto mt-1 leading-relaxed">
                 {selectedFilterStage !== 'All' 
-                  ? `No leads currently match the stage filter "${selectedFilterStage}". Reset filters or add a new lead entry.`
+                  ? `No leads currently match the stage filter "${stageLabel(selectedFilterStage)}". Reset filters or add a new lead entry.`
                   : 'No CRM leads or client Assessment entries recorded yet. Add your first lead to begin tracking client conversions.'}
               </p>
             </div>
@@ -610,7 +613,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
                         className="bg-[#18181b] text-white border border-zinc-700 font-bold uppercase text-[10px] rounded px-2.5 py-1 focus:outline-none focus:border-zinc-500 cursor-pointer"
                       >
                         {pipelineStages.map((stg) => (
-                          <option key={stg} value={stg}>{stg}</option>
+                          <option key={stg} value={stg}>{stageLabel(stg)}</option>
                         ))}
                       </select>
                     </td>
@@ -774,7 +777,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
                     className="w-full bg-[#18181b] border border-zinc-800 rounded-lg px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-zinc-600"
                   >
                     {pipelineStages.map(stg => (
-                      <option key={stg} value={stg}>{stg}</option>
+                      <option key={stg} value={stg}>{stageLabel(stg)}</option>
                     ))}
                   </select>
                 </div>

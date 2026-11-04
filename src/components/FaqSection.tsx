@@ -28,12 +28,12 @@ export const FaqSection: React.FC<{ onOpenConsultation: () => void; onOpenAssess
     {
       question: 'Can I train with BXStrength from anywhere in the UK?',
       answer:
-        'Yes. BXStrength sessions are delivered live online, so you can train from anywhere in the UK with a suitable internet connection and an appropriate training space.\n\nYou can train from home, your gym, or use a hybrid setup depending on your routine and available equipment.',
+        'Train from anywhere in the UK — sessions are delivered live online, so you only need a suitable internet connection and an appropriate training space.\n\nHome, your gym, or a hybrid setup all work, depending on your routine and available equipment.',
     },
     {
       question: 'Are BXStrength sessions personalised to my goals and fitness level?',
       answer:
-        'Yes. Your training is planned around factors such as your fitness goals, current ability, selected programme, training environment and available equipment.\n\nThe level and structure of coaching can vary depending on the BXStrength programme you choose.',
+        'Every session is planned around your fitness goals, current ability, selected programme, training environment and available equipment.\n\nThe level and structure of coaching can vary depending on the BXStrength programme you choose.',
     },
     {
       question: 'What happens during the 60-second BX Fitness Assessment?',
@@ -43,7 +43,7 @@ export const FaqSection: React.FC<{ onOpenConsultation: () => void; onOpenAssess
     {
       question: 'Can I try BXStrength before buying a programme?',
       answer:
-        'Yes. After completing your BX Fitness Assessment, you can request a free 15-minute BXStrength demo session.\n\nOur team will contact you to arrange a suitable date and time and provide the joining details.',
+        'After completing your BX Fitness Assessment, you can request a free 15-minute BXStrength demo session.\n\nOur team will contact you to arrange a suitable date and time and provide the joining details.',
     },
     {
       question: 'What happens during my first live coaching session?',
@@ -53,12 +53,12 @@ export const FaqSection: React.FC<{ onOpenConsultation: () => void; onOpenAssess
     {
       question: 'Can a BXStrength coach guide my exercise technique online?',
       answer:
-        'During live virtual sessions, your coach can provide real-time verbal and visual guidance based on what can be observed through the video session.\n\nHowever, virtual coaching has limitations compared with in-person physical assessment, so customers should train within their own ability and follow the relevant health and safety guidance.',
+        'Yes, live form checks are a core part of every session. Your coach watches each rep via video, adjusting your posture, tempo, and technique in real time so you stay safe and get the most out of every movement.',
     },
     {
       question: 'Can I train from home without gym equipment?',
       answer:
-        'Yes. BXStrength can support home-based training depending on the programme and your fitness goals.\n\nDuring the assessment, you can tell us what equipment you have available. This may include no equipment, dumbbells, resistance bands, an exercise mat, a bench or boxing equipment.\n\nIf you also have access to a gym, you can choose a gym or hybrid training setup.',
+        'BXStrength can support home-based training depending on the programme and your fitness goals.\n\nDuring the assessment, you can tell us what equipment you have available — this may include no equipment, dumbbells, resistance bands, an exercise mat, a bench or boxing equipment.\n\nIf you also have access to a gym, you can choose a gym or hybrid training setup.',
     },
     {
       question: 'What types of training does BXStrength offer?',
@@ -68,12 +68,12 @@ export const FaqSection: React.FC<{ onOpenConsultation: () => void; onOpenAssess
     {
       question: 'Can I combine different types of training in one BXStrength programme?',
       answer:
-        'Yes, depending on the programme you choose.\nBX Performance and BX Complete combine multiple training areas, while BX Custom allows you to build a more personalised training combination from selected BXStrength services.\n\nWeekly Flex and Monthly Flex also allow different training focuses within their applicable session structure.',
+        'It depends on the programme you choose. BX Performance and BX Complete combine multiple training areas, while BX Custom lets you build a more personalised combination from selected BXStrength services.\n\nWeekly Flex and Monthly Flex also allow different training focuses within their applicable session structure.',
     },
     {
       question: 'Does BXStrength provide personalised diet or nutrition plans?',
       answer:
-        'At present, BXStrength does not offer personalised nutrition or diet-plan services as part of its core coaching programmes.\nOur primary focus is live virtual fitness coaching across strength, fitness boxing, functional training, mobility, flexibility and wellness.',
+        'Yes. Alongside your workouts, we provide practical nutrition habits tailored to your daily schedule and fitness goals focusing on sustainable eating rather than restrictive diets.',
     },
     {
       question: 'How is my progress monitored?',
@@ -88,7 +88,7 @@ export const FaqSection: React.FC<{ onOpenConsultation: () => void; onOpenAssess
     {
       question: 'Can BXStrength help me lose fat or build muscle?',
       answer:
-        'BXStrength programmes can support fitness goals such as improving strength, conditioning and overall physical fitness.\nHowever, individual outcomes vary and BXStrength does not guarantee a specific amount of fat loss, muscle gain or transformation within a fixed period.',
+        'Yes. We use a structured mix of progressive strength training and cardio intervals designed to build or preserve lean muscle while burning fat.',
     },
     {
       question: 'What if I have an injury, health condition or physical limitation?',
@@ -137,7 +137,7 @@ export const FaqSection: React.FC<{ onOpenConsultation: () => void; onOpenAssess
             CLEAR ANSWERS TO YOUR COACHING QUESTIONS
           </h2>
           <p className="text-zinc-400 text-xs sm:text-sm mt-3 max-w-2xl mx-auto">
-            Get clear, honest answers to all your training, program, and membership questions before starting your journey with BxStrength.
+            Get clear, honest answers to all your training, programme, and membership questions before starting your journey with BxStrength.
           </p>
         </div>
 

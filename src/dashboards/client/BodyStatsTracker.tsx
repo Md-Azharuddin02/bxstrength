@@ -1,40 +1,96 @@
 import React, { useState } from 'react';
 import { BodyStat } from '../../types';
 import { VelocityAPI } from '../../services/api';
-import { Scale, Plus, History, Activity, AlertCircle } from 'lucide-react';
+import { Scale, Plus, X, History, Activity, AlertCircle } from 'lucide-react';
+import {
+  cmFromFeetInches,
+  cmFromInches,
+  feetInchesFromCm,
+  formatWeight,
+  inchesFromCm,
+  kgFromStoneLbs,
+  stoneLbsFromKg,
+} from '../../utils/bodyWeight';
+
+type UnitSystem = 'metric' | 'imperial';
+
+const TAPE_FIELDS = [
+  { key: 'chest', label: 'Chest' },
+  { key: 'waist', label: 'Waist' },
+  { key: 'biceps', label: 'Biceps' },
+  { key: 'thighs', label: 'Thighs' },
+] as const;
+
+const parseNum = (value: string) => parseFloat(value) || 0;
+const showNum = (value: number) => (value > 0 ? String(value) : '');
+
+const mainInputClass = 'w-full bg-gray-900 border border-gray-800 focus:border-[#E52165] text-white px-3.5 py-2.5 text-sm rounded-none outline-none font-mono';
 
 interface BodyStatsTrackerProps {
-  userId: string;
   stats: BodyStat[];
+  status: 'loading' | 'ready' | 'error';
   onStatsUpdated: () => void;
   onShowToast: (msg: string) => void;
 }
 
 export const BodyStatsTracker: React.FC<BodyStatsTrackerProps> = ({
-  userId,
   stats,
+  status,
   onStatsUpdated,
   onShowToast
 }) => {
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(status === 'ready' && stats.length === 0);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Form fields
+  const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
   const [weightKg, setWeightKg] = useState<string>('');
   const [heightCm, setHeightCm] = useState<string>('');
+  const [stone, setStone] = useState<string>('');
+  const [pounds, setPounds] = useState<string>('');
+  const [feet, setFeet] = useState<string>('');
+  const [inches, setInches] = useState<string>('');
   const [bodyFat, setBodyFat] = useState<string>('');
-  const [chestCm, setChestCm] = useState<string>('');
-  const [waistCm, setWaistCm] = useState<string>('');
-  const [bicepsCm, setBicepsCm] = useState<string>('');
-  const [thighsCm, setThighsCm] = useState<string>('');
+  const [tape, setTape] = useState({ chest: '', waist: '', biceps: '', thighs: '' });
+
+  const isImperial = unitSystem === 'imperial';
+
+  // Stats are always stored in metric, whichever units the form is showing
+  const weightNum = isImperial ? kgFromStoneLbs(parseNum(stone), parseNum(pounds)) : parseNum(weightKg);
+  const heightNum = isImperial ? cmFromFeetInches(parseNum(feet), parseNum(inches)) : parseNum(heightCm);
+  const tapeCm = (value: string) => (isImperial ? cmFromInches(parseNum(value)) : parseNum(value)) || undefined;
+
+  // Convert what's typed so a value is never reinterpreted in the new unit
+  const switchUnits = (next: UnitSystem) => {
+    if (next === unitSystem) return;
+    if (next === 'imperial') {
+      const { st, lbs } = stoneLbsFromKg(weightNum);
+      const { ft, inches: inchesPart } = feetInchesFromCm(heightNum);
+      setStone(showNum(st));
+      setPounds(showNum(lbs));
+      setFeet(showNum(ft));
+      setInches(showNum(inchesPart));
+    } else {
+      setWeightKg(showNum(weightNum));
+      setHeightCm(showNum(heightNum));
+    }
+    const convertTape = (value: string) => showNum(next === 'imperial' ? inchesFromCm(parseNum(value)) : cmFromInches(parseNum(value)));
+    setTape({
+      chest: convertTape(tape.chest),
+      waist: convertTape(tape.waist),
+      biceps: convertTape(tape.biceps),
+      thighs: convertTape(tape.thighs),
+    });
+    setUnitSystem(next);
+  };
 
   // Preview BMI calculation
-  const weightNum = parseFloat(weightKg) || 0;
-  const heightM = (parseFloat(heightCm) || 0) / 100;
+  const heightM = heightNum / 100;
   const calculatedBmi = heightM > 0 ? Number((weightNum / (heightM * heightM)).toFixed(1)) : 0;
 
-  let bmiCat = 'Normal';
-  let bmiColor = 'text-emerald-400';
-  let bmiBg = 'bg-emerald-950/60 border-emerald-800';
+  let bmiCat = '--';
+  let bmiColor = 'text-gray-400';
+  let bmiBg = 'bg-gray-900/60 border-gray-800';
 
   if (calculatedBmi > 0) {
     if (calculatedBmi < 18.5) {
@@ -56,31 +112,32 @@ export const BodyStatsTracker: React.FC<BodyStatsTrackerProps> = ({
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!weightNum || !heightM) {
+    if (calculatedBmi <= 0) {
       onShowToast('Please enter valid weight and height values.');
       return;
     }
 
+    setIsSaving(true);
     try {
-      VelocityAPI.addBodyStat({
-        userId,
-        date: new Date().toISOString().split('T')[0],
+      const saved = await VelocityAPI.addBodyStat({
         weightKg: weightNum,
-        heightCm: parseFloat(heightCm),
+        heightCm: heightNum,
         bodyFatPercentage: parseFloat(bodyFat) || undefined,
-        chestCm: parseFloat(chestCm) || undefined,
-        waistCm: parseFloat(waistCm) || undefined,
-        bicepsCm: parseFloat(bicepsCm) || undefined,
-        thighsCm: parseFloat(thighsCm) || undefined
+        chestCm: tapeCm(tape.chest),
+        waistCm: tapeCm(tape.waist),
+        bicepsCm: tapeCm(tape.biceps),
+        thighsCm: tapeCm(tape.thighs)
       });
 
-      onShowToast(`Logged weight ${weightNum}kg with BMI ${calculatedBmi}!`);
+      onShowToast(`Logged weight ${formatWeight(saved.weightKg, isImperial ? 'st' : 'kg')} with BMI ${saved.bmi}!`);
       setShowAddForm(false);
       onStatsUpdated();
     } catch (err: any) {
       onShowToast(err.message || 'Failed to log stats');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -104,7 +161,7 @@ export const BodyStatsTracker: React.FC<BodyStatsTrackerProps> = ({
           onClick={() => setShowAddForm(!showAddForm)}
           className="bg-white hover:bg-zinc-200 text-black text-xs font-black tracking-widest px-5 py-3 uppercase transition-all shadow-md flex items-center gap-2 self-start sm:self-auto cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
+          {showAddForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
           <span>{showAddForm ? 'CANCEL FORM' : 'LOG NEW WEIGHT'}</span>
         </button>
       </div>
@@ -112,39 +169,114 @@ export const BodyStatsTracker: React.FC<BodyStatsTrackerProps> = ({
       {/* Interactive Log Form */}
       {showAddForm && (
         <div className="bg-[#111111] border border-zinc-700 p-6 animate-in slide-in-from-top-4 duration-200">
-          <h3 className="text-sm font-black uppercase tracking-wider text-white mb-4 border-b border-gray-800 pb-3 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-emerald-400" />
-            RECORD DAILY BODY COMPOSITION LOG
-          </h3>
+          <div className="mb-4 border-b border-gray-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                <Activity className="w-4 h-4 text-emerald-400" />
+                LOG TODAY'S MEASUREMENTS
+              </h3>
+              <p className="text-xs text-gray-400 mt-1">
+                Keep track of your weight, BMI, body fat, and measurements as you progress.
+              </p>
+            </div>
+
+            <div className="flex self-start sm:self-auto border border-gray-700 text-[10px] font-bold shrink-0" role="group" aria-label="Measurement units">
+              {([['metric', 'Metric: kg / cm'], ['imperial', 'Imperial: st / lbs / inches']] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => switchUnits(value)}
+                  aria-pressed={unitSystem === value}
+                  className={`px-3 py-2 cursor-pointer transition-colors ${unitSystem === value ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-1">
-                  Body Weight (kg) *
+                  {isImperial ? 'Body Weight (st / lbs) *' : 'Body Weight (kg) *'}
                 </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={weightKg}
-                  onChange={(e) => setWeightKg(e.target.value)}
-                  className="w-full bg-gray-900 border border-gray-800 focus:border-[#E52165] text-white px-3.5 py-2.5 text-sm rounded-none outline-none font-mono"
-                  required
-                />
+                {isImperial ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="st"
+                      aria-label="Weight in stone"
+                      value={stone}
+                      onChange={(e) => setStone(e.target.value)}
+                      className={mainInputClass}
+                      required
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="13.9"
+                      step="0.1"
+                      placeholder="lbs"
+                      aria-label="Additional pounds"
+                      value={pounds}
+                      onChange={(e) => setPounds(e.target.value)}
+                      className={mainInputClass}
+                    />
+                  </div>
+                ) : (
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={weightKg}
+                    onChange={(e) => setWeightKg(e.target.value)}
+                    className={mainInputClass}
+                    required
+                  />
+                )}
               </div>
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-1">
-                  Height (cm) *
+                  {isImperial ? 'Height (ft / inches) *' : 'Height (cm) *'}
                 </label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={heightCm}
-                  onChange={(e) => setHeightCm(e.target.value)}
-                  className="w-full bg-gray-900 border border-gray-800 focus:border-[#E52165] text-white px-3.5 py-2.5 text-sm rounded-none outline-none font-mono"
-                  required
-                />
+                {isImperial ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="ft"
+                      aria-label="Height in feet"
+                      value={feet}
+                      onChange={(e) => setFeet(e.target.value)}
+                      className={mainInputClass}
+                      required
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="11.9"
+                      step="0.1"
+                      placeholder="in"
+                      aria-label="Additional inches"
+                      value={inches}
+                      onChange={(e) => setInches(e.target.value)}
+                      className={mainInputClass}
+                    />
+                  </div>
+                ) : (
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={heightCm}
+                    onChange={(e) => setHeightCm(e.target.value)}
+                    className={mainInputClass}
+                    required
+                  />
+                )}
               </div>
 
               <div>
@@ -182,61 +314,28 @@ export const BodyStatsTracker: React.FC<BodyStatsTrackerProps> = ({
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">
-                  Chest (cm)
-                </label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={chestCm}
-                  onChange={(e) => setChestCm(e.target.value)}
-                  className="w-full bg-gray-900 border border-gray-800 text-white px-3 py-2 text-xs rounded-none font-mono"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">
-                  Waist (cm)
-                </label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={waistCm}
-                  onChange={(e) => setWaistCm(e.target.value)}
-                  className="w-full bg-gray-900 border border-gray-800 text-white px-3 py-2 text-xs rounded-none font-mono"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">
-                  Biceps (cm)
-                </label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={bicepsCm}
-                  onChange={(e) => setBicepsCm(e.target.value)}
-                  className="w-full bg-gray-900 border border-gray-800 text-white px-3 py-2 text-xs rounded-none font-mono"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">
-                  Thighs (cm)
-                </label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={thighsCm}
-                  onChange={(e) => setThighsCm(e.target.value)}
-                  className="w-full bg-gray-900 border border-gray-800 text-white px-3 py-2 text-xs rounded-none font-mono"
-                />
-              </div>
+              {TAPE_FIELDS.map(({ key, label }) => (
+                <div key={key}>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">
+                    {label} ({isImperial ? 'inches' : 'cm'})
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={tape[key]}
+                    onChange={(e) => setTape({ ...tape, [key]: e.target.value })}
+                    className="w-full bg-gray-900 border border-gray-800 text-white px-3 py-2 text-xs rounded-none font-mono"
+                  />
+                </div>
+              ))}
             </div>
 
             <button
               type="submit"
-              className="bg-[#E52165] hover:bg-[#c41551] text-white text-xs font-black tracking-widest px-6 py-3 uppercase transition-all"
+              disabled={isSaving}
+              className="bg-[#E52165] hover:bg-[#c41551] disabled:opacity-50 text-white text-xs font-black tracking-widest px-6 py-3 uppercase transition-all"
             >
-              SAVE BODY STAT ENTRY
+              {isSaving ? 'SAVING...' : 'SAVE BODY STAT ENTRY'}
             </button>
           </form>
         </div>
@@ -277,12 +376,16 @@ export const BodyStatsTracker: React.FC<BodyStatsTrackerProps> = ({
       <div className="bg-[#111111] border border-gray-800 p-6">
         <h3 className="text-sm font-black uppercase tracking-wider text-white mb-4 border-b border-gray-800 pb-3 flex items-center gap-2">
           <History className="w-4 h-4 text-[#E52165]" />
-          HISTORICAL BODY COMPOSITION LOGS
+          MEASUREMENT HISTORY
         </h3>
 
         {stats.length === 0 ? (
           <div className="text-center py-8 text-xs text-gray-400">
-            No body stat entries recorded yet. Click "Log New Weight" above to get started.
+            {status === 'loading' && 'Loading your body stats...'}
+            {status === 'error' && 'Your body stats could not be loaded.'}
+            {status === 'ready' && (showAddForm
+              ? 'No body stat entries recorded yet. Complete the form above to log your first entry.'
+              : 'No body stat entries recorded yet. Select "Log New Weight" above to log your first entry.')}
           </div>
         ) : (
           <div className="overflow-x-auto">

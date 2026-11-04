@@ -4,19 +4,20 @@ import { VelocityAPI } from '../../services/api';
 import { Scale, Plus, History, Activity, AlertCircle } from 'lucide-react';
 
 interface BodyStatsTrackerProps {
-  userId: string;
   stats: BodyStat[];
+  status: 'loading' | 'ready' | 'error';
   onStatsUpdated: () => void;
   onShowToast: (msg: string) => void;
 }
 
 export const BodyStatsTracker: React.FC<BodyStatsTrackerProps> = ({
-  userId,
   stats,
+  status,
   onStatsUpdated,
   onShowToast
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Form fields
   const [weightKg, setWeightKg] = useState<string>('');
@@ -56,17 +57,16 @@ export const BodyStatsTracker: React.FC<BodyStatsTrackerProps> = ({
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!weightNum || !heightM) {
       onShowToast('Please enter valid weight and height values.');
       return;
     }
 
+    setIsSaving(true);
     try {
-      VelocityAPI.addBodyStat({
-        userId,
-        date: new Date().toISOString().split('T')[0],
+      const saved = await VelocityAPI.addBodyStat({
         weightKg: weightNum,
         heightCm: parseFloat(heightCm),
         bodyFatPercentage: parseFloat(bodyFat) || undefined,
@@ -76,11 +76,13 @@ export const BodyStatsTracker: React.FC<BodyStatsTrackerProps> = ({
         thighsCm: parseFloat(thighsCm) || undefined
       });
 
-      onShowToast(`Logged weight ${weightNum}kg with BMI ${calculatedBmi}!`);
+      onShowToast(`Logged weight ${saved.weightKg}kg with BMI ${saved.bmi}!`);
       setShowAddForm(false);
       onStatsUpdated();
     } catch (err: any) {
       onShowToast(err.message || 'Failed to log stats');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -234,9 +236,10 @@ export const BodyStatsTracker: React.FC<BodyStatsTrackerProps> = ({
 
             <button
               type="submit"
-              className="bg-[#E52165] hover:bg-[#c41551] text-white text-xs font-black tracking-widest px-6 py-3 uppercase transition-all"
+              disabled={isSaving}
+              className="bg-[#E52165] hover:bg-[#c41551] disabled:opacity-50 text-white text-xs font-black tracking-widest px-6 py-3 uppercase transition-all"
             >
-              SAVE BODY STAT ENTRY
+              {isSaving ? 'SAVING...' : 'SAVE BODY STAT ENTRY'}
             </button>
           </form>
         </div>
@@ -282,7 +285,9 @@ export const BodyStatsTracker: React.FC<BodyStatsTrackerProps> = ({
 
         {stats.length === 0 ? (
           <div className="text-center py-8 text-xs text-gray-400">
-            No body stat entries recorded yet. Click "Log New Weight" above to get started.
+            {status === 'loading' && 'Loading your body stats...'}
+            {status === 'error' && 'Your body stats could not be loaded.'}
+            {status === 'ready' && 'No body stat entries recorded yet. Click "Log New Weight" above to get started.'}
           </div>
         ) : (
           <div className="overflow-x-auto">

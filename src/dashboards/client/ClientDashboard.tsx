@@ -39,7 +39,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false);
 
   // Loaded data state - Instant Stale-While-Revalidate render from local cache
-  const [bodyStats, setBodyStats] = useState<BodyStat[]>(() => VelocityAPI.getBodyStats(user.id));
+  const [bodyStats, setBodyStats] = useState<BodyStat[]>([]);
+  const [bodyStatsStatus, setBodyStatsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [bookings, setBookings] = useState<Booking[]>(() => VelocityAPI.getBookings(user.id));
   const [programs, setPrograms] = useState<WorkoutProgram[]>(() => VelocityAPI.getPrograms(user.id));
   const [nutritionPlans, setNutritionPlans] = useState<NutritionPlan[]>(() => VelocityAPI.getNutritionPlans(user.id));
@@ -62,13 +63,14 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const loadDashboardData = async (_isInitial = false) => {
     try {
       // Fire all background API fetches in parallel for maximum speed
-      const [progRes, nutRes, classRes, subRes, consRes, notifRes] = await Promise.allSettled([
+      const [progRes, nutRes, classRes, subRes, consRes, notifRes, statsRes] = await Promise.allSettled([
         VelocityAPI.fetchPrograms(user.id),
         VelocityAPI.fetchNutritionPlans(user.id),
         VelocityAPI.fetchClasses(),
         VelocityAPI.fetchSubscriptions(),
         VelocityAPI.fetchConsultations(user.email),
-        VelocityAPI.fetchInAppNotifications(user.email)
+        VelocityAPI.fetchInAppNotifications(user.email),
+        VelocityAPI.fetchBodyStats(user.id)
       ]);
 
       if (progRes.status === 'fulfilled' && Array.isArray(progRes.value)) setPrograms(progRes.value);
@@ -85,7 +87,12 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       if (consRes.status === 'fulfilled' && Array.isArray(consRes.value)) setConsultations(consRes.value);
       if (notifRes.status === 'fulfilled' && Array.isArray(notifRes.value)) setNotifications(notifRes.value);
 
-      setBodyStats(VelocityAPI.getBodyStats(user.id));
+      if (statsRes.status === 'fulfilled') {
+        setBodyStats(statsRes.value);
+        setBodyStatsStatus('ready');
+      } else {
+        setBodyStatsStatus('error');
+      }
       setBookings(VelocityAPI.getBookings(user.id));
       setAnnouncements(VelocityAPI.getAnnouncements());
       setEnquiries(VelocityAPI.getEnquiries(user.email));
@@ -342,6 +349,19 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
           </div>
         ) : (
           <>
+            {bodyStatsStatus === 'error' && (activeTab === 'overview' || activeTab === 'stats') && (
+              <div role="alert" className="mb-4 bg-red-950/60 border border-red-800 p-4 flex items-center justify-between gap-4 text-xs text-red-200">
+                <span>We could not load your body stats. What you see may be out of date.</span>
+                <button
+                  type="button"
+                  onClick={() => loadDashboardData()}
+                  className="font-black uppercase tracking-wider text-white underline cursor-pointer"
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+
             {activeTab === 'overview' && (
               <DashboardOverview
                 user={user}
@@ -378,8 +398,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
             {activeTab === 'stats' && (
               <BodyStatsTracker
-                userId={user.id}
                 stats={bodyStats}
+                status={bodyStatsStatus}
                 onStatsUpdated={loadDashboardData}
                 onShowToast={showToast}
               />

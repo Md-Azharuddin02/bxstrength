@@ -2337,12 +2337,13 @@ export const VelocityAPI = {
     return clean;
   },
 
-  async fetchConsultations(email?: string): Promise<ConsultationBooking[]> {
+  async fetchConsultations(email?: string, coachId?: string): Promise<ConsultationBooking[]> {
     try {
-      const url = email 
-        ? getApiUrl(`/api/consultations?email=${encodeURIComponent(email)}`)
-        : getApiUrl('/api/consultations');
-      const res = await apiFetch(url);
+      const q = new URLSearchParams();
+      if (email) q.set('email', email);
+      if (coachId) q.set('coachId', coachId);
+      const queryString = q.toString();
+      const res = await apiFetch(getApiUrl(`/api/consultations${queryString ? `?${queryString}` : ''}`));
       if (res.ok) {
         const raw = await res.json();
         if (Array.isArray(raw)) {

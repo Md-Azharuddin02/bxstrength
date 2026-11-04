@@ -2,7 +2,7 @@ import { decodeHtmlEntities } from '../../services/core/mappers';
 import React from 'react';
 import { User, BodyStat, Booking, WorkoutProgram, NutritionPlan, Announcement, Enquiry, ConsultationBooking } from '../../types';
 import { Scale, Activity, Calendar, Dumbbell, Award, ShieldAlert, CheckCircle2, ChevronRight, Zap, Mail, Video, Sparkles, Clock, ExternalLink } from 'lucide-react';
-import { getApiUrl } from '../../services/core/http';
+import { apiFetch, getApiUrl } from '../../services/core/http';
 import { formatWeight, type WeightUnit } from '../../utils/bodyWeight';
 
 interface DashboardOverviewProps {
@@ -38,7 +38,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   React.useEffect(() => {
     if (!user?.email) return;
     const fetchPaid = () => {
-      fetch(getApiUrl(`/api/paid-bookings?email=${encodeURIComponent(user.email)}`))
+      apiFetch(getApiUrl(`/api/paid-bookings?email=${encodeURIComponent(user.email)}`))
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data) && data.length > 0) {
@@ -57,7 +57,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     if (!user?.email) return;
 
     const fetchJourney = () => {
-      fetch(getApiUrl(`/api/journey/latest-by-email/${encodeURIComponent(user.email)}`))
+      apiFetch(getApiUrl(`/api/journey/latest-by-email/${encodeURIComponent(user.email)}`))
         .then(res => res.json())
         .then(data => {
           if (data.success && data.record) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, BodyStat, Booking, WorkoutProgram, NutritionPlan, Announcement, Subscription, Enquiry, InAppNotification, ClassSchedule, ConsultationBooking, AthleteAssessment } from '../../types';
 import { VelocityAPI } from '../../services/api';
 import { DashboardOverview } from './DashboardOverview';
@@ -34,6 +34,13 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   onOpenAssessment
 }) => {
   const [activeTab, setActiveTab] = useState<string>('overview');
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Desktop scrolls the content area, mobile scrolls the window.
+  useEffect(() => {
+    contentRef.current?.scrollTo(0, 0);
+    window.scrollTo(0, 0);
+  }, [activeTab]);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false);
@@ -150,7 +157,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const nextBooking = bookings.find((b) => b.status === 'Confirmed');
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans flex flex-col md:flex-row">
+    <div className="min-h-screen md:min-h-0 md:h-dvh md:overflow-hidden bg-[#0a0a0a] text-white font-sans flex flex-col md:flex-row">
       {/* Toast Alert */}
       {toastMsg && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#18181b] text-white border-l-4 border-white px-5 py-4 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5">
@@ -187,7 +194,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
       {/* Sidebar Navigation */}
       <aside className={`w-full md:w-64 bg-[#121214] border-b md:border-b-0 md:border-r border-zinc-800 flex-col justify-between flex-shrink-0 ${mobileNavOpen ? 'flex' : 'hidden md:flex'}`}>
-        <div>
+        <div className="md:flex md:flex-col md:flex-1 md:min-h-0">
           {/* Sidebar Top User Card */}
           <div className="hidden md:block p-6 border-b border-zinc-800">
             <div className="flex items-center gap-3">
@@ -251,7 +258,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-grow p-4 sm:p-8 max-w-7xl mx-auto w-full overflow-y-auto">
+      <div ref={contentRef} className="flex-grow min-w-0 overflow-y-auto">
+      <main className="p-4 sm:p-8 max-w-7xl mx-auto w-full">
         {/* Top Bar with Real-time In-App Notification Bell */}
         <div className="mb-6 bg-[#111114] border border-zinc-800 p-4 rounded-xl flex items-center justify-between relative shadow-lg">
           <div>
@@ -424,6 +432,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
           </>
         )}
       </main>
+      </div>
     </div>
   );
 };

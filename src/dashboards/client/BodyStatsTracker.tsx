@@ -39,7 +39,7 @@ export const BodyStatsTracker: React.FC<BodyStatsTrackerProps> = ({
   onStatsUpdated,
   onShowToast
 }) => {
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(status === 'ready' && stats.length === 0);
   const [isSaving, setIsSaving] = useState(false);
 
   // Form fields

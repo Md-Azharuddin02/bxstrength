@@ -456,7 +456,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             onClick={() => onNavigateTab('stats')}
             className="sm:col-span-2 text-left text-xs font-bold text-[#CCFF00] hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
           >
-            <span>Log initial stats</span>
+            <span>Add your weight and height to see your BMI</span>
             <ChevronRight className="w-4 h-4" />
           </button>
         )}

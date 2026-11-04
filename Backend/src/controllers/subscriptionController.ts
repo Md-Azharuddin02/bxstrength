@@ -30,6 +30,7 @@ export const listSubscriptions = async (req: Request, res: Response) => {
         );
     return res.json(dbRes.rows.map(mapRow));
   } catch (err: any) {
+    console.error('[SUBSCRIPTIONS] list failed:', err.message);
     return res.status(500).json({ error: err.message });
   }
 };

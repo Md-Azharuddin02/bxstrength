@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { dbPool } from '../config/db.ts';
 import { sanitizeInput } from '../utils/sanitize.ts';
+import { parseJsonList } from '../utils/json.ts';
 
 const STAFF = ['admin', 'headcoach', 'coach', 'customer_support', 'support'];
 const isStaff = (req: Request) =>
@@ -24,10 +25,10 @@ const mapRow = (r: any) => ({
   headCoachApprovalStatus: r.headcoach_approval_status || 'pending',
   headCoachApprovalNotes: r.headcoach_approval_notes || undefined,
   version: r.version ? Number(r.version) : 1,
-  approvalLogs: r.approval_logs ? JSON.parse(r.approval_logs) : [],
+  approvalLogs: parseJsonList(r.approval_logs),
   isPublishedToClient: r.is_published_to_client === true,
   publishedToClientAt: r.published_to_client_at ? new Date(r.published_to_client_at).toISOString() : undefined,
-  exercises: r.exercises ? JSON.parse(r.exercises) : [],
+  exercises: parseJsonList(r.exercises),
   createdBy: r.created_by || 'Head Coach',
   createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
 });

@@ -28,6 +28,7 @@ import { purgeReviews } from './Backend/src/controllers/reviewController.ts';
 import announcementRoutes from './Backend/src/routes/announcementRoutes.ts';
 import { authenticate as authenticateToken, authorizeRoles } from './Backend/src/middlewares/authMiddleware.ts';
 import apiGuard from './Backend/src/middlewares/apiGuard.ts';
+import { runSetupStatements } from './Backend/src/config/dbSetup.ts';
 import { requireCoachOwnsBooking } from './Backend/src/middlewares/paidBookingAccess.ts';
 
 dotenv.config({ quiet: true });
@@ -1511,7 +1512,7 @@ if (dbPool) {
     if (!err) {
       console.log(`  ➜  Database:   connected (${res.rows[0].now})`);
       try {
-        await dbPool.query(`
+        await runSetupStatements(dbPool, `
           CREATE TABLE IF NOT EXISTS users (
             id VARCHAR(64) PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
@@ -1875,7 +1876,35 @@ if (dbPool) {
         `);
 
         await ensureTrainerColumnsExist();
-        await dbPool.query(`
+        await runSetupStatements(dbPool, `
+          CREATE TABLE IF NOT EXISTS assessments (
+            id VARCHAR(100) PRIMARY KEY,
+            client_name VARCHAR(255) NOT NULL,
+            client_email VARCHAR(255) NOT NULL,
+            client_phone VARCHAR(50),
+            preferred_contact_method VARCHAR(50),
+            primary_goal VARCHAR(255),
+            main_obstacle VARCHAR(255),
+            experience_level VARCHAR(100),
+            weekly_commitment VARCHAR(100),
+            training_location VARCHAR(100),
+            equipment TEXT,
+            training_interest TEXT,
+            has_injury TEXT,
+            status VARCHAR(50) DEFAULT 'Pending',
+            assigned_coach_id VARCHAR(100),
+            assigned_coach_name VARCHAR(255),
+            assigned_by VARCHAR(255),
+            assigned_at TIMESTAMP WITH TIME ZONE,
+            coach_notes TEXT,
+            coach_feedback TEXT,
+            recommended_plan TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_assessments_client_email ON assessments (LOWER(client_email));
+
           CREATE TABLE IF NOT EXISTS paid_bookings (
             id VARCHAR(100) PRIMARY KEY,
             order_id VARCHAR(100),
@@ -1904,9 +1933,9 @@ if (dbPool) {
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
-        `).catch(() => {});
-      } catch {
-        // Table initialization complete
+        `);
+      } catch (setupErr: any) {
+        console.error('[DB SETUP] failed:', setupErr?.message);
       }
     }
   });

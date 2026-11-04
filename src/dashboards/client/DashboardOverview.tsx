@@ -3,6 +3,7 @@ import React from 'react';
 import { User, BodyStat, Booking, WorkoutProgram, NutritionPlan, Announcement, Enquiry, ConsultationBooking } from '../../types';
 import { Scale, Activity, Calendar, Dumbbell, Award, ShieldAlert, CheckCircle2, ChevronRight, Zap, Mail, Video, Sparkles, Clock, ExternalLink } from 'lucide-react';
 import { getApiUrl } from '../../services/core/http';
+import { formatWeight, type WeightUnit } from '../../utils/bodyWeight';
 
 interface DashboardOverviewProps {
   user: User;
@@ -31,6 +32,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 }) => {
   const [activeJourney, setActiveJourney] = React.useState<any>(null);
   const [latestPaidPackage, setLatestPaidPackage] = React.useState<any>(null);
+  const [weightUnit, setWeightUnit] = React.useState<WeightUnit>('kg');
+  const loggedStat = latestStat?.weightKg ? latestStat : undefined;
 
   React.useEffect(() => {
     if (!user?.email) return;
@@ -353,9 +356,14 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 </span>
                 <span className="text-xs font-mono font-bold text-zinc-400">REF: {activeJourney.id}</span>
               </div>
-              <h3 className="text-sm font-black text-white uppercase mt-1">Coach Alignment & Schedule Assignment Pending</h3>
+              <h3 className="text-sm font-black text-white uppercase mt-1">Matching Your Coach & Scheduling</h3>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Your payment for <strong className="text-white">{activeJourney.serviceTitle}</strong> (£{activeJourney.amountGbp} GBP) is confirmed. Our Head Coaching team will contact you to confirm your schedule.
+                {activeJourney.amountGbp > 0 ? (
+                  <>Your payment of £{activeJourney.amountGbp} for <strong className="text-white">{activeJourney.serviceTitle}</strong> is confirmed!</>
+                ) : (
+                  <>Your complimentary <strong className="text-white">{activeJourney.serviceTitle}</strong> is confirmed!</>
+                )}{' '}
+                Our coaching team will reach out shortly to lock in your session time.
               </p>
             </div>
           </div>
@@ -409,10 +417,25 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         <div className="bg-[#111111] border border-gray-800 p-5 relative overflow-hidden group hover:border-[#E52165]/50 transition-colors">
           <div className="flex items-center justify-between text-gray-400 mb-2">
             <span className="text-xs font-bold uppercase tracking-wider">Current Weight</span>
-            <Scale className="w-5 h-5 text-[#E52165]" />
+            <div className="flex items-center gap-3">
+              <div className="flex border border-gray-700 text-[10px] font-bold" role="group" aria-label="Weight unit">
+                {(['kg', 'st'] as const).map((unit) => (
+                  <button
+                    key={unit}
+                    type="button"
+                    onClick={() => setWeightUnit(unit)}
+                    aria-pressed={weightUnit === unit}
+                    className={`px-2 py-1 cursor-pointer transition-colors ${weightUnit === unit ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}
+                  >
+                    {unit === 'kg' ? 'kg' : 'st / lbs'}
+                  </button>
+                ))}
+              </div>
+              <Scale className="w-5 h-5 text-[#E52165]" />
+            </div>
           </div>
           <div className="text-3xl font-black text-white tracking-tight">
-            {latestStat ? `${latestStat.weightKg} kg` : '0 kg'}
+            {formatWeight(loggedStat?.weightKg, weightUnit)}
           </div>
         </div>
 
@@ -423,9 +446,20 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             <Activity className="w-5 h-5 text-emerald-400" />
           </div>
           <div className="text-3xl font-black text-white tracking-tight">
-            {latestStat ? latestStat.bmi : '0'}
+            {loggedStat ? loggedStat.bmi : '-- BMI'}
           </div>
         </div>
+
+        {!loggedStat && (
+          <button
+            type="button"
+            onClick={() => onNavigateTab('stats')}
+            className="sm:col-span-2 text-left text-xs font-bold text-[#CCFF00] hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
+          >
+            <span>Log initial stats</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Main Grid Section */}
@@ -437,7 +471,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             <div className="flex items-center justify-between mb-4 border-b border-gray-800 pb-3">
               <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-[#E52165]" />
-                UPCOMING CLASS SESSION
+                UPCOMING COACHING SESSIONS
               </h3>
             </div>
 
@@ -445,7 +479,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               <div className="bg-gray-900/90 border border-gray-800 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#E52165]">
-                    CONFIRMED CLASS BOOKING
+                    CONFIRMED COACHING SESSION
                   </span>
                   <h4 className="text-lg font-bold text-white uppercase">{nextBooking.className}</h4>
                   <p className="text-xs text-gray-400 mt-0.5">
@@ -466,7 +500,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             ) : (
               <div className="text-center py-6 bg-gray-900/40 border border-dashed border-gray-800">
                 <Calendar className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                <p className="text-xl text-gray-400 mb-3">No upcoming class sessions booked yet.</p>
+                <p className="text-xl text-gray-400 mb-3">No upcoming sessions booked yet.</p>
               </div>
             )}
           </div>
@@ -476,7 +510,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             <div className="flex items-center justify-between mb-4 border-b border-gray-800 pb-3">
               <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
                 <Dumbbell className="w-4 h-4 text-[#E52165]" />
-                TRAINING PROGRAM
+                TRAINING PROGRAMME
               </h3>
             </div>
 

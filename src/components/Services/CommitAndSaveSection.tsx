@@ -60,33 +60,25 @@ export const CommitAndSaveSection: React.FC<SectionProps> = ({ symbol, onChoose 
                   </span>
                 </div>
 
-                {/* 2-column plan details & description matching target layout */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 items-start mb-6">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 text-xs font-semibold text-zinc-200">
-                      <div className="w-7 h-7 rounded-lg bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center shrink-0">
-                        <Calendar className="w-3.5 h-3.5 text-[#CCFF00]" />
-                      </div>
-                      <span>3 Sessions</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs font-semibold text-zinc-200">
-                      <div className="w-7 h-7 rounded-lg bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center shrink-0">
-                        <Clock className="w-3.5 h-3.5 text-[#CCFF00]" />
-                      </div>
-                      <span>30 Minutes Each</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs font-semibold text-zinc-200">
-                      <div className="w-7 h-7 rounded-lg bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center shrink-0">
-                        <Calendar className="w-3.5 h-3.5 text-[#CCFF00]" />
-                      </div>
-                      <span>10-Day Validity</span>
-                    </div>
+                {/* Compact plan details - standardised to match Monthly layout */}
+                <div className="mb-4 grid grid-cols-1 min-[420px]:grid-cols-3 gap-2.5 border-b border-zinc-800/80 pb-4">
+                  <div className="flex items-center gap-2 text-xs font-medium text-zinc-200">
+                    <Calendar className="w-4 h-4 text-[#CCFF00] shrink-0" />
+                    <span>3 Sessions</span>
                   </div>
-
-                  <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
-                    Stay consistent without committing to a full month. Choose your training focus across three flexible BXStrength sessions.
-                  </p>
+                  <div className="flex items-center gap-2 text-xs font-medium text-zinc-200">
+                    <Clock className="w-4 h-4 text-[#CCFF00] shrink-0" />
+                    <span>30 Minutes Each</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-medium text-zinc-200">
+                    <Calendar className="w-4 h-4 text-[#CCFF00] shrink-0" />
+                    <span>10-Day Validity</span>
+                  </div>
                 </div>
+
+                <p className="mb-4 text-xs text-zinc-400 leading-relaxed">
+                  Stay consistent without committing to a full month. Choose your training focus across three flexible BXStrength sessions.
+                </p>
 
                 {/* Inclusions panel matching Monthly Flex - moved lower down flush above policy strip */}
                 <div className="mt-auto mb-4 rounded-xl border border-[#CCFF00]/50 bg-gradient-to-r from-[#CCFF00]/[0.10] via-[#CCFF00]/[0.05] to-transparent px-3.5 py-3 sm:px-4 shadow-sm">
@@ -101,7 +93,7 @@ export const CommitAndSaveSection: React.FC<SectionProps> = ({ symbol, onChoose 
                       <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm font-bold text-white">
                         <span>Guided Warm-Up</span>
                         <span className="text-[#CCFF00] font-black" aria-hidden="true">+</span>
-                        <span>Selected Service</span>
+                        <span>Selected Session</span>
                       </div>
                     </div>
                   </div>
@@ -109,7 +101,7 @@ export const CommitAndSaveSection: React.FC<SectionProps> = ({ symbol, onChoose 
 
               </div>
 
-              <div className="mt-2 mb-2">
+              <div className="mt-2">
                 {/* Policy strip - Responsive badge items */}
                 <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-xl p-3 text-center mb-3">
                   <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[11px] sm:text-xs font-bold text-zinc-200 tracking-wide">
@@ -188,9 +180,14 @@ export const CommitAndSaveSection: React.FC<SectionProps> = ({ symbol, onChoose 
                       </span>
                     </div>
                   </div>
-                  <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-[#CCFF00] text-black shadow-md self-center sm:self-auto">
-                    SAVE {symbol}40
-                  </span>
+                  <div className="flex flex-col items-end gap-1.5 self-center sm:self-auto">
+                    <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-[#CCFF00] text-black shadow-md">
+                      SAVE {symbol}40
+                    </span>
+                    <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-[#CCFF00] shadow-sm">
+                      ~{symbol}{Math.round(359 / 12)} / SESSION
+                    </span>
+                  </div>
                 </div>
 
                 {/* Compact plan details */}
@@ -224,7 +221,7 @@ export const CommitAndSaveSection: React.FC<SectionProps> = ({ symbol, onChoose 
                       <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm font-bold text-white">
                         <span>Guided Warm-Up</span>
                         <span className="text-[#CCFF00]" aria-hidden="true">+</span>
-                        <span>Selected Service</span>
+                        <span>Selected Session</span>
                         <span className="text-[#CCFF00]" aria-hidden="true">+</span>
                         <span>Cool-Down &amp; Recovery</span>
                       </div>
@@ -238,6 +235,9 @@ export const CommitAndSaveSection: React.FC<SectionProps> = ({ symbol, onChoose 
               </div>
 
               <div>
+                <p className="text-[10px] sm:text-[11px] text-zinc-400 text-center mb-2.5">
+                  Launch offer available for a limited introductory period.
+                </p>
                 {/* Button */}
                 <button
                   onClick={() => onChoose({
@@ -256,9 +256,6 @@ export const CommitAndSaveSection: React.FC<SectionProps> = ({ symbol, onChoose 
                   <span>CHOOSE MONTHLY</span>
                   <ArrowRight className="w-3.5 h-3.5 text-black transition-transform group-hover:translate-x-1" />
                 </button>
-                <p className="text-[10px] sm:text-[11px] text-zinc-400 text-center mt-2.5">
-                  Launch offer available for a limited introductory period.
-                </p>
               </div>
             </div>
 

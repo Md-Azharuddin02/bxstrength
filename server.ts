@@ -20,6 +20,7 @@ import { ensureSubscriptionForPayment } from './Backend/src/services/subscriptio
 import authRoutes from './Backend/src/routes/authRoutes.ts';
 import subscriptionRoutes from './Backend/src/routes/subscriptionRoutes.ts';
 import workoutProgramRoutes from './Backend/src/routes/workoutProgramRoutes.ts';
+import bodyStatRoutes from './Backend/src/routes/bodyStatRoutes.ts';
 import nutritionPlanRoutes from './Backend/src/routes/nutritionPlanRoutes.ts';
 import emailRoutes from './Backend/src/routes/emailRoutes.ts';
 import reviewRoutes from './Backend/src/routes/reviewRoutes.ts';
@@ -27,6 +28,7 @@ import { purgeReviews } from './Backend/src/controllers/reviewController.ts';
 import announcementRoutes from './Backend/src/routes/announcementRoutes.ts';
 import { authenticate as authenticateToken, authorizeRoles } from './Backend/src/middlewares/authMiddleware.ts';
 import apiGuard from './Backend/src/middlewares/apiGuard.ts';
+import { requireCoachOwnsBooking } from './Backend/src/middlewares/paidBookingAccess.ts';
 
 dotenv.config({ quiet: true });
 
@@ -1708,6 +1710,23 @@ if (dbPool) {
             timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
 
+          CREATE TABLE IF NOT EXISTS body_stats (
+            id VARCHAR(64) PRIMARY KEY,
+            user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
+            date DATE NOT NULL,
+            weight_kg NUMERIC(5,2) NOT NULL,
+            height_cm NUMERIC(5,2) NOT NULL,
+            bmi NUMERIC(4,1) NOT NULL,
+            bmi_category VARCHAR(50) NOT NULL,
+            body_fat_percentage NUMERIC(4,1),
+            chest_cm NUMERIC(5,2),
+            waist_cm NUMERIC(5,2),
+            biceps_cm NUMERIC(5,2),
+            thighs_cm NUMERIC(5,2),
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE INDEX IF NOT EXISTS idx_body_stats_user_date ON body_stats (user_id, date DESC);
+
           CREATE TABLE IF NOT EXISTS uk_booking_journeys (
             id VARCHAR(64) PRIMARY KEY,
             session_id VARCHAR(128),
@@ -2025,6 +2044,7 @@ app.get('/api/health', async (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/workout-programs', workoutProgramRoutes);
+app.use('/api/body-stats', bodyStatRoutes);
 app.use('/api/nutrition-plans', nutritionPlanRoutes);
 app.use('/api/send-email', emailRoutes);
 app.use('/api/reviews', reviewRoutes);
@@ -3053,7 +3073,10 @@ app.patch('/api/assessments/:id/assign', async (req, res) => {
   }
 });
 
-app.patch('/api/assessments/:id/status', async (req, res) => {
+app.patch('/api/assessments/:id/status', requireCoachOwnsBooking(async (id) => {
+  const result = await dbPool?.query('SELECT assigned_coach_id FROM assessments WHERE id = $1', [id]);
+  return result?.rows[0]?.assigned_coach_id;
+}), async (req, res) => {
   try {
     const { id } = req.params;
     const { status, coachFeedback, recommendedPlan, coachNotes } = req.body;
@@ -3410,13 +3433,22 @@ app.post('/api/email/test', async (req, res) => {
 app.get('/api/consultations', async (req, res) => {
   try {
     const email = typeof req.query.email === 'string' ? req.query.email.trim().toLowerCase() : null;
+    const coachId = typeof req.query.coachId === 'string' ? req.query.coachId.trim() : null;
     if (dbPool) {
       try {
         let query = 'SELECT * FROM consultations';
         const params: any[] = [];
+        const conditions: string[] = [];
         if (email) {
-          query += ' WHERE LOWER(client_email) = $1';
           params.push(email);
+          conditions.push(`LOWER(client_email) = $${params.length}`);
+        }
+        if (coachId) {
+          params.push(coachId);
+          conditions.push(`assigned_coach_id = $${params.length}`);
+        }
+        if (conditions.length > 0) {
+          query += ' WHERE ' + conditions.join(' AND ');
         }
         query += ' ORDER BY created_at DESC';
         const result = await dbPool.query(query, params);
@@ -3444,6 +3476,8 @@ app.get('/api/consultations', async (req, res) => {
         console.error('Failed to query consultations from database:', e.message);
       }
     }
+    // The fallback store has no coach assignments, so it must not answer a coach's filtered request
+    if (coachId) return res.json([]);
     let consultationEnquiries = enquiriesStore.filter(e => e.subject && e.subject.includes('Consultation'));
     if (email) {
       consultationEnquiries = consultationEnquiries.filter(e => e.email && e.email.toLowerCase() === email);
@@ -3515,7 +3549,10 @@ app.patch('/api/consultations/:id/assign', async (req, res) => {
   }
 });
 
-app.patch('/api/consultations/:id/status', async (req, res) => {
+app.patch('/api/consultations/:id/status', requireCoachOwnsBooking(async (id) => {
+  const result = await dbPool?.query('SELECT assigned_coach_id FROM consultations WHERE id = $1', [id]);
+  return result?.rows[0]?.assigned_coach_id;
+}), async (req, res) => {
   try {
     const { id } = req.params;
     const { status, meetingLink, notes } = req.body;
@@ -3692,6 +3729,14 @@ const formatPaidBookingRow = (r: any): ServerPaidBooking => ({
   updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString()
 });
 
+const coachOwnsPaidBooking = requireCoachOwnsBooking(async (id) => {
+  if (dbPool) {
+    const result = await dbPool.query('SELECT assigned_coach_id FROM paid_bookings WHERE id = $1', [id]);
+    return result.rows[0]?.assigned_coach_id;
+  }
+  return paidBookingsStore.find(b => b.id === id)?.assignedCoachId;
+});
+
 app.post('/api/paid-bookings', async (req, res) => {
   try {
     const {
@@ -3736,6 +3781,10 @@ app.post('/api/paid-bookings', async (req, res) => {
           [bookingId, orderId || bookingId]
         );
         if (existing.rows.length > 0) {
+          // An order id must not reveal a booking that belongs to someone else
+          if (String(existing.rows[0].client_email || '').toLowerCase() !== cleanEmail) {
+            return res.status(409).json({ error: 'This booking could not be recorded.' });
+          }
           return res.status(200).json({
             success: true,
             booking: formatPaidBookingRow(existing.rows[0]),
@@ -3898,7 +3947,7 @@ app.get('/api/paid-bookings', async (req, res) => {
   }
 });
 
-app.patch('/api/paid-bookings/:id/assign', async (req, res) => {
+app.patch('/api/paid-bookings/:id/assign', coachOwnsPaidBooking, async (req, res) => {
   try {
     const { id } = req.params;
     const { assignedCoachId, assignedCoachName, assignedBy, meetingLink, coachNotes } = req.body;
@@ -3975,7 +4024,7 @@ app.patch('/api/paid-bookings/:id/assign', async (req, res) => {
   }
 });
 
-app.patch('/api/paid-bookings/:id/session', async (req, res) => {
+app.patch('/api/paid-bookings/:id/session', coachOwnsPaidBooking, async (req, res) => {
   try {
     const { id } = req.params;
     const { action, completedSessions, coachNotes, status } = req.body;

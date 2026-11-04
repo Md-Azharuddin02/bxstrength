@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, UserRole, ClassSchedule, Subscription, AuditLog, Enquiry, WorkoutProgram, NutritionPlan, Announcement } from '../../types';
 import { VelocityAPI, getApiUrl } from '../../services/api';
 import { normalizeRole } from '../../utils/auth';
@@ -30,6 +30,13 @@ interface AdminCRMProps {
 
 export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHome }) => {
   const [activeTab, setActiveTab] = useState<string>('overview');
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Desktop scrolls the content area, mobile scrolls the window.
+  useEffect(() => {
+    contentRef.current?.scrollTo(0, 0);
+    window.scrollTo(0, 0);
+  }, [activeTab]);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(() => VelocityAPI.getUsers().length === 0);
   const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false);
@@ -135,9 +142,9 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
     { id: 'free_consultations', label: isCoach && !isHeadCoach ? 'MY ASSIGNED DEMOS' : 'FREE DEMO / CONSULTATIONS', icon: Video },
     { id: 'free_assessments', label: 'ATHLETE ASSESSMENTS', icon: ClipboardCheck },
     { id: 'users', label: isCoach ? 'CLIENT ROSTER' : 'USER DIRECTORY', icon: Users },
-    { id: 'schedule', label: 'CLASS SCHEDULES', icon: Calendar },
-    { id: 'programs', label: 'WORKOUT PROGRAMS', icon: Dumbbell },
-    { id: 'nutrition', label: 'DIET PLANS', icon: Utensils },
+    { id: 'schedule', label: 'SESSION SCHEDULES', icon: Calendar },
+    { id: 'programs', label: 'WORKOUT PROGRAMMES', icon: Dumbbell },
+    { id: 'nutrition', label: 'NUTRITION GUIDANCE', icon: Utensils },
     { id: 'subscriptions', label: 'FINANCIAL BILLING', icon: CreditCard },
     { id: 'enquiries', label: isCoach && !isHeadCoach ? 'ENQUIRIES' : (isHeadCoach ? 'HEAD COACH ENQUIRIES' : 'WEBSITE ENQUIRIES'), icon: Mail },
     { id: 'announcements', label: 'ANNOUNCEMENTS', icon: ShieldAlert },
@@ -162,9 +169,9 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
     {
       category: 'ATHLETIC PROGRAMMING',
       items: [
-        { id: 'schedule', label: 'CLASS SCHEDULES', icon: Calendar },
-        { id: 'programs', label: 'WORKOUT PROGRAMS', icon: Dumbbell },
-        { id: 'nutrition', label: 'DIET PLANS', icon: Utensils },
+        { id: 'schedule', label: 'SESSION SCHEDULES', icon: Calendar },
+        { id: 'programs', label: 'WORKOUT PROGRAMMES', icon: Dumbbell },
+        { id: 'nutrition', label: 'NUTRITION GUIDANCE', icon: Utensils },
       ]
     },
     {
@@ -199,7 +206,7 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
   const clients = users.filter((u) => u.role === 'client');
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans flex flex-col md:flex-row">
+    <div className="min-h-screen md:min-h-0 md:h-dvh md:overflow-hidden bg-[#0a0a0a] text-white font-sans flex flex-col md:flex-row">
       {/* Toast Alert */}
       {toastMsg && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#18181b] text-white border-l-4 border-white px-5 py-4 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5">
@@ -236,7 +243,7 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
 
       {/* Sidebar Navigation */}
       <aside className={`w-full md:w-64 bg-[#121214] border-b md:border-b-0 md:border-r border-zinc-800 flex-col justify-between flex-shrink-0 ${mobileNavOpen ? 'flex' : 'hidden md:flex'}`}>
-        <div>
+        <div className="md:flex md:flex-col md:flex-1 md:min-h-0">
           {/* Header Info */}
           <div className="hidden md:block p-6 border-b border-zinc-800">
             <div className="flex items-center gap-3">
@@ -312,7 +319,8 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
       </aside>
 
       {/* Main CRM Workspace */}
-      <main className="flex-grow p-4 sm:p-8 max-w-7xl mx-auto w-full overflow-y-auto">
+      <div ref={contentRef} className="flex-grow min-w-0 overflow-y-auto">
+      <main className="p-4 sm:p-8 max-w-7xl mx-auto w-full">
         {isLoading ? (
           <div className="space-y-6">
             <SkeletonLoader type="kpi" count={4} />
@@ -435,6 +443,7 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
           </>
         )}
       </main>
+      </div>
     </div>
   );
 };

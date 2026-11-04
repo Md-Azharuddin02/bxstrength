@@ -19,17 +19,17 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({ programs, on
         <div className="bg-[#111111] border border-gray-800 p-6">
           <h2 className="text-xl font-black uppercase tracking-tight text-white flex items-center gap-2">
             <Dumbbell className="w-5 h-5 text-white" />
-            MY WORKOUT PROGRAMS & ROUTINES
+            MY WORKOUT PROGRAMMES & ROUTINES
           </h2>
           <p className="text-xs text-gray-400 mt-1">
-            Personalized exercise routines assigned by your BxStrength head coach.
+            Personalised exercise routines assigned by your BxStrength head coach.
           </p>
         </div>
         <div className="bg-[#111111] border border-gray-800 p-12 text-center space-y-3 rounded-xl">
           <Dumbbell className="w-10 h-10 text-gray-600 mx-auto" />
-          <h3 className="text-sm font-black uppercase text-white tracking-wider">NO WORKOUT PROGRAM PUBLISHED YET</h3>
+          <h3 className="text-sm font-black uppercase text-white tracking-wider">NO WORKOUT PROGRAMME PUBLISHED YET</h3>
           <p className="text-xs text-gray-400 max-w-md mx-auto leading-relaxed">
-            Your personal BxStrength coach is finalizing your customized workout protocol. Once reviewed and published, it will automatically appear here.
+            Your personal BxStrength coach is finalising your customised workout protocol. Once reviewed and published, it will automatically appear here.
           </p>
         </div>
       </div>
@@ -53,10 +53,10 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({ programs, on
         <div>
           <h2 className="text-xl font-black uppercase tracking-tight text-white flex items-center gap-2">
             <Dumbbell className="w-5 h-5 text-white" />
-            MY WORKOUT PROGRAMS & ROUTINES
+            MY WORKOUT PROGRAMMES & ROUTINES
           </h2>
           <p className="text-xs text-gray-400 mt-1">
-            Personalized exercise routines assigned by your BxStrength head coach.
+            Personalised exercise routines assigned by your BxStrength head coach.
           </p>
         </div>
 
@@ -72,7 +72,7 @@ export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({ programs, on
                     : 'bg-gray-800 text-gray-400 hover:text-white'
                 }`}
               >
-                Program #{idx + 1}
+                Programme #{idx + 1}
               </button>
             ))}
           </div>

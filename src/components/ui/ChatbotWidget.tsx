@@ -81,7 +81,7 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
   }, [messages, isOpen, isTyping]);
 
   const quickQuestions = [
-    { label: '🏋️ Coaching Programs', query: 'What coaching programs do you offer?' },
+    { label: '🏋️ Coaching Programmes', query: 'What coaching programmes do you offer?' },
     { label: '📅 Book 15-Min Session', query: 'How can I book a 15-min discovery session?' },
     { label: '💰 Pricing & Packages', query: 'What are your pricing plans and session rates?' },
     { label: '👤 Talk with Agent', query: 'I want to speak with a human coach' },
@@ -96,11 +96,11 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
       let triggerForm = false;
 
       if (q.includes('program') || q.includes('class') || q.includes('offer') || q.includes('train')) {
-        botAnswer = "We offer 1-on-1 Virtual Personal Training covering Boxing Technique, Heavy Strength & Hypertrophy, Mobility & Joint Rehab, and Functional Movement. Programs are 100% tailor-made by our Head Coach & team.";
+        botAnswer = "We offer 1-on-1 Virtual Personal Training covering Boxing Technique, Heavy Strength & Hypertrophy, Mobility & Joint Rehab, and Functional Movement. Programmes are 100% tailor-made by our Head Coach & team.";
       } else if (q.includes('book') || q.includes('session') || q.includes('consult') || q.includes('free') || q.includes('15')) {
         botAnswer = "You can book a complimentary 15-minute 1-on-1 Strategy Session directly on our platform! Would you like me to open the booking calendar for you?";
       } else if (q.includes('price') || q.includes('cost') || q.includes('package') || q.includes('fee') || q.includes('rate')) {
-        botAnswer = "Our 1-on-1 virtual coaching starts at $20 per session, with premium packages at $40, $60, and $80 depending on the level of dedicated 24/7 support and customized nutrition plans.";
+        botAnswer = "Our 1-on-1 virtual coaching starts at £20 per session, with premium packages at £40, £60, and £80 depending on the level of dedicated 24/7 support and customised nutrition plans.";
       } else if (q.includes('human') || q.includes('coach') || q.includes('support') || q.includes('agent') || q.includes('talk') || q.includes('contact') || q.includes('phone') || q.includes('number')) {
         botAnswer = "I will connect you directly with our customer support team. Please fill in your details below so we can contact you directly via WhatsApp or Email!";
         triggerForm = true;

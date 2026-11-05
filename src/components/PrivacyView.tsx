@@ -22,7 +22,7 @@ export const PrivacyView: React.FC = () => {
           <div className="bg-[#18181c] border border-zinc-800 p-4 rounded-xl space-y-2 text-xs">
             <p className="flex items-start gap-2 text-zinc-300">
               <MapPin className="w-4 h-4 text-[#CCFF00] shrink-0 mt-0.5" />
-              <span>Headquarters Address:</span>
+              <span>Operating Entity / Corporate Office Address:</span>
               <strong className="text-white">185/A, Street No. 3, Zakir Nagar, Okhla, New Delhi - 110025, India</strong>
             </p>
             <p className="flex items-center gap-2 text-zinc-300">

@@ -33,7 +33,7 @@ export const FaqSection: React.FC<{ onOpenConsultation: () => void; onOpenAssess
     {
       question: 'Are BXStrength sessions personalised to my goals and fitness level?',
       answer:
-        'Every session is planned around your fitness goals, current ability, selected programme, training environment and available equipment.\n\nThe level and structure of coaching can vary depending on the BXStrength programme you choose.',
+        'Every session is planned around your fitness goals, current ability, selected programme, training environment and available equipment.\n\nThe level and structure of session can vary depending on the BXStrength programme you choose.',
     },
     {
       question: 'What happens during the 60-second BX Fitness Assessment?',
@@ -46,7 +46,7 @@ export const FaqSection: React.FC<{ onOpenConsultation: () => void; onOpenAssess
         'After completing your BX Fitness Assessment, you can request a free 15-minute BXStrength demo session.\n\nOur team will contact you to arrange a suitable date and time and provide the joining details.',
     },
     {
-      question: 'What happens during my first live coaching session?',
+      question: 'What happens during my first live session?',
       answer:
         'Your first paid session follows the structure of the BXStrength programme you have selected. Your coach will guide you through the planned session, help you understand the exercises and provide live feedback during your training.\n\nBefore the session, our team will confirm the date, time and joining details with you.',
     },
@@ -63,7 +63,7 @@ export const FaqSection: React.FC<{ onOpenConsultation: () => void; onOpenAssess
     {
       question: 'What types of training does BXStrength offer?',
       answer:
-        'BXStrength offers live virtual coaching across:\n\nStrength Training\nFitness Boxing\nFunctional Training\nMobility\nFlexibility\nMindset & Wellness\n\nDifferent BXStrength programmes include different combinations of these training areas.',
+        'BXStrength offers live virtual training across:\n\nStrength Training\nFitness Boxing\nFunctional Training\nMobility\nFlexibility\nMindset & Wellness\n\nDifferent BXStrength programmes include different combinations of these training areas.',
     },
     {
       question: 'Can I combine different types of training in one BXStrength programme?',
@@ -83,7 +83,7 @@ export const FaqSection: React.FC<{ onOpenConsultation: () => void; onOpenAssess
     {
       question: 'How long will it take to see results?',
       answer:
-        'There is no single guaranteed timeframe.\n\nFitness progress varies from person to person depending on factors including training consistency, starting fitness level, programme selection, recovery, lifestyle and individual response.\nBXStrength focuses on structured coaching and sustainable progress rather than promising results within a fixed number of days or weeks.',
+        'There is no single guaranteed timeframe.\n\nFitness progress varies from person to person depending on factors including training consistency, starting fitness level, programme selection, recovery, lifestyle and individual response.\nBXStrength focuses on structured training and sustainable progress rather than promising results within a fixed number of days or weeks.',
     },
     {
       question: 'Can BXStrength help me lose fat or build muscle?',
@@ -93,7 +93,7 @@ export const FaqSection: React.FC<{ onOpenConsultation: () => void; onOpenAssess
     {
       question: 'What if I have an injury, health condition or physical limitation?',
       answer:
-        'Please tell us about any relevant injury, limitation or health concern during onboarding or before your session.\n\nBXStrength coaches may adapt fitness activities where appropriate within the scope of virtual fitness coaching, but BXStrength is not a medical, diagnostic or emergency healthcare service.\n\nWhere necessary, customers should seek advice from an appropriate qualified healthcare professional before training.',
+        'Please tell us about any relevant injury, limitation or health concern during onboarding or before your session.\n\nBXStrength coaches may adapt fitness activities where appropriate within the scope of virtual fitness session, but BXStrength is not a medical, diagnostic or emergency healthcare service.\n\nWhere necessary, customers should seek advice from an appropriate qualified healthcare professional before training.',
     },
     {
       question: 'How often is my training approach reviewed?',
@@ -101,9 +101,9 @@ export const FaqSection: React.FC<{ onOpenConsultation: () => void; onOpenAssess
         'Your training approach may be reviewed according to your selected programme, progress, feedback and changing training needs.\nAny adjustments remain subject to the structure and scope of the BXStrength programme you have purchased.',
     },
     {
-      question: 'How much does BXStrength virtual coaching cost?',
+      question: 'How much does BXStrength virtual session cost?',
       answer:
-        'BXStrength offers different live virtual coaching options, with UK-facing prices displayed in GBP(£).\n\nProgramme options include individual sessions, BX Custom, BX Weekly Flex and BX Monthly Flex.\n\nFor the latest programme details and pricing, please refer to the BXStrength programme section before purchase.',
+        'BXStrength offers different live virtual session options, with UK-facing prices displayed in GBP(£).\n\nProgramme options include individual sessions, BX Custom, BX Weekly Flex and BX Monthly Flex.\n\nFor the latest programme details and pricing, please refer to the BXStrength programme section before purchase.',
       cta: { label: 'EXPLORE BX PROGRAMMES', href: '/services', variant: 'button' },
     },
     {
@@ -119,7 +119,7 @@ export const FaqSection: React.FC<{ onOpenConsultation: () => void; onOpenAssess
     {
       question: 'Is BXStrength a physical gym in the UK?',
       answer:
-        'No. BXStrength provides live virtual fitness coaching to clients across the United Kingdom.\n\nBXStrength is operated by 7Seas Exim, India, and customers can access eligible coaching sessions online from home, a gym or another suitable training environment.',
+        'No. BXStrength provides live virtual fitness training to clients across the United Kingdom.\n\nBXStrength is operated by 7Seas Exim, India, and customers can access eligible training sessions online from home, a gym or another suitable training environment.',
       cta: { label: 'View our programmes →', href: '/services', variant: 'link' },
     },
   ];

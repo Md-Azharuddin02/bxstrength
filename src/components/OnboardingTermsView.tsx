@@ -303,7 +303,7 @@ export const OnboardingTermsView: React.FC = () => {
                 <span className="text-[#CCFF00] font-mono font-bold">Version 1.0 (23 September 2026)</span>
               </div>
               <div className="sm:col-span-2">
-                <span className="text-[10px] font-bold text-zinc-500 uppercase block">Headquarters Address</span>
+                <span className="text-[10px] font-bold text-zinc-500 uppercase block">Operating Entity / Corporate Office Address</span>
                 <span className="text-white">185/A, Street No. 3, Zakir Nagar, Okhla, New Delhi - 110025, India</span>
               </div>
               <div>

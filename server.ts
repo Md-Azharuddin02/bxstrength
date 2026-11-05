@@ -3360,7 +3360,11 @@ app.post('/api/consultations', enquiryLimiter, async (req, res) => {
       `
     }).catch((err) => console.error('[CONSULTATION ADMIN EMAIL ERROR]', err.message));
 
-    res.status(201).json({ message: 'Free consultation booked successfully', bookingRef, data: newEnquiry });
+    res.status(201).json({
+      message: 'Free consultation booked successfully',
+      bookingRef,
+      data: { id: bookingRef, name: leadName, email: leadEmail, phone: leadPhone, goal: leadGoal, duration: leadDuration, additionalNotes: additionalNotes || null, date, time, status: 'Pending' },
+    });
   } catch (err: any) {
     console.error('Consultation booking error:', err.message);
     res.status(500).json({ error: 'Failed to schedule consultation' });

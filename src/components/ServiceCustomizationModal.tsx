@@ -1206,7 +1206,7 @@ export const ServiceCustomizationModal: React.FC<
                 ONBOARDING
               </p>
               <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">
-                Choose Service
+                Selected Service 
               </p>
             </div>
           </div>
@@ -2342,7 +2342,7 @@ export const ServiceCustomizationModal: React.FC<
                   onClick={continueToPayment}
                   className="bg-[#CCFF00] hover:bg-[#b8e600] disabled:opacity-50 text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
                 >
-                  <span>PROCEED TO CHECKOUT</span>
+                  <span>PROCEED TO PAYMENT</span>
                   <ArrowRight className="w-4 h-4 stroke-[3]" />
                 </button>
               </div>

@@ -513,7 +513,7 @@ export const TermsView: React.FC = () => {
               <span className="text-[#CCFF00] font-bold">United Kingdom &amp; India</span>
             </div>
             <div className="sm:col-span-2">
-              <span className="text-zinc-500 font-bold uppercase block text-[10px]">Headquarters Address</span>
+              <span className="text-zinc-500 font-bold uppercase block text-[10px]">Operating Entity / Corporate Office Address</span>
               <span className="text-white font-medium">185/A, Street No. 3, Zakir Nagar, Okhla, New Delhi - 110025, India</span>
             </div>
             <div>

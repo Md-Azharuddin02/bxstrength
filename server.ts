@@ -2913,11 +2913,11 @@ app.get('/api/assessments', async (req, res) => {
         const conditions: string[] = [];
 
         if (email) {
-          conditions.push(`LOWER(a.client_email) = ${params.length + 1}`);
+          conditions.push(`LOWER(a.client_email) = $${params.length + 1}`);
           params.push(email);
         }
         if (coachId) {
-          conditions.push(`a.assigned_coach_id = ${params.length + 1}`);
+          conditions.push(`a.assigned_coach_id = $${params.length + 1}`);
           params.push(coachId);
         }
 
@@ -3323,7 +3323,7 @@ app.post('/api/consultations', enquiryLimiter, async (req, res) => {
       `
     }).catch((err) => console.error('[CONSULTATION ADMIN EMAIL ERROR]', err.message));
 
-    res.status(201).json({ message: 'Free consultation booked successfully', bookingRef, data: newEnquiry });
+    res.status(201).json({ message: 'Free consultation booked successfully', bookingRef, data: consultationJourneyRecord });
   } catch (err: any) {
     console.error('Consultation booking error:', err.message);
     res.status(500).json({ error: 'Failed to schedule consultation' });

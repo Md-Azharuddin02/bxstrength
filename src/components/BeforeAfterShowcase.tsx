@@ -1,24 +1,81 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Dumbbell, Trophy, ArrowRight, ShieldCheck, CheckCircle2, 
-  ChevronLeft, ChevronRight, User, Activity, Maximize2, X 
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cloudinaryImage } from '../utils/image';
 
-interface TransformationSlide {
+interface Transformation {
   id: number;
+  // Each photo is a finished 16:9 before/after composite with its own labels
   image: string;
-  beforeImage?: string;
-  afterImage?: string;
   clientName: string;
-  startingWeight: string;
-  currentWeight: string;
-  weightChange: string;
-  exerciseName: string;
-  duration: string;
-  badge: string;
-  description: string;
+  startKg: number;
+  currentKg: number;
+  weeks: number;
+  programme: string;
+  focus: string;
+  category: string;
+  summary: string;
 }
+
+const TRANSFORMATIONS: Transformation[] = [
+
+  {
+    id: 1,
+    image: 'https://res.cloudinary.com/yuyxn5b0/image/upload/v1790509640/WhatsApp_Image_2026-09-27_at_4.49.10_PM.jpg',
+    clientName: 'Naail James',
+    startKg: 92,
+    currentKg: 78,
+    weeks: 12,
+    programme: 'Dedicated coaching',
+    focus: 'Metabolic conditioning & core stability',
+    category: 'Body recomposition',
+    summary: 'Recomposed his physique with high-output interval training and a tailored nutrition plan.',
+  },
+  {
+    id: 2,
+    image: 'https://res.cloudinary.com/yuyxn5b0/image/upload/v1790509651/WhatsApp_Image_2026-09-27_at_4.59.04_PM.jpg',
+    clientName: 'Abdullah Jones',
+    startKg: 89,
+    currentKg: 75,
+    weeks: 16,
+    programme: 'Athletic protocol',
+    focus: 'Progressive resistance & heavy bag power',
+    category: 'Fat loss',
+    summary: 'Added lean athletic muscle while improving joint mobility, shoulder stability and posture.',
+  },
+    {
+    id: 3,
+    image: 'https://res.cloudinary.com/yuyxn5b0/image/upload/v1790509640/WhatsApp_Image_2026-09-27_at_4.45.24_PM.jpg',
+    clientName: 'Fahad Chris',
+    startKg: 96,
+    currentKg: 76,
+    weeks: 16,
+    programme: '1-on-1 personal coaching',
+    focus: 'Boxing power, footwork & compound lifting',
+    category: 'Fat loss',
+    summary: 'Lost 20 kg of body fat while increasing bench press strength and metabolic endurance.',
+  },
+  {
+    id: 4,
+    image: 'https://res.cloudinary.com/yuyxn5b0/image/upload/v1790532727/WhatsApp_Image_2026-09-27_at_4.41.50_PM.jpg',
+    clientName: 'Alex Nicole',
+    startKg: 88,
+    currentKg: 74,
+    weeks: 14,
+    programme: 'Dedicated coaching',
+    focus: 'Hypertrophy conditioning & functional strength',
+    category: 'Strength & conditioning',
+    summary: 'Built core endurance and a leaner physique through weekly 1-on-1 fight camp sessions.',
+  },
+];
+
+// Headline figures are derived from the case studies so they can never drift from them
+const totalLostKg = TRANSFORMATIONS.reduce((sum, t) => sum + (t.startKg - t.currentKg), 0);
+const averageWeeks = TRANSFORMATIONS.reduce((sum, t) => sum + t.weeks, 0) / TRANSFORMATIONS.length;
+const SUMMARY_STATS = [
+  { value: `${totalLostKg} kg`, label: 'Lost in total' },
+  { value: `${TRANSFORMATIONS.length}`, label: 'Client stories' },
+  { value: `${Number(averageWeeks.toFixed(1))} wk`, label: 'Average programme' },
+];
 
 interface BeforeAfterShowcaseProps {
   onOpenConsultation: () => void;
@@ -29,408 +86,130 @@ export const BeforeAfterShowcase: React.FC<BeforeAfterShowcaseProps> = ({
   onOpenConsultation,
   onOpenAssessment,
 }) => {
-  const slides: TransformationSlide[] = [
-    {
-      id: 1,
-      image: 'https://res.cloudinary.com/yuyxn5b0/image/upload/v1790509640/WhatsApp_Image_2026-09-27_at_4.45.24_PM.jpg',
-      clientName: 'Fahad Chris',
-      startingWeight: '96 kg',
-      currentWeight: '76 kg',
-      weightChange: '-20 kg Fat Loss',
-      exerciseName: 'Boxing Power, Footwork & Compound Lifting',
-      duration: '16 Weeks 1-on-1 Personal Coaching',
-      badge: 'FEATURED TRANSFORMATION',
-      description: 'Achieved 20kg body fat loss while increasing bench press & metabolic endurance under our Head Coach & Team.'
-    },
-    {
-      id: 2,
-      image: 'https://res.cloudinary.com/yuyxn5b0/image/upload/v1790509640/WhatsApp_Image_2026-09-27_at_4.49.10_PM.jpg',
-      clientName: 'Naail James',
-      startingWeight: '92 kg',
-      currentWeight: '78 kg',
-      weightChange: '-14 kg Fat Loss',
-      exerciseName: 'High-Yield Metabolic Blast & Core Stability',
-      duration: '12 Weeks Dedicated Coaching',
-      badge: 'FAT LOSS & RECOMPOSITION',
-      description: 'Dramatic body recomposition with high-yield EPOC interval training and tailored macro nutrition protocol.'
-    },
-    {
-      id: 3,
-      image: 'https://res.cloudinary.com/yuyxn5b0/image/upload/v1790509651/WhatsApp_Image_2026-09-27_at_4.59.04_PM.jpg',
-      clientName: 'Abdullah Jones',
-      startingWeight: '89 kg',
-      currentWeight: '75 kg',
-      weightChange: '-14 kg Fat Loss',
-      exerciseName: 'Progressive Resistance & Heavy Bag Power',
-      duration: '16 Weeks Athletic Protocol',
-      badge: '14KG FAT LOSS',
-      description: 'Added lean athletic muscle while improving joint mobility, shoulder stability, and posture alignment.'
-    },
-    {
-      id: 4,
-      image: 'https://res.cloudinary.com/yuyxn5b0/image/upload/v1790532727/WhatsApp_Image_2026-09-27_at_4.41.50_PM.jpg',
-      clientName: 'Alex Nicole',
-      startingWeight: '88 kg',
-      currentWeight: '74 kg',
-      weightChange: '-14 kg Fat Loss',
-      exerciseName: 'Hypertrophy Conditioning & Functional Strength',
-      duration: '14 Weeks Dedicated Coaching',
-      badge: 'STRENGTH & CONDITIONING',
-      description: 'Built core endurance and lean physique with weekly custom 1-on-1 fight camp sessions.'
-    }
-  ];
-
-  const [currentIndex, setCurrentIndex] = useState<number>(0);
-  const [isPaused, setIsPaused] = useState<boolean>(false);
-  const [zoomImage, setZoomImage] = useState<string | null>(null);
-  const [displayMode, setDisplayMode] = useState<'full' | 'split'>('full');
-
-  const touchStartX = useRef<number | null>(null);
-  const touchEndX = useRef<number | null>(null);
-
-  // Auto-play slideshow every 6 seconds
-  useEffect(() => {
-    if (isPaused || zoomImage) return;
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % slides.length);
-    }, 6000);
-    return () => clearInterval(interval);
-  }, [isPaused, slides.length, zoomImage]);
-
-  const handleNext = () => {
-    setCurrentIndex((prev) => (prev + 1) % slides.length);
-  };
-
-  const handlePrev = () => {
-    setCurrentIndex((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
-  };
-
-  // Touch Swipe Handlers for Mobile
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStartX.current || !touchEndX.current) return;
-    const distance = touchStartX.current - touchEndX.current;
-    const minSwipeDistance = 50;
-
-    if (distance > minSwipeDistance) {
-      handleNext();
-    } else if (distance < -minSwipeDistance) {
-      handlePrev();
-    }
-
-    touchStartX.current = null;
-    touchEndX.current = null;
-  };
-
-  const currentSlide = slides[currentIndex];
+  const [index, setIndex] = useState(0);
+  const current = TRANSFORMATIONS[index];
+  const lostKg = current.startKg - current.currentKg;
+  const step = (delta: number) =>
+    setIndex((i) => (i + delta + TRANSFORMATIONS.length) % TRANSFORMATIONS.length);
+  const pad = (n: number) => String(n).padStart(2, '0');
 
   return (
-    <section className="w-full bg-[#08080a] text-white py-12 sm:py-20 border-b border-zinc-800/80 relative overflow-hidden font-sans select-none">
-      
-      {/* Ambient Red & Neon Glow Backgrounds */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] sm:w-[900px] h-[400px] bg-[#CCFF00]/5 blur-[160px] rounded-full pointer-events-none" />
-      <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#CCFF00]/30 to-transparent pointer-events-none" />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-8 sm:space-y-12">
-
-        {/* SECTION HEADING */}
-        <div className="text-center max-w-3xl mx-auto space-y-3">
-          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-white break-words">
-            Real Client Transformations
-          </h2>
+    <section
+      aria-labelledby="transformations-heading"
+      className="w-full bg-[#08080a] text-white py-16 sm:py-24 border-b border-zinc-800/80 font-sans"
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Heading: title left, headline figures right */}
+        <div className="mb-10 sm:mb-14 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+          <div className="max-w-xl">
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500 mb-3">Proven results</p>
+            <h2 id="transformations-heading" className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight">
+              Real client transformations
+            </h2>
+          </div>
+          <dl className="grid grid-cols-3 sm:flex items-stretch gap-4 sm:gap-10 sm:whitespace-nowrap">
+            {SUMMARY_STATS.map((stat, i) => (
+              <div key={stat.label} className={`flex flex-col-reverse ${i > 0 ? 'pl-4 sm:pl-10 border-l border-zinc-800' : ''}`}>
+                <dt className="text-xs text-zinc-500 mt-1">{stat.label}</dt>
+                <dd className="text-xl sm:text-2xl font-semibold tracking-tight whitespace-nowrap">{stat.value}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
 
-        {/* STUNNING SPLIT TRANSFORMATION SHOWCASE CARD */}
-        <div 
-          className="max-w-7xl mx-auto bg-[#0d0d12] rounded-3xl p-4 sm:p-7 shadow-2xl transition-all duration-500 relative overflow-hidden"
-          onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        >
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
-            
-            {/* LEFT SIDE: DUAL BEFORE ---> AFTER IMAGES (BIGGER & PROPER DISPLAY) */}
-            <div className="lg:col-span-7 relative w-full rounded-2xl bg-black/80 border border-zinc-800/80 p-3 sm:p-4 shadow-2xl overflow-hidden group">
-              
-              {slides.map((slide, idx) => {
-                const isCurrent = currentIndex === idx;
-                const showFullMode = displayMode === 'full' || (!slide.beforeImage && !slide.afterImage && displayMode !== 'split');
-
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-start">
+          {/* Photo and thumbnail picker */}
+          <div className="lg:col-span-7 space-y-3 sm:space-y-4">
+            <div className="relative aspect-video overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-white/5">
+              <img
+                key={current.id}
+                src={cloudinaryImage(current.image, 1200)}
+                alt={`${current.clientName}: before and after ${current.weeks} weeks of coaching`}
+                loading="lazy"
+                decoding="async"
+                className="absolute inset-0 h-full w-full object-cover animate-in fade-in duration-500"
+              />
+            </div>
+            <div role="group" aria-label="Choose a client transformation" className="grid grid-cols-4 gap-2 sm:gap-3">
+              {TRANSFORMATIONS.map((t, i) => {
+                const isActive = i === index;
                 return (
-                  <div
-                    key={slide.id}
-                    className={`transition-opacity duration-700 ease-in-out ${
-                      isCurrent ? 'opacity-100 relative z-10 block pointer-events-auto' : 'opacity-0 absolute inset-0 z-0 hidden pointer-events-none'
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setIndex(i)}
+                    aria-pressed={isActive}
+                    aria-label={`${t.clientName}, lost ${t.startKg - t.currentKg} kg`}
+                    className={`relative aspect-video overflow-hidden rounded-lg transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#CCFF00] ${
+                      isActive ? 'ring-2 ring-[#CCFF00] ring-offset-2 ring-offset-[#08080a]' : 'opacity-45 hover:opacity-80'
                     }`}
                   >
-                    {showFullMode ? (
-                      /* FULL TRANSFORMATION PHOTO FRAME (100% COMPLETE & UNCUT) */
-                      <div className="relative w-full h-[280px] sm:h-[380px] lg:h-[440px] rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-800 shadow-2xl group/full flex items-center justify-center p-2">
-                        {/* Ambient Glow Backdrop */}
-                        <img 
-                          src={cloudinaryImage(slide.image, 160)} 
-                          alt="" 
-                          aria-hidden="true" 
-                          className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-25 scale-110 pointer-events-none"
-                        />
-                        
-                        {/* Complete Uncut Foreground Image */}
-                        <img 
-                          src={cloudinaryImage(slide.image, 1080)} 
-                          alt={`${slide.clientName} Complete Transformation`} 
-                          title={`${slide.clientName} Complete Transformation`}
-                          loading="lazy"
-                          className="relative z-10 max-w-full max-h-full w-auto h-auto object-contain rounded-xl drop-shadow-[0_10px_25px_rgba(0,0,0,0.85)] transition-transform duration-500 group-hover/full:scale-[1.01]" 
-                        />
-
-                        {/* Top-Left Floating Badge */}
-                        <div className="absolute top-3 left-3 z-20 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/90 backdrop-blur-md border border-zinc-700/80 text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-lg">
-                          <span className="text-red-400 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                            BEFORE <span className="font-mono text-zinc-400 font-normal">({slide.startingWeight})</span>
-                          </span>
-                          <ArrowRight className="w-3.5 h-3.5 text-[#CCFF00]" />
-                          <span className="text-[#CCFF00] flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-[#CCFF00]" />
-                            AFTER <span className="font-mono text-emerald-300 font-normal">({slide.currentWeight})</span>
-                          </span>
-                        </div>
-
-                        {/* Bottom-Right Result Pill */}
-                        <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/90 backdrop-blur-md border border-emerald-500/40 text-emerald-400 text-xs font-mono font-bold shadow-lg">
-                          <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                          <span>{slide.weightChange}</span>
-                        </div>
-                      </div>
-                    ) : (
-                      /* TWO IMAGES SIDE-BY-SIDE: BEFORE ---> AFTER */
-                      <div className="grid grid-cols-2 gap-2.5 sm:gap-4 relative items-center">
-                        
-                        {/* BEFORE IMAGE CONTAINER */}
-                        <div className="relative w-full h-[260px] sm:h-[360px] lg:h-[420px] rounded-xl overflow-hidden bg-zinc-950 border border-red-500/40 group/before shadow-lg">
-                          {/* BEFORE Badge */}
-                          <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/85 backdrop-blur-md border border-red-500/40 text-red-400 text-[10px] sm:text-xs font-black uppercase tracking-wider">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                            <span>BEFORE</span>
-                            <span className="text-zinc-400 font-mono font-normal ml-0.5">({slide.startingWeight})</span>
-                          </div>
-
-                          {/* Image Frame */}
-                          <div className="w-full h-full overflow-hidden relative flex items-center justify-center bg-black">
-                            <img 
-                              src={cloudinaryImage(slide.beforeImage || slide.image, 1080)} 
-                              alt={`${slide.clientName} Before`} 
-                              title={`${slide.clientName} Before`}
-                              loading="lazy"
-                              className={`w-full h-full block brightness-105 contrast-105 transition-transform duration-500 group-hover/before:scale-105 ${
-                                slide.beforeImage ? 'object-cover object-top' : 'w-[200%] max-w-none object-cover object-left'
-                              }`}
-                            />
-                          </div>
-                        </div>
-
-                        {/* CENTER ARROW BADGE: BEFORE ---> AFTER */}
-                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none">
-                          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/95 border-2 border-[#CCFF00] text-[#CCFF00] shadow-[0_0_20px_rgba(204,255,0,0.5)] flex items-center justify-center font-black">
-                            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-[#CCFF00]" />
-                          </div>
-                        </div>
-
-                        {/* AFTER IMAGE CONTAINER */}
-                        <div className="relative w-full h-[260px] sm:h-[360px] lg:h-[420px] rounded-xl overflow-hidden bg-zinc-950 border border-[#CCFF00]/50 group/after shadow-lg">
-                          {/* AFTER Badge */}
-                          <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/85 backdrop-blur-md border border-[#CCFF00]/50 text-[#CCFF00] text-[10px] sm:text-xs font-black uppercase tracking-wider">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-[#CCFF00]" />
-                            <span>AFTER</span>
-                            <span className="text-emerald-300 font-mono font-normal ml-0.5">({slide.currentWeight})</span>
-                          </div>
-
-                          {/* Image Frame */}
-                          <div className="w-full h-full overflow-hidden relative flex items-center justify-center bg-black">
-                            <img 
-                              src={cloudinaryImage(slide.afterImage || slide.image, 1080)} 
-                              alt={`${slide.clientName} After`} 
-                              title={`${slide.clientName} After`}
-                              loading="lazy"
-                              className={`w-full h-full block brightness-105 contrast-105 transition-transform duration-500 group-hover/after:scale-105 ${
-                                slide.afterImage ? 'object-cover object-top' : 'w-[200%] max-w-none object-cover object-right'
-                              }`}
-                            />
-                          </div>
-                        </div>
-
-                      </div>
-                    )}
-                  </div>
+                    <img src={cloudinaryImage(t.image, 320)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                  </button>
                 );
               })}
+            </div>
+          </div>
 
-              {/* Top-Right Control Toolbar (Toggle View & Zoom) */}
-              <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
-                {/* View Mode Toggle Pill */}
-                <div className="flex items-center bg-black/85 p-1 rounded-lg border border-zinc-700/80 backdrop-blur-md text-[10px] font-bold">
-                  <button
-                    type="button"
-                    onClick={() => setDisplayMode('full')}
-                    className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
-                      displayMode === 'full' ? 'bg-[#CCFF00] text-black font-black' : 'text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    FULL PHOTO
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDisplayMode('split')}
-                    className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
-                      displayMode === 'split' ? 'bg-[#CCFF00] text-black font-black' : 'text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    SPLIT VIEW
-                  </button>
-                </div>
-
-                {/* Zoom Photo Button */}
+          {/* Story */}
+          <div className="lg:col-span-5 lg:pt-2" aria-live="polite">
+            <div className="flex items-center justify-between mb-6">
+              <span className="font-mono text-xs text-zinc-500 tracking-widest" aria-hidden="true">
+                {pad(index + 1)} / {pad(TRANSFORMATIONS.length)}
+              </span>
+              <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setZoomImage(currentSlide.image)}
-                  className="p-2 bg-black/85 hover:bg-black text-white rounded-lg backdrop-blur-md border border-zinc-700 transition-colors cursor-pointer shadow-lg"
-                  title="Click to view full transformation image in high resolution"
+                  onClick={() => step(-1)}
+                  aria-label="Previous transformation"
+                  className="w-9 h-9 rounded-full border border-zinc-700 text-zinc-300 flex items-center justify-center hover:border-zinc-400 hover:text-white transition-colors cursor-pointer"
                 >
-                  <Maximize2 className="w-4 h-4" />
+                  <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => step(1)}
+                  aria-label="Next transformation"
+                  className="w-9 h-9 rounded-full border border-zinc-700 text-zinc-300 flex items-center justify-center hover:border-zinc-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <ChevronRight className="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
-
-              {/* Left Chevron Navigation Button */}
-              <button
-                onClick={handlePrev}
-                type="button"
-                className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/85 hover:bg-[#CCFF00] hover:text-black border border-zinc-700 text-white flex items-center justify-center transition-all duration-200 cursor-pointer shadow-2xl backdrop-blur-md hover:scale-110 active:scale-95 z-30"
-                aria-label="Previous Transformation"
-              >
-                <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
-              </button>
-
-              {/* Right Chevron Navigation Button */}
-              <button
-                onClick={handleNext}
-                type="button"
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/85 hover:bg-[#CCFF00] hover:text-black border border-zinc-700 text-white flex items-center justify-center transition-all duration-200 cursor-pointer shadow-2xl backdrop-blur-md hover:scale-110 active:scale-95 z-30"
-                aria-label="Next Transformation"
-              >
-                <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
-              </button>
             </div>
 
-            {/* RIGHT SIDE: CLEAN MINIMAL HIGHLIGHTS & CTA */}
-            <div className="lg:col-span-5 flex flex-col justify-between space-y-6 text-left p-2 sm:p-4">
-              
-              {/* Client Name & Key Impact Stat */}
-              <div className="space-y-3">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#CCFF00]/10 border border-[#CCFF00]/30 text-[#CCFF00] text-xs font-mono font-bold uppercase tracking-wider">
-                  <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <span>{currentSlide.weightChange}</span>
-                </div>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">{current.category}</p>
+            <h3 className="mt-2 text-2xl sm:text-3xl font-semibold tracking-tight">{current.clientName}</h3>
 
-                <h3 className="text-2xl sm:text-3xl font-black uppercase text-white tracking-tight flex items-center gap-2.5">
-                  <User className="w-6 h-6 text-[#CCFF00] shrink-0" />
-                  <span>{currentSlide.clientName}</span>
-                </h3>
-              </div>
+            <div className="mt-6 flex items-end gap-4 border-y border-zinc-800 py-5">
+              <span className="text-4xl sm:text-5xl font-semibold tracking-tight leading-none">−{lostKg} kg</span>
+              <span className="pb-1 text-sm text-zinc-400 leading-snug">
+                {current.startKg} kg to {current.currentKg} kg<br />in {current.weeks} weeks
+              </span>
+            </div>
 
-              {/* Clean High-Impact Stats Card */}
-              <div className="bg-[#121216] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 space-y-4 shadow-inner">
-                
-                {/* Weight Progress Stat */}
-                <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
-                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Weight Progress</span>
-                  <div className="text-right font-mono font-black text-sm text-white">
-                    <span className="text-red-400">{currentSlide.startingWeight}</span>
-                    <span className="text-zinc-500 mx-1.5">➔</span>
-                    <span className="text-[#CCFF00]">{currentSlide.currentWeight}</span>
-                  </div>
-                </div>
+            <p className="mt-5 text-sm sm:text-base text-zinc-300 leading-relaxed">{current.summary}</p>
+            <p className="mt-2 text-sm text-zinc-500">{current.programme} · {current.focus}</p>
 
-                {/* Duration Stat */}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Program Duration</span>
-                  <span className="text-xs font-extrabold text-zinc-200 font-mono">
-                    {currentSlide.duration}
-                  </span>
-                </div>
-
-              </div>
-
-              {/* Primary Transformation CTA */}
+            <div className="mt-8 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
               <button
+                type="button"
                 onClick={onOpenConsultation}
-                className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs sm:text-sm uppercase tracking-wider py-4 px-6 rounded-xl transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2.5 cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[#CCFF00] px-6 py-3.5 text-sm font-semibold text-black transition-colors hover:bg-[#b8e600] cursor-pointer"
               >
-                <span>START YOUR TRANSFORMATION</span>
-                <ArrowRight className="w-4 h-4 text-black shrink-0" />
+                Start your transformation
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </button>
-
-              {/* Navigation Indicators */}
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-[11px] font-mono text-zinc-400 font-bold">
-                  TRANSFORMATION {currentIndex + 1} OF {slides.length}
-                </span>
-                <div className="flex items-center gap-1.5">
-                  {slides.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentIndex(index)}
-                      className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
-                        currentIndex === index
-                          ? 'w-6 bg-[#CCFF00]'
-                          : 'w-2 bg-zinc-700 hover:bg-zinc-500'
-                      }`}
-                      aria-label={`Go to slide ${index + 1}`}
-                    />
-                  ))}
-                </div>
-              </div>
-
+              <button
+                type="button"
+                onClick={onOpenAssessment}
+                className="whitespace-nowrap text-sm font-medium text-zinc-400 underline underline-offset-4 decoration-zinc-700 hover:text-white hover:decoration-zinc-400 transition-colors cursor-pointer"
+              >
+                Take the free assessment
+              </button>
             </div>
-
           </div>
         </div>
-
       </div>
-
-      {/* FULLSCREEN IMAGE ZOOM MODAL */}
-      {zoomImage && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/95 backdrop-blur-md animate-in fade-in"
-          onClick={() => setZoomImage(null)}
-        >
-          <div 
-            className="relative w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-5xl bg-[#121214] border-0 sm:border border-zinc-800 p-3 rounded-none sm:rounded-2xl overflow-hidden shadow-2xl flex flex-col justify-center items-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setZoomImage(null)}
-              className="absolute top-3 right-3 z-10 p-2 bg-black/70 hover:bg-black text-white rounded-full transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <img
-              src={cloudinaryImage(zoomImage, 1600)}
-              alt="Transformation Zoom Preview"
-              className="w-full max-h-[85vh] object-contain rounded-xl"
-            />
-          </div>
-        </div>
-      )}
     </section>
   );
 };

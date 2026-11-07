@@ -128,7 +128,7 @@ const builders: Record<string, Builder> = {
             <tr><td style="padding: 6px 0; color: #a1a1aa;">Goal:</td><td style="padding: 6px 0; font-weight: bold; color: #CCFF00; text-align: right;">${esc(d.goal)}</td></tr>
             <tr><td style="padding: 6px 0; color: #a1a1aa;">Date &amp; Time:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff; text-align: right;">${esc(d.date)} (${esc(d.timeSlot)})</td></tr>
             <tr><td style="padding: 6px 0; color: #a1a1aa;">Assigned Coach:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff; text-align: right;">${esc(d.coachPreference)}</td></tr>
-            <tr><td style="padding: 6px 0; color: #a1a1aa;">Duration:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff; text-align: right;">${esc(d.duration || '20 Min')}</td></tr>
+            <tr><td style="padding: 6px 0; color: #a1a1aa;">Duration:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff; text-align: right;">${esc(d.duration || '10 Min')}</td></tr>
           </table>
         </div>
         <p style="font-size: 13px; color: #a1a1aa; margin: 0; line-height: 1.5;">Our Head Coaching team will review your profile and confirm your session details via WhatsApp / Email calendar invite.</p>

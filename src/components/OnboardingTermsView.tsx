@@ -162,7 +162,7 @@ export const OnboardingTermsView: React.FC = () => {
           <div className="bg-[#18181c] border border-zinc-800 p-4 rounded-xl space-y-2">
             <h4 className="text-xs font-black uppercase text-[#CCFF00]">Mandatory Declaration Statement:</h4>
             <p className="text-xs text-white font-mono bg-black p-3 rounded-lg border border-zinc-800">
-              "I have read and agree to the BXStrength Terms & Conditions and Privacy Policy, including the booking, Session Pack validity, cancellation, refund, virtual-participation and health & safety terms that apply to my purchase."
+              "I have read and agree to the  Terms & Conditions and Privacy Policy, including the booking, Session Pack validity, cancellation, refund, virtual-participation and health & safety terms that apply to my purchase."
             </p>
           </div>
 
@@ -303,7 +303,7 @@ export const OnboardingTermsView: React.FC = () => {
                 <span className="text-[#CCFF00] font-mono font-bold">Version 1.0 (23 September 2026)</span>
               </div>
               <div className="sm:col-span-2">
-                <span className="text-[10px] font-bold text-zinc-500 uppercase block">Headquarters Address</span>
+                <span className="text-[10px] font-bold text-zinc-500 uppercase block">Operating Entity / Corporate Office Address</span>
                 <span className="text-white">185/A, Street No. 3, Zakir Nagar, Okhla, New Delhi - 110025, India</span>
               </div>
               <div>

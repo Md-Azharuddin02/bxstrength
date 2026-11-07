@@ -91,7 +91,8 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
   const loadConsultations = async () => {
     setIsLoading(true);
     try {
-      const data = await VelocityAPI.fetchConsultations();
+      // The server only gives a coach the demos assigned to them
+      const data = await VelocityAPI.fetchConsultations(undefined, normRole === 'coach' ? user.id : undefined);
       setConsultations(data);
     } catch (e: any) {
       console.error('Error fetching consultations:', e);

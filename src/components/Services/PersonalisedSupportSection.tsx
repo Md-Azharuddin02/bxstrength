@@ -17,7 +17,8 @@ export const PersonalisedSupportSection: React.FC<SectionProps> = ({ symbol, onC
               PERSONALISED <span className="text-[#CCFF00]">SUPPORT</span>
             </h2>
             <p className="text-zinc-400 text-xs sm:text-sm md:text-base mt-1.5 sm:mt-2">
-              Specialised sessions for your overall wellbeing or a plan built entirely around you.
+              Specialised sessions for your overall wellbeing or a session
+built entirely around you.
             </p>
           </div>
 
@@ -102,7 +103,7 @@ export const PersonalisedSupportSection: React.FC<SectionProps> = ({ symbol, onC
                       BX CUSTOM
                     </h3>
                     <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-zinc-400 mt-1">
-                      BUILD YOUR OWN BX PLAN.
+                      BUILD YOUR OWN BX SESSION.
                     </p>
                   </div>
                   <span className="self-start sm:self-auto text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2.5 sm:px-3 py-1 rounded bg-zinc-900 border border-zinc-700 text-zinc-300 shrink-0">
@@ -175,16 +176,15 @@ export const PersonalisedSupportSection: React.FC<SectionProps> = ({ symbol, onC
                     priceFrom: true,
                     duration: '15 / 30 / 45 / 60 Min',
                     description: "Choose only what you need. We'll build a personalised session around your goals, available time and training focus.",
-                    ctaLabel: 'BUILD MY PLAN'
+                    ctaLabel: 'BUILD MY SESSION'
                   })}
                   className="group w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase tracking-wider py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] shadow-md"
                 >
-                  <span>BUILD MY PLAN</span>
+                  <span>BUILD MY SESSION</span>
                   <ArrowRight className="w-3.5 h-3.5 text-black transition-transform group-hover:translate-x-1" />
                 </button>
               </div>
             </div>
-
           </div>
         </div>
   </>

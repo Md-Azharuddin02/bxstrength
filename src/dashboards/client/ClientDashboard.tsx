@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, BodyStat, Booking, WorkoutProgram, NutritionPlan, Announcement, Subscription, Enquiry, InAppNotification, ClassSchedule, ConsultationBooking, AthleteAssessment } from '../../types';
 import { VelocityAPI } from '../../services/api';
 import { DashboardOverview } from './DashboardOverview';
@@ -34,12 +34,20 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   onOpenAssessment
 }) => {
   const [activeTab, setActiveTab] = useState<string>('overview');
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Desktop scrolls the content area, mobile scrolls the window.
+  useEffect(() => {
+    contentRef.current?.scrollTo(0, 0);
+    window.scrollTo(0, 0);
+  }, [activeTab]);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false);
 
   // Loaded data state - Instant Stale-While-Revalidate render from local cache
-  const [bodyStats, setBodyStats] = useState<BodyStat[]>(() => VelocityAPI.getBodyStats(user.id));
+  const [bodyStats, setBodyStats] = useState<BodyStat[]>([]);
+  const [bodyStatsStatus, setBodyStatsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [bookings, setBookings] = useState<Booking[]>(() => VelocityAPI.getBookings(user.id));
   const [programs, setPrograms] = useState<WorkoutProgram[]>(() => VelocityAPI.getPrograms(user.id));
   const [nutritionPlans, setNutritionPlans] = useState<NutritionPlan[]>(() => VelocityAPI.getNutritionPlans(user.id));
@@ -63,14 +71,15 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const loadDashboardData = async (_isInitial = false) => {
     try {
       // Fire all background API fetches in parallel for maximum speed
-      const [progRes, nutRes, classRes, subRes, consRes, notifRes, assessRes] = await Promise.allSettled([
+      const [progRes, nutRes, classRes, subRes, consRes, notifRes, assessRes, statsRes] = await Promise.allSettled([
         VelocityAPI.fetchPrograms(user.id),
         VelocityAPI.fetchNutritionPlans(user.id),
         VelocityAPI.fetchClasses(),
         VelocityAPI.fetchSubscriptions(),
         VelocityAPI.fetchConsultations(user.email),
         VelocityAPI.fetchInAppNotifications(user.email),
-        VelocityAPI.fetchAssessments({ email: user.email })
+        VelocityAPI.fetchAssessments({ email: user.email }),
+        VelocityAPI.fetchBodyStats(user.id)
       ]);
 
       if (progRes.status === 'fulfilled' && Array.isArray(progRes.value)) setPrograms(progRes.value);
@@ -87,8 +96,14 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       if (consRes.status === 'fulfilled' && Array.isArray(consRes.value)) setConsultations(consRes.value);
       if (notifRes.status === 'fulfilled' && Array.isArray(notifRes.value)) setNotifications(notifRes.value);
       if (assessRes.status === 'fulfilled' && Array.isArray(assessRes.value)) setAssessments(assessRes.value);
+      if (statsRes.status === 'fulfilled' && Array.isArray(statsRes.value)) setBodyStats(statsRes.value);
 
-      setBodyStats(VelocityAPI.getBodyStats(user.id));
+      if (statsRes.status === 'fulfilled') {
+        setBodyStats(statsRes.value);
+        setBodyStatsStatus('ready');
+      } else {
+        setBodyStatsStatus('error');
+      }
       setBookings(VelocityAPI.getBookings(user.id));
       setAnnouncements(VelocityAPI.getAnnouncements());
       setEnquiries(VelocityAPI.getEnquiries(user.email));
@@ -154,7 +169,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const nextBooking = bookings.find((b) => b.status === 'Confirmed');
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans flex flex-col md:flex-row">
+    <div className="min-h-screen md:min-h-0 md:h-dvh md:overflow-hidden bg-[#0a0a0a] text-white font-sans flex flex-col md:flex-row">
       {/* Toast Alert */}
       {toastMsg && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#18181b] text-white border-l-4 border-white px-5 py-4 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5">
@@ -191,7 +206,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
       {/* Sidebar Navigation */}
       <aside className={`w-full md:w-64 bg-[#121214] border-b md:border-b-0 md:border-r border-zinc-800 flex-col justify-between flex-shrink-0 ${mobileNavOpen ? 'flex' : 'hidden md:flex'}`}>
-        <div>
+        <div className="md:flex md:flex-col md:flex-1 md:min-h-0">
           {/* Sidebar Top User Card */}
           <div className="hidden md:block p-6 border-b border-zinc-800">
             <div className="flex items-center gap-3">
@@ -255,13 +270,15 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-grow p-4 sm:p-8 max-w-7xl mx-auto w-full overflow-y-auto">
+      <div ref={contentRef} className="flex-grow min-w-0 overflow-y-auto">
+      <main className="p-4 sm:p-8 max-w-7xl mx-auto w-full">
         {/* Top Bar with Real-time In-App Notification Bell */}
         <div className="mb-6 bg-[#111114] border border-zinc-800 p-4 rounded-xl flex items-center justify-between relative shadow-lg">
-          <div>
-            <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-widest block">CLIENT PORTAL & SYNCED PLANS</span>
-            <h1 className="text-lg font-black uppercase text-white">Welcome back, {user.name}</h1>
-          </div>
+          <nav aria-label="Breadcrumb" className="text-xs font-mono font-bold uppercase tracking-widest">
+            <span className="text-amber-400">CLIENT PORTAL</span>
+            <span className="text-zinc-600"> / </span>
+            <span className="text-white" aria-current="page">{navItems.find((item) => item.id === activeTab)?.label}</span>
+          </nav>
 
           <div className="relative">
             <button
@@ -346,6 +363,19 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
           </div>
         ) : (
           <>
+            {bodyStatsStatus === 'error' && (activeTab === 'overview' || activeTab === 'stats') && (
+              <div role="alert" className="mb-4 bg-red-950/60 border border-red-800 p-4 flex items-center justify-between gap-4 text-xs text-red-200">
+                <span>We could not load your body stats. What you see may be out of date.</span>
+                <button
+                  type="button"
+                  onClick={() => loadDashboardData()}
+                  className="font-black uppercase tracking-wider text-white underline cursor-pointer"
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+
             {activeTab === 'overview' && (
               <DashboardOverview
                 user={user}
@@ -383,8 +413,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
             {activeTab === 'stats' && (
               <BodyStatsTracker
-                userId={user.id}
                 stats={bodyStats}
+                status={bodyStatsStatus}
                 onStatsUpdated={loadDashboardData}
                 onShowToast={showToast}
               />
@@ -431,6 +461,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
           </>
         )}
       </main>
+      </div>
     </div>
   );
 };

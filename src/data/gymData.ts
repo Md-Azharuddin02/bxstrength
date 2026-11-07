@@ -128,8 +128,8 @@ export const TRAINERS_DATA: BxTrainer[] = [
     headline: 'HEAD COACH | BOXING INSTRUCTOR | PHYSIOTHERAPY PROFESSIONAL',
     image: 'https://res.cloudinary.com/yuyxn5b0/image/upload/v1789568682/ChatGPT_Image_Sep_16_2026_07_51_52_PM.png?auto=format&fit=crop&q=80&w=800',
     imagePosition: 'object-[center_top]',
-    bio: 'Head Coach and expert team with over 10 years of industry experience combining boxing instruction, strength & conditioning, and physiotherapy-based rehabilitation. Trained at IG Stadium to master boxing technique and athlete development. Brings 6+ years of entrepreneurial experience as a gym owner/operator, delivering personalized transformations to over 1,000 clients worldwide.',
-    secondaryBio: 'Our methodology bridges the gap between traditional strength training and the chaotic demands of high-performance conditioning. Whether peaking for elite competition or building a foundation for sustainable power, our Head Coach & Team applies a data-driven, precision-focused approach to every session.',
+    bio: 'Head Coach and expert team with over 10 years of industry experience combining boxing instruction, strength & conditioning, and physiotherapy-based rehabilitation. Trained at IG Stadium to master boxing technique and athlete development. Brings 6+ years of entrepreneurial experience as a gym owner/operator, delivering personalised transformations to over 1,000 clients worldwide.',
+    secondaryBio: 'Our training combines boxing fundamentals, strength work, and rehab-led movement to help you build real, functional fitness. Every session is tailored to your body, goals, and pace.',
     specialties: ['Boxing Instruction', 'Physiotherapy & Rehab', 'Strength & Conditioning', 'Chronic Back Pain Rehab', 'Post-Knee Surgery Recovery', 'Athletic Performance'],
     experienceYears: 10,
     clientsServed: 1000,
@@ -147,7 +147,7 @@ export const TRAINERS_DATA: BxTrainer[] = [
       'Boxing Techniques & Coaching Methods – IG Stadium',
     ],
     coreExpertise: [
-      'Boxing Instructor: Beginner techniques through competitive athlete coaching for beginners and intermediate.',
+      'Boxing technique: From fundamentals to advanced athlete conditioning.',
       'Rehab & Corrective Exercise: Physiotherapy-focused recovery and mobility training.',
       'Fitness & Conditioning: Strength & conditioning, weight loss, and athletic performance enhancement.'
     ],
@@ -186,9 +186,8 @@ export const TRAINERS_DATA: BxTrainer[] = [
     coachPosition: 'SENIOR STRENGTH & CONDITIONING COACH',
     headline: 'FITNESS TRAINER | STRENGTH & CONDITIONING COACH | VIRTUAL FITNESS COACH',
     image: 'https://res.cloudinary.com/yuyxn5b0/image/upload/v1789571525/sadeem.png?auto=format&fit=crop&q=80&w=800',
-    bio: 'Dedicated and experienced Fitness Trainer with strong practical knowledge of strength training, functional fitness, conditioning, mobility, and general fitness. Experienced in working with clients of different fitness levels and helping them improve strength, endurance, mobility, body composition, and overall physical performance. Experienced in both in-person and virtual coaching.',
-    secondaryBio: 'Specializes in live 1-on-1 virtual training sessions with clear video exercise demonstrations, real-time online form observation & movement correction, custom workout plans adapted to home or gym equipment, and consistent communication & accountability tracking.',
-    specialties: ['Strength & Resistance Training', 'Functional Fitness & Muscle Building', 'Fat Loss & Cardio Conditioning', 'Exercise Technique & Form Correction', 'Personalized & Virtual Coaching'],
+    bio: 'Focuses on functional strength, movement mechanics, and injury-free lifting. Sadeem builds tailored training routines around your home or gym setup, guiding every rep with precise form feedback.',
+    specialties: ['Strength & Resistance Training', 'Functional Fitness & Muscle Building', 'Fat Loss & Cardio Conditioning', 'Exercise Technique & Form Correction', 'Personalised & Virtual Coaching'],
     experienceYears: 6,
     clientsServed: 750,
     rating: 4.9,
@@ -204,10 +203,10 @@ export const TRAINERS_DATA: BxTrainer[] = [
       'Strength & Functional Training: Strength & Resistance Training, Functional Fitness, Core Strengthening, Muscle Building',
       'Conditioning & Weight Management: Fat Loss Training, Weight Management, Cardiovascular Conditioning',
       'Form & Mobility: Exercise Technique & Form Correction, Mobility & Flexibility Training',
-      'Client Care: Beginner & Intermediate Client Training, Personalized Workout Programming, Online/Virtual Coaching, Progress Tracking'
+      'Client Care: Beginner & Intermediate Client Training, Personalised Workout Programming, Online/Virtual Coaching, Progress Tracking'
     ],
     professionalExperience: [
-      'Fitness Trainer | Box & Strength / Private Training (Delhi Zakir Nagar)'
+      'Private Strength & Conditioning Trainer'
     ],
     virtualCoachingSkills: [
       'Live 1-on-1 virtual training sessions with clear video exercise demonstrations',
@@ -216,7 +215,7 @@ export const TRAINERS_DATA: BxTrainer[] = [
       'Consistent communication and accountability tracking for online clients'
     ],
     achievements: [
-      'Conduct personalized fitness training sessions for clients across varying fitness levels (Delhi Zakir Nagar)',
+      'Conduct personalised fitness training sessions for clients across varying fitness levels',
       '750+ In-Person & Remote Client Successes',
       'Specialist in Tailored Home & Gym Equipment Adaptations'
     ],
@@ -233,8 +232,7 @@ export const TRAINERS_DATA: BxTrainer[] = [
     coachPosition: 'ENDURANCE & METABOLIC SPECIALIST',
     headline: 'FITNESS TRAINER | STRENGTH & CONDITIONING COACH | VIRTUAL FITNESS COACH',
     image: 'https://res.cloudinary.com/yuyxn5b0/image/upload/v1789571578/Muheeb.png?auto=format&fit=crop&q=80&w=800',
-    bio: 'Fitness Trainer with hands-on experience in strength training, conditioning, mobility, and general fitness. Dedicated to guiding clients through effective workout routines while maintaining a strong emphasis on exercise technique, consistency, motivation, and personalized goal setting. Capable of delivering coaching both on-site and remotely.',
-    secondaryBio: 'Delivers 1-on-1 live online coaching sessions with real-time video demonstrations, remote technique evaluation and movement guidance, tailored home/gym workout planning, and remote motivation with ongoing client accountability.',
+    bio: 'Specialises in strength, endurance, and everyday mobility. Moheeb works 1-on-1 with you to fix form in real-time, build sustainable workout habits, and keep you progressing each week.',
     specialties: ['Strength & Muscle Building', 'Fat Loss & Weight Management', 'Cardiovascular Conditioning', 'Exercise Technique & Form', 'Online Personal Training'],
     experienceYears: 5,
     clientsServed: 600,
@@ -248,8 +246,8 @@ export const TRAINERS_DATA: BxTrainer[] = [
       'Online Personal Training & Remote Motivation Certified'
     ],
     coreExpertise: [
-      'Strength & Muscle Building: Strength Training, Resistance Training, Muscle Building, Core Training',
-      'Fat Loss & Fitness: Fat Loss & Weight Management, Functional Training, Cardiovascular Conditioning',
+      'Strength & Hypertrophy: Progressive resistance and core stability.',
+      'Fat Loss & Conditioning: Functional intervals and cardiovascular health.',
       'Coaching & Programming: Exercise Technique & Form Correction, Workout Programming, Beginner Fitness Training',
       'Virtual Support: Online Personal Training, Client Motivation & Accountability'
     ],

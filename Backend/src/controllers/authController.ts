@@ -37,7 +37,7 @@ export const register = async (req: Request, res: Response) => {
     const phone = sanitizeInput(rawPhone || '');
 
     if (phone && !isValidUkMobile(phone)) {
-      return res.status(400).json({ error: 'Please enter a valid mobile phone number (7 to 15 digits).' });
+      return res.status(400).json({ error: 'Please enter a valid mobile number including the country code, e.g. +44 7911 123456 or +91 98765 43210.' });
     }
 
     const userRole = 'client';

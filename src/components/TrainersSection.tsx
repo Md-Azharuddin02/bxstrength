@@ -231,13 +231,7 @@ export const TrainersSection: React.FC<TrainersSectionProps> = ({
                     {/* Paragraph Bio matching sample formatting */}
                     <div className="text-zinc-300 text-xs sm:text-sm font-normal leading-relaxed space-y-4 max-w-3xl">
                       <p>{trainer.bio}</p>
-                      {trainer.secondaryBio ? (
-                        <p>{trainer.secondaryBio}</p>
-                      ) : (
-                        <p>
-                          His methodology bridges the gap between traditional strength training and the chaotic demands of high-performance conditioning. Whether peaking for elite competition or building a foundation for sustainable power, {trainer.name.split(' ')[0]} applies a data-driven, precision-focused approach to every session.
-                        </p>
-                      )}
+                      {trainer.secondaryBio && <p>{trainer.secondaryBio}</p>}
                     </div>
                   </div>
 
@@ -422,7 +416,7 @@ export const TrainersSection: React.FC<TrainersSectionProps> = ({
                   <div className="bg-[#121214] border border-zinc-800/80 rounded-2xl p-6 space-y-4">
                     <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2.5 border-b border-zinc-800 pb-3">
                       <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                      SPECIALIZATIONS &amp; REHABILITATION
+                      SPECIALISATIONS &amp; REHABILITATION
                     </h3>
                     <div className="grid grid-cols-1 gap-2.5">
                       {selectedTrainerForProfile.specialPopulations.map((item, idx) => (

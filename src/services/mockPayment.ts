@@ -1,4 +1,5 @@
+// isAllowedEnv must be false in production, so a stray flag can never expose it there.
 export const canUseMockPayments = (
-  isDevelopment: boolean,
+  isAllowedEnv: boolean,
   enabledFlag: string | undefined,
-): boolean => isDevelopment && enabledFlag === 'true';
+): boolean => isAllowedEnv && enabledFlag === 'true';

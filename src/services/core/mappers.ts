@@ -31,6 +31,12 @@ export function toUser(raw: any, overrides: Partial<User> = {}): User {
     email: raw.email,
     role: raw.role,
     phone: raw.phone || "",
+    contactMethods: Array.isArray(raw.contactMethods)
+      ? raw.contactMethods
+      : typeof raw.contact_methods === "string" && raw.contact_methods
+        ? raw.contact_methods.split(",").filter(Boolean)
+        : undefined,
+    whatsappNumber: raw.whatsapp_number || raw.whatsappNumber || undefined,
     avatarUrl: raw.avatar_url || raw.avatarUrl || dicebearAvatar(raw.name),
     isVerified: raw.is_verified !== undefined ? Boolean(raw.is_verified) : true,
     status: raw.status || "active",

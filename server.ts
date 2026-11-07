@@ -20,6 +20,7 @@ import { ensureSubscriptionForPayment } from './Backend/src/services/subscriptio
 import authRoutes from './Backend/src/routes/authRoutes.ts';
 import subscriptionRoutes from './Backend/src/routes/subscriptionRoutes.ts';
 import workoutProgramRoutes from './Backend/src/routes/workoutProgramRoutes.ts';
+import bodyStatRoutes from './Backend/src/routes/bodyStatRoutes.ts';
 import nutritionPlanRoutes from './Backend/src/routes/nutritionPlanRoutes.ts';
 import emailRoutes from './Backend/src/routes/emailRoutes.ts';
 import reviewRoutes from './Backend/src/routes/reviewRoutes.ts';
@@ -27,6 +28,8 @@ import { purgeReviews } from './Backend/src/controllers/reviewController.ts';
 import announcementRoutes from './Backend/src/routes/announcementRoutes.ts';
 import { authenticate as authenticateToken, authorizeRoles } from './Backend/src/middlewares/authMiddleware.ts';
 import apiGuard from './Backend/src/middlewares/apiGuard.ts';
+import { runSetupStatements } from './Backend/src/config/dbSetup.ts';
+import { requireCoachOwnsBooking } from './Backend/src/middlewares/paidBookingAccess.ts';
 
 dotenv.config({ quiet: true });
 
@@ -1522,7 +1525,7 @@ if (dbPool) {
     if (!err) {
       console.log(`  ➜  Database:   connected (${res.rows[0].now})`);
       try {
-        await dbPool.query(`
+        await runSetupStatements(dbPool, `
           CREATE TABLE IF NOT EXISTS users (
             id VARCHAR(64) PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
@@ -1721,6 +1724,23 @@ if (dbPool) {
             timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
 
+          CREATE TABLE IF NOT EXISTS body_stats (
+            id VARCHAR(64) PRIMARY KEY,
+            user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
+            date DATE NOT NULL,
+            weight_kg NUMERIC(5,2) NOT NULL,
+            height_cm NUMERIC(5,2) NOT NULL,
+            bmi NUMERIC(4,1) NOT NULL,
+            bmi_category VARCHAR(50) NOT NULL,
+            body_fat_percentage NUMERIC(4,1),
+            chest_cm NUMERIC(5,2),
+            waist_cm NUMERIC(5,2),
+            biceps_cm NUMERIC(5,2),
+            thighs_cm NUMERIC(5,2),
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE INDEX IF NOT EXISTS idx_body_stats_user_date ON body_stats (user_id, date DESC);
+
           CREATE TABLE IF NOT EXISTS uk_booking_journeys (
             id VARCHAR(64) PRIMARY KEY,
             session_id VARCHAR(128),
@@ -1787,6 +1807,8 @@ if (dbPool) {
           ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active';
           ALTER TABLE users ADD COLUMN IF NOT EXISTS assigned_coach VARCHAR(255);
           ALTER TABLE users ADD COLUMN IF NOT EXISTS assigned_head_coach VARCHAR(255);
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS contact_methods TEXT;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(100);
 
           ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS target_user_id VARCHAR(64);
           ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS target_name VARCHAR(255);
@@ -1867,7 +1889,35 @@ if (dbPool) {
         `);
 
         await ensureTrainerColumnsExist();
-        await dbPool.query(`
+        await runSetupStatements(dbPool, `
+          CREATE TABLE IF NOT EXISTS assessments (
+            id VARCHAR(100) PRIMARY KEY,
+            client_name VARCHAR(255) NOT NULL,
+            client_email VARCHAR(255) NOT NULL,
+            client_phone VARCHAR(50),
+            preferred_contact_method VARCHAR(50),
+            primary_goal VARCHAR(255),
+            main_obstacle VARCHAR(255),
+            experience_level VARCHAR(100),
+            weekly_commitment VARCHAR(100),
+            training_location VARCHAR(100),
+            equipment TEXT,
+            training_interest TEXT,
+            has_injury TEXT,
+            status VARCHAR(50) DEFAULT 'Pending',
+            assigned_coach_id VARCHAR(100),
+            assigned_coach_name VARCHAR(255),
+            assigned_by VARCHAR(255),
+            assigned_at TIMESTAMP WITH TIME ZONE,
+            coach_notes TEXT,
+            coach_feedback TEXT,
+            recommended_plan TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_assessments_client_email ON assessments (LOWER(client_email));
+
           CREATE TABLE IF NOT EXISTS paid_bookings (
             id VARCHAR(100) PRIMARY KEY,
             order_id VARCHAR(100),
@@ -1896,9 +1946,9 @@ if (dbPool) {
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
-        `).catch(() => {});
-      } catch {
-        // Table initialization complete
+        `);
+      } catch (setupErr: any) {
+        console.error('[DB SETUP] failed:', setupErr?.message);
       }
     }
   });
@@ -2036,6 +2086,7 @@ app.get('/api/health', async (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/workout-programs', workoutProgramRoutes);
+app.use('/api/body-stats', bodyStatRoutes);
 app.use('/api/nutrition-plans', nutritionPlanRoutes);
 app.use('/api/send-email', emailRoutes);
 app.use('/api/reviews', reviewRoutes);
@@ -3068,7 +3119,10 @@ app.patch('/api/assessments/:id/assign', async (req, res) => {
   }
 });
 
-app.patch('/api/assessments/:id/status', async (req, res) => {
+app.patch('/api/assessments/:id/status', requireCoachOwnsBooking(async (id) => {
+  const result = await dbPool?.query('SELECT assigned_coach_id FROM assessments WHERE id = $1', [id]);
+  return result?.rows[0]?.assigned_coach_id;
+}), async (req, res) => {
   try {
     const { id } = req.params;
     const { status, coachFeedback, recommendedPlan, coachNotes } = req.body;
@@ -3425,13 +3479,22 @@ app.post('/api/email/test', async (req, res) => {
 app.get('/api/consultations', async (req, res) => {
   try {
     const email = typeof req.query.email === 'string' ? req.query.email.trim().toLowerCase() : null;
+    const coachId = typeof req.query.coachId === 'string' ? req.query.coachId.trim() : null;
     if (dbPool) {
       try {
         let query = 'SELECT * FROM consultations';
         const params: any[] = [];
+        const conditions: string[] = [];
         if (email) {
-          query += ' WHERE LOWER(client_email) = $1';
           params.push(email);
+          conditions.push(`LOWER(client_email) = $${params.length}`);
+        }
+        if (coachId) {
+          params.push(coachId);
+          conditions.push(`assigned_coach_id = $${params.length}`);
+        }
+        if (conditions.length > 0) {
+          query += ' WHERE ' + conditions.join(' AND ');
         }
         query += ' ORDER BY created_at DESC';
         const result = await dbPool.query(query, params);
@@ -3460,6 +3523,8 @@ app.get('/api/consultations', async (req, res) => {
         console.error('Failed to query consultations from database:', e.message);
       }
     }
+    // The fallback store has no coach assignments, so it must not answer a coach's filtered request
+    if (coachId) return res.json([]);
     let consultationEnquiries = enquiriesStore.filter(e => e.subject && e.subject.includes('Consultation'));
     if (email) {
       consultationEnquiries = consultationEnquiries.filter(e => e.email && e.email.toLowerCase() === email);
@@ -3531,7 +3596,10 @@ app.patch('/api/consultations/:id/assign', async (req, res) => {
   }
 });
 
-app.patch('/api/consultations/:id/status', async (req, res) => {
+app.patch('/api/consultations/:id/status', requireCoachOwnsBooking(async (id) => {
+  const result = await dbPool?.query('SELECT assigned_coach_id FROM consultations WHERE id = $1', [id]);
+  return result?.rows[0]?.assigned_coach_id;
+}), async (req, res) => {
   try {
     const { id } = req.params;
     const { status, meetingLink, notes } = req.body;
@@ -3708,6 +3776,14 @@ const formatPaidBookingRow = (r: any): ServerPaidBooking => ({
   updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString()
 });
 
+const coachOwnsPaidBooking = requireCoachOwnsBooking(async (id) => {
+  if (dbPool) {
+    const result = await dbPool.query('SELECT assigned_coach_id FROM paid_bookings WHERE id = $1', [id]);
+    return result.rows[0]?.assigned_coach_id;
+  }
+  return paidBookingsStore.find(b => b.id === id)?.assignedCoachId;
+});
+
 app.post('/api/paid-bookings', async (req, res) => {
   try {
     const {
@@ -3770,6 +3846,10 @@ app.post('/api/paid-bookings', async (req, res) => {
           [bookingId, orderId || bookingId]
         );
         if (existing.rows.length > 0) {
+          // An order id must not reveal a booking that belongs to someone else
+          if (String(existing.rows[0].client_email || '').toLowerCase() !== cleanEmail) {
+            return res.status(409).json({ error: 'This booking could not be recorded.' });
+          }
           return res.status(200).json({
             success: true,
             booking: formatPaidBookingRow(existing.rows[0]),
@@ -3932,7 +4012,7 @@ app.get('/api/paid-bookings', async (req, res) => {
   }
 });
 
-app.patch('/api/paid-bookings/:id/assign', async (req, res) => {
+app.patch('/api/paid-bookings/:id/assign', coachOwnsPaidBooking, async (req, res) => {
   try {
     const { id } = req.params;
     const { assignedCoachId, assignedCoachName, assignedBy, meetingLink, coachNotes } = req.body;
@@ -4009,7 +4089,7 @@ app.patch('/api/paid-bookings/:id/assign', async (req, res) => {
   }
 });
 
-app.patch('/api/paid-bookings/:id/session', async (req, res) => {
+app.patch('/api/paid-bookings/:id/session', coachOwnsPaidBooking, async (req, res) => {
   try {
     const { id } = req.params;
     const { action, completedSessions, coachNotes, status } = req.body;
@@ -4342,6 +4422,8 @@ app.get('/api/users', async (req, res) => {
           status: r.status || 'active',
           assignedCoach: r.assigned_coach || '',
           assignedHeadCoach: r.assigned_head_coach || '',
+          contactMethods: r.contact_methods ? String(r.contact_methods).split(',').filter(Boolean) : [],
+          whatsappNumber: r.whatsapp_number || '',
           createdAt: r.created_at || new Date().toISOString()
         }));
         return res.json(formatted);
@@ -4401,7 +4483,8 @@ app.patch('/api/users/:id', authenticateToken, async (req: any, res: any) => {
       name, email, phone, role, coachPosition, heightCm, age, gender, 
       emergencyContact, emergency_contact, avatarUrl, avatar_url,
       fitnessGoals, subscriptionTier, billingStatements, isVerified, status, 
-      assignedCoach, assignedHeadCoach, password, password_or_hash, newPassword 
+      assignedCoach, assignedHeadCoach, password, password_or_hash, newPassword,
+      contactMethods, whatsappNumber
     } = req.body;
 
     const targetEmail = (email || req.body.email || '').toLowerCase().trim();
@@ -4414,6 +4497,12 @@ app.patch('/api/users/:id', authenticateToken, async (req: any, res: any) => {
     if (!isSelf && req.user.role !== 'admin' && req.user.role !== 'coach' && req.user.role !== 'headcoach') {
       return res.status(403).json({ error: 'Forbidden: You can only update your own profile.' });
     }
+
+    const allowedMethods = ['whatsapp', 'call', 'email'];
+    const cleanContactMethods = Array.isArray(contactMethods)
+      ? contactMethods.map((m: any) => sanitizeInput(String(m)).toLowerCase()).filter((m: string) => allowedMethods.includes(m)).join(',')
+      : null;
+    const cleanWhatsappNumber = whatsappNumber !== undefined ? sanitizeInput(String(whatsappNumber)) : null;
 
     const cleanRole = (req.user.role === 'admin' || req.user.role === 'headcoach') && role !== undefined ? sanitizeInput(role) : null;
     const parsedIsVerified = (req.user.role === 'admin' || req.user.role === 'headcoach') && isVerified !== undefined ? Boolean(isVerified) : null;
@@ -4455,9 +4544,11 @@ app.patch('/api/users/:id', authenticateToken, async (req: any, res: any) => {
             assigned_head_coach = CASE WHEN $15::text IS NOT NULL THEN $15::text ELSE assigned_head_coach END,
             avatar_url = COALESCE($16, avatar_url),
             emergency_contact = COALESCE($17, emergency_contact),
-            password_hash = CASE WHEN $18::text IS NOT NULL THEN $18::text ELSE password_hash END
-           WHERE id = $19 OR LOWER(email) = LOWER($20)
-           RETURNING id, name, email, phone, role, coach_position, height_cm, age, gender, fitness_goals, subscription_tier, is_verified, status, avatar_url, emergency_contact, created_at`,
+            password_hash = CASE WHEN $18::text IS NOT NULL THEN $18::text ELSE password_hash END,
+            contact_methods = COALESCE($19, contact_methods),
+            whatsapp_number = COALESCE($20, whatsapp_number)
+           WHERE id = $21 OR LOWER(email) = LOWER($22)
+           RETURNING id, name, email, phone, role, coach_position, height_cm, age, gender, fitness_goals, subscription_tier, is_verified, status, avatar_url, emergency_contact, contact_methods, whatsapp_number, created_at`,
           [
             name ? sanitizeInput(name) : null,
             targetEmail || null,
@@ -4477,6 +4568,8 @@ app.patch('/api/users/:id', authenticateToken, async (req: any, res: any) => {
             cleanAvatar,
             cleanEmergency,
             newPasswordHash,
+            cleanContactMethods,
+            cleanWhatsappNumber,
             id === 'me' ? req.user.id : id,
             targetEmail || reqEmail
           ]

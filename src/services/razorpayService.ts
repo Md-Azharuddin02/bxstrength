@@ -154,7 +154,7 @@ export const openRazorpayCheckout = async (
   try {
     if (
       options.simulateSuccess &&
-      canUseMockPayments(import.meta.env.DEV, import.meta.env.VITE_ENABLE_MOCK_PAYMENTS)
+      canUseMockPayments(import.meta.env.MODE !== 'production', import.meta.env.VITE_ENABLE_MOCK_PAYMENTS)
     ) {
       options.onSuccess({
         razorpay_order_id: `test_order_${Date.now()}`,
@@ -204,15 +204,41 @@ export const openRazorpayCheckout = async (
       orderData.key_id || 'rzp_test_TvFURtpOoPHkCJ';
 
     // 3. Configure Razorpay Standard Modal Options
+    const getRazorpayLogo = async (): Promise<string> => {
+  const response = await fetch("/razorpay-logo.png");
+
+  if (!response.ok) {
+    throw new Error("Unable to load Razorpay logo");
+  }
+
+  const blob = await response.blob();
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Failed to convert logo to Base64"));
+      }
+    };
+
+    reader.onerror = () => reject(reader.error);
+
+    reader.readAsDataURL(blob);
+  });
+};
+const razorpayLogo = await getRazorpayLogo();
     const razorpayOptions = {
       key: keyId,
       amount: orderData.amount,
       currency: orderData.currency,
-      name: options.name || "BxStrength Performance",
+      name: "BxStrength",
       description:
         options.description || "1-on-1 Fitness & Performance Protocol",
       order_id: orderData.order_id,
-      image: "/favicon.svg",
+      image: razorpayLogo,
       prefill: {
         name: options.userName || "",
         email: options.userEmail || "",

@@ -875,44 +875,6 @@ export const VelocityAPI = {
     return await this.updateUser(id, { isVerified });
   },
 
-  // BODY STATS & BMI
-  getBodyStats(userId: string): BodyStat[] {
-    initStore();
-    const stats = getItem<BodyStat[]>(STORAGE_KEYS.BODY_STATS, SEED_BODY_STATS);
-    return stats.filter((s) => s.userId === userId).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  },
-
-  addBodyStat(stat: Omit<BodyStat, 'id' | 'bmi' | 'bmiCategory'>): BodyStat {
-    const stats = getItem<BodyStat[]>(STORAGE_KEYS.BODY_STATS, SEED_BODY_STATS);
-
-    // Calculate BMI = weight (kg) / (height (m) ^ 2)
-    const heightM = stat.heightCm / 100;
-    const bmiCalc = Number((stat.weightKg / (heightM * heightM)).toFixed(1));
-
-    let category: 'Underweight' | 'Normal' | 'Overweight' | 'Obese' = 'Normal';
-    if (bmiCalc < 18.5) category = 'Underweight';
-    else if (bmiCalc >= 18.5 && bmiCalc <= 24.9) category = 'Normal';
-    else if (bmiCalc >= 25.0 && bmiCalc <= 29.9) category = 'Overweight';
-    else category = 'Obese';
-
-    const newStat: BodyStat = {
-      ...stat,
-      id: `stat-${Date.now()}`,
-      bmi: bmiCalc,
-      bmiCategory: category
-    };
-
-    stats.push(newStat);
-    setItem(STORAGE_KEYS.BODY_STATS, stats);
-
-    const current = this.getCurrentUser();
-    if (current) {
-      this.addAuditLog(current.id, current.name, current.role, 'LOG_BODY_STAT', `Logged body weight ${stat.weightKg}kg, BMI ${bmiCalc} (${category})`);
-    }
-
-    return newStat;
-  },
-
   // CLASSES & SCHEDULE
   getClasses(): ClassSchedule[] {
     initStore();
@@ -2410,12 +2372,13 @@ export const VelocityAPI = {
     return raw;
   },
 
-  async fetchConsultations(email?: string): Promise<ConsultationBooking[]> {
+  async fetchConsultations(email?: string, coachId?: string): Promise<ConsultationBooking[]> {
     try {
-      const url = email 
-        ? getApiUrl(`/api/consultations?email=${encodeURIComponent(email)}`)
-        : getApiUrl('/api/consultations');
-      const res = await apiFetch(url);
+      const q = new URLSearchParams();
+      if (email) q.set('email', email);
+      if (coachId) q.set('coachId', coachId);
+      const queryString = q.toString();
+      const res = await apiFetch(getApiUrl(`/api/consultations${queryString ? `?${queryString}` : ''}`));
       if (res.ok) {
         const raw = await res.json();
         if (Array.isArray(raw)) {

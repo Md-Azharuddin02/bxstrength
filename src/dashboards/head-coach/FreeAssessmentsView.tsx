@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AthleteAssessment, User } from '../../types';
-import { VelocityAPI } from '../../services/api';
+import { VelocityAPI, decodeHtmlEntities } from '../../services/api';
 import { normalizeRole } from '../../utils/auth';
 import {
   ClipboardCheck, Clock, CheckCircle2, Phone, Mail, Award,
@@ -15,6 +15,13 @@ interface FreeAssessmentsViewProps {
   coaches?: User[];
   onShowToast: (msg: string) => void;
 }
+
+
+const cleanDisplayName = (name?: string, email?: string) => {
+  if (!name) return email ? email.split('@')[0] : 'Athlete';
+  const decoded = decodeHtmlEntities(name).replace(/<[^>]*>/g, '').trim();
+  return decoded || (email ? email.split('@')[0] : 'Athlete');
+};
 
 export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
   user,
@@ -332,8 +339,8 @@ export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
                 {/* Athlete Contact & Quick Action Bar */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="space-y-1">
-                    <h3 className="text-lg font-black text-white uppercase flex items-center gap-2">
-                      <span>{a.clientName}</span>
+                    <h3 className="text-lg font-black text-white flex items-center gap-2">
+                      <span>{cleanDisplayName(a.clientName, a.clientEmail)}</span>
                     </h3>
                     <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-300">
                       <a href={`mailto:${a.clientEmail}`} className="flex items-center gap-1.5 hover:text-[#CCFF00] transition-colors">
@@ -347,75 +354,69 @@ export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
                     </div>
                   </div>
 
-                  {/* DIRECT CONTACT ACTION BUTTONS */}
-                  <div className="flex flex-wrap items-center gap-2 shrink-0">
-                    {cleanPhone && (
-                      <>
-                        {waUrl && (
-                          <a
-                            href={waUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow"
-                          >
-                            <MessageCircle className="w-4 h-4" />
-                            <span>WhatsApp</span>
-                          </a>
-                        )}
-                        <a
-                          href={`tel:${a.clientPhone}`}
-                          className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow"
-                        >
-                          <Phone className="w-4 h-4" />
-                          <span>Call Client</span>
-                        </a>
-                      </>
+                  {/* DIRECT CONTACT ACTION BUTTON (ONLY PREFERRED MODE) */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {isWhatsApp && cleanPhone && waUrl && (
+                      <a
+                        href={waUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-emerald-950/40"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        <span>WhatsApp Client</span>
+                      </a>
                     )}
-                    <a
-                      href={`mailto:${a.clientEmail}?subject=${encodeURIComponent(`BxStrength Athletic Strategy - ${a.primaryGoal}`)}`}
-                      className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-bold uppercase px-3 py-2 rounded-xl transition-all flex items-center gap-1.5"
-                    >
-                      <Mail className="w-4 h-4 text-zinc-400" />
-                      <span>Email</span>
-                    </a>
+
+                    {isCall && a.clientPhone && (
+                      <a
+                        href={`tel:${a.clientPhone}`}
+                        className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-blue-950/40"
+                      >
+                        <Phone className="w-4 h-4" />
+                        <span>Call Client</span>
+                      </a>
+                    )}
+
+                    {(isEmailContact || (!isWhatsApp && !isCall) || (isWhatsApp && (!cleanPhone || !waUrl)) || (isCall && !a.clientPhone)) && (
+                      <a
+                        href={`mailto:${a.clientEmail}?subject=${encodeURIComponent(`BxStrength Athletic Strategy - ${decodeHtmlEntities(a.primaryGoal)}`)}`}
+                        className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-bold uppercase px-4 py-2.5 rounded-xl transition-all flex items-center gap-2"
+                      >
+                        <Mail className="w-4 h-4 text-[#CCFF00]" />
+                        <span>Email Client</span>
+                      </a>
+                    )}
                   </div>
                 </div>
 
-                {/* FULL DIAGNOSTIC DATA GRID (ALL DETAILS DISPLAYED) */}
+                {/* FULL DIAGNOSTIC DATA GRID (ONLY QUESTIONS ANSWERED IN FORM) */}
                 <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 space-y-3">
                   <div className="flex items-center gap-2 text-xs font-black uppercase text-zinc-400 tracking-wider">
                     <Target className="w-3.5 h-3.5 text-[#CCFF00]" />
                     <span>Submitted Self-Assessment Intake Parameters</span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 text-xs">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 text-xs">
                     <div className="bg-black/40 p-2.5 rounded-lg border border-zinc-800">
                       <span className="text-[9px] uppercase font-bold text-zinc-500 block">Primary Goal</span>
-                      <span className="font-bold text-[#CCFF00] block mt-0.5">{a.primaryGoal}</span>
-                    </div>
-                    <div className="bg-black/40 p-2.5 rounded-lg border border-zinc-800">
-                      <span className="text-[9px] uppercase font-bold text-zinc-500 block">Main Obstacle</span>
-                      <span className="font-bold text-white block mt-0.5">{a.mainObstacle || 'N/A'}</span>
+                      <span className="font-bold text-[#CCFF00] block mt-0.5">{decodeHtmlEntities(a.primaryGoal || 'General Fitness')}</span>
                     </div>
                     <div className="bg-black/40 p-2.5 rounded-lg border border-zinc-800">
                       <span className="text-[9px] uppercase font-bold text-zinc-500 block">Experience Level</span>
-                      <span className="font-bold text-white block mt-0.5">{a.experienceLevel || 'N/A'}</span>
+                      <span className="font-bold text-white block mt-0.5">{decodeHtmlEntities(a.experienceLevel || 'Beginner')}</span>
                     </div>
                     <div className="bg-black/40 p-2.5 rounded-lg border border-zinc-800">
                       <span className="text-[9px] uppercase font-bold text-zinc-500 block">Weekly Days</span>
-                      <span className="font-bold text-white block mt-0.5">{a.weeklyCommitment || 'N/A'}</span>
+                      <span className="font-bold text-white block mt-0.5">{decodeHtmlEntities(a.weeklyCommitment || '3 Days/Wk')}</span>
                     </div>
                     <div className="bg-black/40 p-2.5 rounded-lg border border-zinc-800">
                       <span className="text-[9px] uppercase font-bold text-zinc-500 block">Location</span>
-                      <span className="font-bold text-white block mt-0.5">{a.trainingLocation || 'N/A'}</span>
+                      <span className="font-bold text-white block mt-0.5">{decodeHtmlEntities(a.trainingLocation || 'Home')}</span>
                     </div>
                     <div className="bg-black/40 p-2.5 rounded-lg border border-zinc-800">
                       <span className="text-[9px] uppercase font-bold text-zinc-500 block">Equipment</span>
-                      <span className="font-bold text-white block mt-0.5">{a.equipment || 'N/A'}</span>
-                    </div>
-                    <div className="bg-black/40 p-2.5 rounded-lg border border-zinc-800">
-                      <span className="text-[9px] uppercase font-bold text-zinc-500 block">Protocol Interest</span>
-                      <span className="font-bold text-white block mt-0.5">{a.trainingInterest || 'General Strength'}</span>
+                      <span className="font-bold text-white block mt-0.5">{decodeHtmlEntities(a.equipment || 'Bodyweight / Dumbbells')}</span>
                     </div>
                   </div>
                 </div>

@@ -2925,7 +2925,7 @@ app.get('/api/assessments', async (req, res) => {
         const result = await dbPool.query(query, params);
         const formatted = result.rows.map((r: any) => ({
           id: r.id,
-          clientName: r.client_name,
+          clientName: decodeHtmlEntities(r.client_name || '').replace(/<[^>]*>/g, '').trim() || (r.client_email ? r.client_email.split('@')[0] : 'Athlete'),
           clientEmail: r.client_email,
           clientPhone: r.client_phone || '',
           preferredContactMethod: r.preferred_contact_method || 'call',
@@ -3032,7 +3032,7 @@ app.patch('/api/assessments/:id/assign', async (req, res) => {
         success: true,
         assessment: {
           id: r.id,
-          clientName: r.client_name,
+          clientName: decodeHtmlEntities(r.client_name || '').replace(/<[^>]*>/g, '').trim() || (r.client_email ? r.client_email.split('@')[0] : 'Athlete'),
           clientEmail: r.client_email,
           clientPhone: r.client_phone,
           primaryGoal: r.primary_goal,
@@ -3117,7 +3117,7 @@ app.patch('/api/assessments/:id/status', async (req, res) => {
         success: true,
         assessment: {
           id: r.id,
-          clientName: r.client_name,
+          clientName: decodeHtmlEntities(r.client_name || '').replace(/<[^>]*>/g, '').trim() || (r.client_email ? r.client_email.split('@')[0] : 'Athlete'),
           clientEmail: r.client_email,
           clientPhone: r.client_phone,
           primaryGoal: r.primary_goal,
@@ -3433,7 +3433,7 @@ app.get('/api/consultations', async (req, res) => {
         const result = await dbPool.query(query, params);
         const formatted = result.rows.map((r: any) => ({
           id: r.id,
-          clientName: r.client_name,
+          clientName: decodeHtmlEntities(r.client_name || '').replace(/<[^>]*>/g, '').trim() || (r.client_email ? r.client_email.split('@')[0] : 'Athlete'),
           clientEmail: r.client_email,
           clientPhone: r.client_phone || '',
           goal: r.goal && r.goal !== 'Fitness Boxing' ? r.goal : '15-Min Free Strategy Demo',
@@ -3500,7 +3500,7 @@ app.patch('/api/consultations/:id/assign', async (req, res) => {
         success: true,
         consultation: {
           id: r.id,
-          clientName: r.client_name,
+          clientName: decodeHtmlEntities(r.client_name || '').replace(/<[^>]*>/g, '').trim() || (r.client_email ? r.client_email.split('@')[0] : 'Athlete'),
           clientEmail: r.client_email,
           clientPhone: r.client_phone,
           goal: r.goal,

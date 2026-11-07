@@ -57,6 +57,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [notifications, setNotifications] = useState<InAppNotification[]>([]);
   const [consultations, setConsultations] = useState<ConsultationBooking[]>(() => VelocityAPI.getConsultations(user.email));
   const [assessments, setAssessments] = useState<AthleteAssessment[]>(() => VelocityAPI.getAssessments(user.email));
+  const [isAssessmentsLoading, setIsAssessmentsLoading] = useState<boolean>(() => VelocityAPI.getAssessments(user.email).length === 0);
   const [showNotificationsMenu, setShowNotificationsMenu] = useState<boolean>(false);
 
   const loadDashboardData = async (_isInitial = false) => {
@@ -95,6 +96,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       console.warn('Dashboard sync background error:', err?.message);
     } finally {
       setIsLoading(false);
+      setIsAssessmentsLoading(false);
     }
   };
 
@@ -373,6 +375,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
               <MyAssessmentsView
                 user={user}
                 assessments={assessments}
+                isLoading={isAssessmentsLoading}
                 onOpenAssessment={onOpenAssessment}
                 onNavigateTab={(tab) => setActiveTab(tab)}
               />

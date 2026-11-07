@@ -8,6 +8,7 @@ import { decodeHtmlEntities } from '../../services/api';
 interface MyAssessmentsViewProps {
   user: User;
   assessments: AthleteAssessment[];
+  isLoading?: boolean;
   onOpenAssessment?: () => void;
   onNavigateTab: (tab: string) => void;
 }
@@ -15,11 +16,27 @@ interface MyAssessmentsViewProps {
 export const MyAssessmentsView: React.FC<MyAssessmentsViewProps> = ({
   user,
   assessments,
+  isLoading = false,
   onOpenAssessment,
   onNavigateTab
 }) => {
   const latestAssessment = assessments[0];
   const hasAssessment = Boolean(latestAssessment);
+
+  if (isLoading && !hasAssessment) {
+    return (
+      <div className="bg-[#121215] border border-zinc-800 p-8 rounded-2xl animate-pulse space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-zinc-800/80" />
+          <div className="space-y-2 flex-1">
+            <div className="h-3 bg-zinc-800/80 rounded w-1/4" />
+            <div className="h-5 bg-zinc-800 rounded w-1/2" />
+          </div>
+        </div>
+        <div className="h-10 bg-zinc-900 rounded-xl" />
+      </div>
+    );
+  }
 
   const isReviewed = latestAssessment?.status === 'Reviewed' || latestAssessment?.status === 'Completed';
 

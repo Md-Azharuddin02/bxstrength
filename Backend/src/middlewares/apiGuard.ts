@@ -41,6 +41,7 @@ guard.use('/users', open);
 guard.use('/paid-bookings', open);
 guard.use('/booking-diet-plans', open);
 guard.use('/booking-workout-plans', open);
+guard.use('/tickets', open);
 guard.get('/health', open);
 
 guard.get(['/trainers', '/classes', '/reviews', '/announcements'], open);
@@ -74,10 +75,6 @@ guard.delete('/trainers/:id', allow(COACHES));
 
 guard.post('/announcements', allow(MANAGERS));
 guard.delete('/announcements/:id', allow(MANAGERS));
-
-guard.get('/tickets', ownTicketsOnly);
-guard.patch('/tickets/:id', allow(STAFF));
-guard.delete('/tickets/:id', allow(['admin']));
 
 guard.post(['/workout-programs', '/nutrition-plans', '/coach-assignments', '/classes'], allow(COACHES));
 guard.put('/coach-assignments/:id', allow(COACHES));

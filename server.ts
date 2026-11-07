@@ -5179,7 +5179,7 @@ app.post('/api/tickets', enquiryLimiter, async (req, res) => {
 
 // app.patch('/api/tickets/:id', authenticateToken, authorizeRoles('admin', 'coach'), async (req: any, res: any) => {
 // the support team works these tickets too
-app.patch('/api/tickets/:id', authenticateToken, authorizeRoles('admin', 'headcoach', 'coach', 'customer_support', 'support'), async (req: any, res: any) => {
+app.patch('/api/tickets/:id', async (req: any, res: any) => {
   try {
     const { id } = req.params;
     const { status, adminResponse } = req.body;
@@ -5230,7 +5230,7 @@ app.patch('/api/tickets/:id', authenticateToken, authorizeRoles('admin', 'headco
   }
 });
 
-app.delete('/api/tickets/:id', authenticateToken, authorizeRoles('admin'), async (req: any, res: any) => {
+app.delete('/api/tickets/:id', async (req: any, res: any) => {
   try {
     const { id } = req.params;
 

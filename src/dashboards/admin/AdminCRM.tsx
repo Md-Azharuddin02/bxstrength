@@ -15,9 +15,10 @@ import { CoachesManager } from './CoachesManager';
 import { FreeConsultationsView } from '../head-coach/FreeConsultationsView';
 import { FreeAssessmentsView } from '../head-coach/FreeAssessmentsView';
 import { PaidBookingsView } from '../head-coach/PaidBookingsView';
+import { TicketManagement } from '../customer-support/TicketManagement';
 import {
   LayoutDashboard, Users, Calendar, Dumbbell, Utensils,
-  CreditCard, Mail, ShieldAlert, ShieldCheck, LogOut, CheckCircle2, X, UserCheck, FileText, Menu, Video, ClipboardCheck, Award
+  CreditCard, Mail, ShieldAlert, ShieldCheck, LogOut, CheckCircle2, X, UserCheck, FileText, Menu, Video, ClipboardCheck, Award, LifeBuoy
 } from 'lucide-react';
 
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
@@ -114,7 +115,7 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
   const allowedCoachTabs: string[] = [];
 
   if (isHeadCoach) {
-    allowedCoachTabs.push('overview', 'paid_bookings', 'free_consultations', 'free_assessments', 'users', 'schedule', 'programs', 'nutrition', 'enquiries', 'announcements');
+    allowedCoachTabs.push('overview', 'paid_bookings', 'free_consultations', 'free_assessments', 'users', 'schedule', 'programs', 'nutrition', 'tickets', 'enquiries', 'announcements');
     if (coachPerms.allowFinancials) allowedCoachTabs.push('subscriptions');
   } else if (isCoach) {
     allowedCoachTabs.push('paid_bookings', 'free_consultations');
@@ -123,10 +124,10 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
     if (coachPerms.allowClassSchedules) allowedCoachTabs.push('schedule');
     if (coachPerms.allowWorkoutPrograms) allowedCoachTabs.push('programs');
     if (coachPerms.allowNutritionPlans) allowedCoachTabs.push('nutrition');
-    allowedCoachTabs.push('enquiries');
+    allowedCoachTabs.push('tickets', 'enquiries');
     if (coachPerms.allowFinancials) allowedCoachTabs.push('subscriptions');
   } else {
-    allowedCoachTabs.push('overview', 'paid_bookings', 'free_consultations', 'free_assessments', 'users', 'schedule', 'programs', 'nutrition', 'subscriptions', 'enquiries', 'announcements', 'audit');
+    allowedCoachTabs.push('overview', 'paid_bookings', 'free_consultations', 'free_assessments', 'users', 'schedule', 'programs', 'nutrition', 'subscriptions', 'tickets', 'enquiries', 'announcements', 'audit');
   }
 
   const allNavItems = [
@@ -139,6 +140,7 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
     { id: 'programs', label: 'WORKOUT PROGRAMS', icon: Dumbbell },
     { id: 'nutrition', label: 'DIET PLANS', icon: Utensils },
     { id: 'subscriptions', label: 'FINANCIAL BILLING', icon: CreditCard },
+    { id: 'tickets', label: 'SUPPORT TICKETS', icon: LifeBuoy },
     { id: 'enquiries', label: isCoach && !isHeadCoach ? 'ENQUIRIES' : (isHeadCoach ? 'HEAD COACH ENQUIRIES' : 'WEBSITE ENQUIRIES'), icon: Mail },
     { id: 'announcements', label: 'ANNOUNCEMENTS', icon: ShieldAlert },
     { id: 'audit', label: 'SECURITY & PERMISSIONS', icon: ShieldCheck }
@@ -170,6 +172,7 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
     {
       category: isCoach && !isHeadCoach ? 'MY ASSIGNED WORKSPACE' : 'COMMUNICATIONS & ENQUIRIES',
       items: [
+        { id: 'tickets', label: 'SUPPORT TICKETS', icon: LifeBuoy },
         { id: 'enquiries', label: isCoach && !isHeadCoach ? 'ENQUIRIES' : (isHeadCoach ? 'HEAD COACH ENQUIRIES' : 'WEBSITE ENQUIRIES'), icon: Mail },
                 { id: 'announcements', label: 'ANNOUNCEMENTS', icon: ShieldAlert },
       ]
@@ -403,6 +406,14 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
                 subscriptions={subscriptions}
                 clients={clients}
                 onSubscriptionsUpdated={loadCRMData}
+                onShowToast={showToast}
+              />
+            )}
+
+            {activeTab === 'tickets' && (
+              <TicketManagement
+                user={user}
+                coaches={coaches}
                 onShowToast={showToast}
               />
             )}

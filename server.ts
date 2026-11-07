@@ -4109,15 +4109,15 @@ app.get('/api/booking-diet-plans', async (req, res) => {
       const params: any[] = [];
 
       if (bookingId) {
-        conditions.push(`booking_id = ${params.length + 1}`);
+        conditions.push(`booking_id = $${params.length + 1}`);
         params.push(bookingId);
       }
       if (clientEmail) {
-        conditions.push(`LOWER(client_email) = ${params.length + 1}`);
+        conditions.push(`LOWER(client_email) = $${params.length + 1}`);
         params.push(clientEmail);
       }
       if (coachId) {
-        conditions.push(`coach_id = ${params.length + 1}`);
+        conditions.push(`coach_id = $${params.length + 1}`);
         params.push(coachId);
       }
       if (conditions.length > 0) {
@@ -4220,15 +4220,15 @@ app.get('/api/booking-workout-plans', async (req, res) => {
       const params: any[] = [];
 
       if (bookingId) {
-        conditions.push(`booking_id = ${params.length + 1}`);
+        conditions.push(`booking_id = $${params.length + 1}`);
         params.push(bookingId);
       }
       if (clientEmail) {
-        conditions.push(`LOWER(client_email) = ${params.length + 1}`);
+        conditions.push(`LOWER(client_email) = $${params.length + 1}`);
         params.push(clientEmail);
       }
       if (coachId) {
-        conditions.push(`coach_id = ${params.length + 1}`);
+        conditions.push(`coach_id = $${params.length + 1}`);
         params.push(coachId);
       }
       if (conditions.length > 0) {

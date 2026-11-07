@@ -15,14 +15,17 @@ export const RichPlanEditor: React.FC<RichPlanEditorProps> = ({
   placeholder = 'Write custom plan details here...'
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
+  const isFocusedRef = useRef<boolean>(false);
   const [activeTab, setActiveTab] = useState<'visual' | 'code' | 'preview'>('visual');
-  const [htmlCode, setHtmlCode] = useState(value);
+  const [htmlCode, setHtmlCode] = useState(value || '');
 
-  // Sync internal state with prop value
+  // Only sync value into DOM if user is NOT actively typing inside visual editor
   useEffect(() => {
-    setHtmlCode(value);
-    if (editorRef.current && editorRef.current.innerHTML !== value && activeTab === 'visual') {
-      editorRef.current.innerHTML = value || '';
+    setHtmlCode(value || '');
+    if (!isFocusedRef.current && editorRef.current && activeTab === 'visual') {
+      if (editorRef.current.innerHTML !== (value || '')) {
+        editorRef.current.innerHTML = value || '';
+      }
     }
   }, [value, activeTab]);
 
@@ -100,17 +103,16 @@ export const RichPlanEditor: React.FC<RichPlanEditorProps> = ({
 </ul>
 <p><strong>Daily Hydration:</strong> Minimum 3.5 Litres of water throughout the day.</p>`;
 
+    isFocusedRef.current = false;
     if (editorRef.current) {
       editorRef.current.innerHTML = template;
-      handleInput();
-    } else {
-      setHtmlCode(template);
-      onChange(template);
     }
+    setHtmlCode(template);
+    onChange(template);
   };
 
   return (
-    <div className="border border-zinc-700 bg-zinc-900 rounded-lg overflow-hidden flex flex-col">
+    <div className="border border-zinc-700 bg-zinc-900 rounded-lg overflow-hidden flex flex-col" dir="ltr">
       {/* Editor Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-1 p-2 bg-zinc-950 border-b border-zinc-800 text-xs">
         <div className="flex flex-wrap items-center gap-1">
@@ -223,9 +225,17 @@ export const RichPlanEditor: React.FC<RichPlanEditorProps> = ({
           <div
             ref={editorRef}
             contentEditable
+            dir="ltr"
+            style={{ direction: 'ltr', textAlign: 'left', unicodeBidi: 'normal' }}
+            onFocus={() => {
+              isFocusedRef.current = true;
+            }}
+            onBlur={() => {
+              isFocusedRef.current = false;
+              handleInput();
+            }}
             onInput={handleInput}
-            onBlur={handleInput}
-            className="focus:outline-none min-h-[200px] prose prose-invert prose-sm max-w-none [&_h3]:text-amber-400 [&_h3]:font-black [&_h3]:text-base [&_h3]:mb-2 [&_h4]:text-white [&_h4]:font-bold [&_h4]:text-sm [&_h4]:mt-3 [&_h4]:mb-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2 [&_li]:text-zinc-300"
+            className="focus:outline-none min-h-[200px] text-left prose prose-invert prose-sm max-w-none [&_h3]:text-amber-400 [&_h3]:font-black [&_h3]:text-base [&_h3]:mb-2 [&_h4]:text-white [&_h4]:font-bold [&_h4]:text-sm [&_h4]:mt-3 [&_h4]:mb-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2 [&_li]:text-zinc-300"
             dangerouslySetInnerHTML={{ __html: value || '' }}
           />
         )}
@@ -233,6 +243,7 @@ export const RichPlanEditor: React.FC<RichPlanEditorProps> = ({
         {activeTab === 'code' && (
           <textarea
             value={htmlCode}
+            dir="ltr"
             onChange={(e) => {
               setHtmlCode(e.target.value);
               onChange(e.target.value);
@@ -245,7 +256,8 @@ export const RichPlanEditor: React.FC<RichPlanEditorProps> = ({
 
         {activeTab === 'preview' && (
           <div
-            className="prose prose-invert prose-sm max-w-none [&_h3]:text-amber-400 [&_h3]:font-black [&_h3]:text-base [&_h3]:mb-2 [&_h4]:text-white [&_h4]:font-bold [&_h4]:text-sm [&_h4]:mt-3 [&_h4]:mb-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2 [&_li]:text-zinc-300 bg-zinc-950/60 p-4 rounded border border-zinc-800"
+            dir="ltr"
+            className="prose prose-invert prose-sm max-w-none text-left [&_h3]:text-amber-400 [&_h3]:font-black [&_h3]:text-base [&_h3]:mb-2 [&_h4]:text-white [&_h4]:font-bold [&_h4]:text-sm [&_h4]:mt-3 [&_h4]:mb-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2 [&_li]:text-zinc-300 bg-zinc-950/60 p-4 rounded border border-zinc-800"
             dangerouslySetInnerHTML={{ __html: htmlCode || '<p class="text-zinc-500 italic">No content written yet.</p>' }}
           />
         )}

@@ -100,6 +100,8 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
 
       if (data.resetToken) {
         setResetTokenFromUrl(data.resetToken);
+        setStep('set_new_password');
+        return;
       }
 
       setStep('email_dispatched');

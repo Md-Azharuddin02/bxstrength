@@ -1,205 +1,165 @@
-import React, { useState } from 'react';
-import { WorkoutProgram, ExerciseItem } from '../../types';
-import { Dumbbell, CheckCircle2, Circle, Flame, Activity, Clock, Target, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, BookingWorkoutPlan, PaidPackageBooking } from '../../types';
+import { VelocityAPI } from '../../services/api';
+import { Dumbbell, Calendar, UserCheck, Clock, Award, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface WorkoutPlansViewProps {
-  programs: WorkoutProgram[];
+  programs?: any[];
+  user?: User;
   onShowToast: (msg: string) => void;
 }
 
-export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({ programs, onShowToast }) => {
-  const [activeProgIndex, setActiveProgIndex] = useState(0);
-  const [exerciseState, setExerciseState] = useState<Record<string, boolean>>({});
+export const WorkoutPlansView: React.FC<WorkoutPlansViewProps> = ({ user: propUser, onShowToast }) => {
+  const currentUser = propUser || VelocityAPI.getCurrentUser();
+  const [plans, setPlans] = useState<BookingWorkoutPlan[]>([]);
+  const [bookings, setBookings] = useState<PaidPackageBooking[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
 
-  const publishedPrograms = (programs || []).filter(p => p.isPublishedToClient !== false);
+  useEffect(() => {
+    const loadPlans = async () => {
+      if (!currentUser?.email) {
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const [fetchedPlans, fetchedBookings] = await Promise.all([
+          VelocityAPI.fetchBookingWorkoutPlans({ clientEmail: currentUser.email }),
+          VelocityAPI.fetchPaidBookings({ email: currentUser.email })
+        ]);
+        setPlans(fetchedPlans);
+        setBookings(fetchedBookings);
+        // Expand the most recent active plan by default
+        if (fetchedPlans.length > 0) {
+          setExpandedPlanId(fetchedPlans[0].id);
+        }
+      } catch (err: any) {
+        console.error('Failed to load client workout programs:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  if (!publishedPrograms || publishedPrograms.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div className="bg-[#111111] border border-gray-800 p-6">
-          <h2 className="text-xl font-black uppercase tracking-tight text-white flex items-center gap-2">
-            <Dumbbell className="w-5 h-5 text-white" />
-            MY WORKOUT PROGRAMS & ROUTINES
-          </h2>
-          <p className="text-xs text-gray-400 mt-1">
-            Personalized exercise routines assigned by your BxStrength head coach.
-          </p>
-        </div>
-        <div className="bg-[#111111] border border-gray-800 p-12 text-center space-y-3 rounded-xl">
-          <Dumbbell className="w-10 h-10 text-gray-600 mx-auto" />
-          <h3 className="text-sm font-black uppercase text-white tracking-wider">NO WORKOUT PROGRAM PUBLISHED YET</h3>
-          <p className="text-xs text-gray-400 max-w-md mx-auto leading-relaxed">
-            Your personal BxStrength coach is finalizing your customized workout protocol. Once reviewed and published, it will automatically appear here.
-          </p>
-        </div>
-      </div>
-    );
-  }
+    loadPlans();
+  }, [currentUser?.email]);
 
-  const currentProg = publishedPrograms[activeProgIndex] || publishedPrograms[0];
-
-  const toggleExercise = (exId: string, exName: string) => {
-    const nextState = !exerciseState[exId];
-    setExerciseState({ ...exerciseState, [exId]: nextState });
-    if (nextState) {
-      onShowToast(`Completed exercise: ${exName}! Keep crushing it 🔥`);
+  const getStatusBadge = (plan: BookingWorkoutPlan) => {
+    const today = new Date().toISOString().split('T')[0];
+    if (plan.validFrom <= today && plan.validTo >= today) {
+      return (
+        <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          ACTIVE THIS WEEK
+        </span>
+      );
+    } else if (plan.validFrom > today) {
+      return (
+        <span className="bg-blue-500/10 text-blue-400 border border-blue-500/30 text-[10px] font-bold px-2 py-0.5 rounded uppercase">
+          UPCOMING
+        </span>
+      );
+    } else {
+      return (
+        <span className="bg-zinc-800 text-zinc-400 border border-zinc-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase">
+          PAST PROGRAM
+        </span>
+      );
     }
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-[#111111] border border-gray-800 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-[#111111] border border-zinc-800 p-6 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-black uppercase tracking-tight text-white flex items-center gap-2">
-            <Dumbbell className="w-5 h-5 text-white" />
-            MY WORKOUT PROGRAMS & ROUTINES
+            <Dumbbell className="w-6 h-6 text-amber-400" />
+            WORKOUT PROGRAMS
           </h2>
-          <p className="text-xs text-gray-400 mt-1">
-            Personalized exercise routines assigned by your BxStrength head coach.
+          <p className="text-xs text-zinc-400 mt-1">
+            Personalized training routines and exercise protocols assigned by your BxStrength coach.
           </p>
         </div>
-
-        {publishedPrograms.length > 1 && (
-          <div className="flex items-center gap-2">
-            {publishedPrograms.map((prog, idx) => (
-              <button
-                key={prog.id}
-                onClick={() => setActiveProgIndex(idx)}
-                className={`px-3 py-1.5 text-xs font-bold uppercase transition-all rounded ${
-                  activeProgIndex === idx
-                    ? 'bg-white text-black'
-                    : 'bg-gray-800 text-gray-400 hover:text-white'
-                }`}
-              >
-                Program #{idx + 1}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
-      {currentProg ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Routine Details */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-[#111111] border border-gray-800 p-6 rounded-lg">
-              <div className="flex items-center justify-between border-b border-gray-800 pb-4 mb-4">
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                    {currentProg.level} LEVEL ROUTINE
-                  </span>
-                  <h3 className="text-xl font-black uppercase text-white mt-0.5">{currentProg.title}</h3>
-                  <p className="text-xs text-gray-400 mt-1">{currentProg.description}</p>
-                </div>
+      {/* Content */}
+      {isLoading ? (
+        <div className="bg-[#111111] border border-zinc-800 p-12 text-center text-zinc-500 rounded-xl">
+          Loading your workout programs...
+        </div>
+      ) : plans.length === 0 ? (
+        <div className="bg-[#111111] border border-zinc-800 p-12 text-center space-y-3 rounded-xl">
+          <Dumbbell className="w-10 h-10 text-zinc-600 mx-auto" />
+          <h3 className="text-sm font-black uppercase text-white tracking-wider">NO WORKOUT PROGRAM ASSIGNED YET</h3>
+          <p className="text-xs text-zinc-400 max-w-md mx-auto leading-relaxed">
+            Your personal BxStrength coach is customizing your workout protocol. As soon as your weekly program is published, it will appear here.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {plans.map((plan) => {
+            const relatedBooking = bookings.find(b => b.id === plan.bookingId);
+            const isExpanded = expandedPlanId === plan.id;
 
-                <div className="bg-gray-900 border border-gray-800 px-4 py-2.5 text-center rounded">
-                  <span className="block text-[9px] uppercase font-bold text-gray-400">DURATION</span>
-                  <span className="text-sm font-black text-white">{currentProg.durationWeeks} WEEKS</span>
-                </div>
-              </div>
-
-              {/* Exercise Checklist */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-300 mb-3 flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-emerald-400" />
-                  EXERCISES CHECKLIST & INSTRUCTIONS
-                </h4>
-
-                {currentProg.exercises.map((ex: ExerciseItem, idx: number) => {
-                  const isDone = exerciseState[ex.id] ?? ex.isCompleted ?? false;
-                  return (
-                    <div
-                      key={ex.id}
-                      onClick={() => toggleExercise(ex.id, ex.name)}
-                      className={`p-4 border transition-all cursor-pointer flex items-center justify-between rounded ${
-                        isDone
-                          ? 'bg-emerald-950/30 border-emerald-800/80 text-gray-300'
-                          : 'bg-gray-900/80 border-gray-800 hover:border-gray-700 text-white'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <button className="mt-0.5 text-gray-400 hover:text-emerald-400">
-                          {isDone ? (
-                            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                          ) : (
-                            <Circle className="w-5 h-5 text-gray-600" />
-                          )}
-                        </button>
-                        <div>
-                          <span className={`text-sm font-bold uppercase block ${isDone ? 'line-through text-gray-400' : 'text-white'}`}>
-                            {idx + 1}. {ex.name}
-                          </span>
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            Target: <span className="text-pink-400 font-semibold">{ex.targetMuscle}</span>
-                            {ex.notes && ` • Note: ${ex.notes}`}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="text-xs font-mono font-bold text-white bg-black px-2.5 py-1 border border-gray-800 rounded">
-                          {ex.sets} sets × {ex.reps}
+            return (
+              <div
+                key={plan.id}
+                className="bg-[#111111] border border-zinc-800 rounded-xl overflow-hidden transition-all hover:border-zinc-700 shadow-lg"
+              >
+                {/* Plan Header Card */}
+                <div 
+                  onClick={() => setExpandedPlanId(isExpanded ? null : plan.id)}
+                  className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-zinc-950/60 cursor-pointer hover:bg-zinc-900/40 transition"
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-base font-bold text-white uppercase tracking-wide">
+                        {plan.title}
+                      </h3>
+                      {getStatusBadge(plan)}
+                      {relatedBooking && (
+                        <span className="text-[10px] font-bold bg-zinc-800 text-amber-400 border border-amber-400/20 px-2 py-0.5 rounded uppercase">
+                          {relatedBooking.packageName}
                         </span>
-                      </div>
+                      )}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
 
-          {/* Right Column: Coach & Session Stats */}
-          <div className="space-y-6">
-            <div className="bg-[#111111] border border-gray-800 p-6 rounded-lg">
-              <h3 className="text-sm font-black uppercase tracking-wider text-white mb-3 border-b border-gray-800 pb-3 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-amber-400" />
-                ASSIGNMENT ATTRIBUTION
-              </h3>
-              <div className="space-y-2 text-xs">
-                <div className="bg-amber-950/30 border border-amber-800/40 p-2.5 rounded">
-                  <span className="text-[10px] text-amber-400 uppercase font-bold block">ASSIGNER</span>
-                  <span className="text-white font-bold">{currentProg.assignedBy || 'Shaban Faridi'}</span>
-                  <span className="text-amber-200/70 text-[10px] block">({currentProg.assignedByRole || 'Head Coach'})</span>
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-400">
+                      <span className="flex items-center gap-1.5 text-zinc-300">
+                        <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                        Valid: <strong className="text-white">{plan.validFrom}</strong> to <strong className="text-white">{plan.validTo}</strong>
+                      </span>
+                      <span className="flex items-center gap-1 text-amber-300 font-medium">
+                        <UserCheck className="w-3.5 h-3.5" />
+                        Coach: {plan.coachName || 'BxStrength Coaching Staff'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-center">
+                    <button
+                      type="button"
+                      className="text-xs font-bold uppercase tracking-wider text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                    >
+                      <span>{isExpanded ? 'Hide Details' : 'View Full Routine'}</span>
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="bg-gray-900 border border-gray-800 p-2.5 rounded">
-                  <span className="text-[10px] text-gray-400 uppercase font-bold block">DESIGNATED COACH</span>
-                  <span className="text-emerald-400 font-bold">{currentProg.assignedCoachName || currentProg.createdBy || 'BxStrength Coach'}</span>
-                </div>
-
-                <div className="flex justify-between text-gray-400 text-[11px] pt-1 border-t border-gray-800">
-                  <span>Assigned Date:</span>
-                  <span className="font-mono text-white">{new Date(currentProg.assignedAt || currentProg.createdAt).toLocaleDateString()}</span>
-                </div>
-
-                {currentProg.publishedToClientAt && (
-                  <div className="flex justify-between text-gray-400 text-[11px]">
-                    <span>Published Date:</span>
-                    <span className="font-mono text-emerald-400">{new Date(currentProg.publishedToClientAt).toLocaleDateString()}</span>
+                {/* Plan Body Formatted Content */}
+                {isExpanded && (
+                  <div className="p-6 bg-[#0c0c0d] border-t border-zinc-800/80 space-y-4">
+                    <div 
+                      className="prose prose-invert prose-sm max-w-none [&_h3]:text-amber-400 [&_h3]:font-black [&_h3]:text-base [&_h3]:mb-3 [&_h4]:text-white [&_h4]:font-bold [&_h4]:text-sm [&_h4]:mt-5 [&_h4]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_li]:text-zinc-300 text-sm leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: plan.content }}
+                    />
                   </div>
                 )}
               </div>
-            </div>
-
-            <div className="bg-[#111111] border border-gray-800 p-6 text-center">
-              <Flame className="w-10 h-10 text-orange-500 mx-auto mb-2 animate-bounce" />
-              <h4 className="text-base font-black uppercase text-white">READY TO CRUSH IT?</h4>
-              <p className="text-xs text-gray-400 mt-1 mb-4">
-                Mark completed exercises as you progress through each set in the gym.
-              </p>
-              <button
-                onClick={() => onShowToast('Workout session started! Timer running.')}
-                className="w-full bg-[#E52165] text-white text-xs font-black tracking-widest py-3 uppercase shadow-md shadow-pink-500/20"
-              >
-                START WORKOUT TIMER
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-[#111111] border border-gray-800 p-8 text-center text-xs text-gray-400">
-          No assigned workout routines found.
+            );
+          })}
         </div>
       )}
     </div>

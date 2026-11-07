@@ -619,6 +619,38 @@ export interface PaidPackageBooking {
   updatedAt?: string;
 }
 
+export interface BookingDietPlan {
+  id: string;
+  bookingId: string;
+  clientEmail: string;
+  clientName: string;
+  coachId?: string | null;
+  coachName?: string | null;
+  title: string;
+  validFrom: string;
+  validTo: string;
+  content: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BookingWorkoutPlan {
+  id: string;
+  bookingId: string;
+  clientEmail: string;
+  clientName: string;
+  coachId?: string | null;
+  coachName?: string | null;
+  title: string;
+  validFrom: string;
+  validTo: string;
+  content: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface CoachVerification {
   id: string;
   coachName: string;

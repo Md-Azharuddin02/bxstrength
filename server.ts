@@ -4096,6 +4096,228 @@ app.delete('/api/paid-bookings/:id', async (req, res) => {
   }
 });
 
+// --- BOOKING DIET PLANS CRUD ---
+app.get('/api/booking-diet-plans', async (req, res) => {
+  try {
+    const bookingId = typeof req.query.bookingId === 'string' ? req.query.bookingId.trim() : null;
+    const clientEmail = typeof req.query.clientEmail === 'string' ? req.query.clientEmail.trim().toLowerCase() : null;
+    const coachId = typeof req.query.coachId === 'string' ? req.query.coachId.trim() : null;
+
+    if (dbPool) {
+      let query = 'SELECT * FROM booking_diet_plans';
+      const conditions: string[] = [];
+      const params: any[] = [];
+
+      if (bookingId) {
+        conditions.push(`booking_id = ${params.length + 1}`);
+        params.push(bookingId);
+      }
+      if (clientEmail) {
+        conditions.push(`LOWER(client_email) = ${params.length + 1}`);
+        params.push(clientEmail);
+      }
+      if (coachId) {
+        conditions.push(`coach_id = ${params.length + 1}`);
+        params.push(coachId);
+      }
+      if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+      }
+      query += ' ORDER BY valid_from DESC, created_at DESC';
+
+      const result = await dbPool.query(query, params);
+      const formatted = result.rows.map((r: any) => ({
+        id: r.id,
+        bookingId: r.booking_id,
+        clientEmail: r.client_email,
+        clientName: r.client_name,
+        coachId: r.coach_id,
+        coachName: r.coach_name,
+        title: r.title,
+        validFrom: r.valid_from ? new Date(r.valid_from).toISOString().split('T')[0] : '',
+        validTo: r.valid_to ? new Date(r.valid_to).toISOString().split('T')[0] : '',
+        content: r.content,
+        status: r.status || 'active',
+        createdAt: r.created_at,
+        updatedAt: r.updated_at
+      }));
+      return res.json(formatted);
+    }
+    res.json([]);
+  } catch (err: any) {
+    console.error('Fetch diet plans error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch diet plans' });
+  }
+});
+
+app.post('/api/booking-diet-plans', async (req, res) => {
+  try {
+    const { bookingId, clientEmail, clientName, coachId, coachName, title, validFrom, validTo, content } = req.body;
+    if (!bookingId || !clientEmail || !title || !content || !validFrom || !validTo) {
+      return res.status(400).json({ error: 'bookingId, clientEmail, title, validFrom, validTo, and content are required' });
+    }
+
+    const id = `diet-plan-${Date.now()}`;
+    if (dbPool) {
+      const result = await dbPool.query(
+        `INSERT INTO booking_diet_plans (id, booking_id, client_email, client_name, coach_id, coach_name, title, valid_from, valid_to, content, status, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', NOW(), NOW())
+         RETURNING *`,
+        [id, bookingId, clientEmail.toLowerCase().trim(), clientName || 'Client', coachId || null, coachName || 'Coach', title.trim(), validFrom, validTo, content]
+      );
+      return res.status(201).json({ success: true, plan: result.rows[0] });
+    }
+    res.status(201).json({ success: true, plan: { id, bookingId, clientEmail, title, validFrom, validTo, content } });
+  } catch (err: any) {
+    console.error('Create diet plan error:', err.message);
+    res.status(500).json({ error: 'Failed to create diet plan' });
+  }
+});
+
+app.put('/api/booking-diet-plans/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, validFrom, validTo, content } = req.body;
+    if (dbPool) {
+      const result = await dbPool.query(
+        `UPDATE booking_diet_plans 
+         SET title = COALESCE($1, title), valid_from = COALESCE($2, valid_from), valid_to = COALESCE($3, valid_to), content = COALESCE($4, content), updated_at = NOW()
+         WHERE id = $5 RETURNING *`,
+        [title || null, validFrom || null, validTo || null, content || null, id]
+      );
+      return res.json({ success: true, plan: result.rows[0] });
+    }
+    res.json({ success: true, message: 'Plan updated' });
+  } catch (err: any) {
+    console.error('Update diet plan error:', err.message);
+    res.status(500).json({ error: 'Failed to update diet plan' });
+  }
+});
+
+app.delete('/api/booking-diet-plans/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (dbPool) {
+      await dbPool.query('DELETE FROM booking_diet_plans WHERE id = $1', [id]);
+    }
+    res.json({ success: true, message: 'Diet plan deleted' });
+  } catch (err: any) {
+    console.error('Delete diet plan error:', err.message);
+    res.status(500).json({ error: 'Failed to delete diet plan' });
+  }
+});
+
+// --- BOOKING WORKOUT PROGRAMS CRUD ---
+app.get('/api/booking-workout-plans', async (req, res) => {
+  try {
+    const bookingId = typeof req.query.bookingId === 'string' ? req.query.bookingId.trim() : null;
+    const clientEmail = typeof req.query.clientEmail === 'string' ? req.query.clientEmail.trim().toLowerCase() : null;
+    const coachId = typeof req.query.coachId === 'string' ? req.query.coachId.trim() : null;
+
+    if (dbPool) {
+      let query = 'SELECT * FROM booking_workout_plans';
+      const conditions: string[] = [];
+      const params: any[] = [];
+
+      if (bookingId) {
+        conditions.push(`booking_id = ${params.length + 1}`);
+        params.push(bookingId);
+      }
+      if (clientEmail) {
+        conditions.push(`LOWER(client_email) = ${params.length + 1}`);
+        params.push(clientEmail);
+      }
+      if (coachId) {
+        conditions.push(`coach_id = ${params.length + 1}`);
+        params.push(coachId);
+      }
+      if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+      }
+      query += ' ORDER BY valid_from DESC, created_at DESC';
+
+      const result = await dbPool.query(query, params);
+      const formatted = result.rows.map((r: any) => ({
+        id: r.id,
+        bookingId: r.booking_id,
+        clientEmail: r.client_email,
+        clientName: r.client_name,
+        coachId: r.coach_id,
+        coachName: r.coach_name,
+        title: r.title,
+        validFrom: r.valid_from ? new Date(r.valid_from).toISOString().split('T')[0] : '',
+        validTo: r.valid_to ? new Date(r.valid_to).toISOString().split('T')[0] : '',
+        content: r.content,
+        status: r.status || 'active',
+        createdAt: r.created_at,
+        updatedAt: r.updated_at
+      }));
+      return res.json(formatted);
+    }
+    res.json([]);
+  } catch (err: any) {
+    console.error('Fetch workout plans error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch workout plans' });
+  }
+});
+
+app.post('/api/booking-workout-plans', async (req, res) => {
+  try {
+    const { bookingId, clientEmail, clientName, coachId, coachName, title, validFrom, validTo, content } = req.body;
+    if (!bookingId || !clientEmail || !title || !content || !validFrom || !validTo) {
+      return res.status(400).json({ error: 'bookingId, clientEmail, title, validFrom, validTo, and content are required' });
+    }
+
+    const id = `workout-prog-${Date.now()}`;
+    if (dbPool) {
+      const result = await dbPool.query(
+        `INSERT INTO booking_workout_plans (id, booking_id, client_email, client_name, coach_id, coach_name, title, valid_from, valid_to, content, status, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', NOW(), NOW())
+         RETURNING *`,
+        [id, bookingId, clientEmail.toLowerCase().trim(), clientName || 'Client', coachId || null, coachName || 'Coach', title.trim(), validFrom, validTo, content]
+      );
+      return res.status(201).json({ success: true, plan: result.rows[0] });
+    }
+    res.status(201).json({ success: true, plan: { id, bookingId, clientEmail, title, validFrom, validTo, content } });
+  } catch (err: any) {
+    console.error('Create workout plan error:', err.message);
+    res.status(500).json({ error: 'Failed to create workout plan' });
+  }
+});
+
+app.put('/api/booking-workout-plans/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, validFrom, validTo, content } = req.body;
+    if (dbPool) {
+      const result = await dbPool.query(
+        `UPDATE booking_workout_plans 
+         SET title = COALESCE($1, title), valid_from = COALESCE($2, valid_from), valid_to = COALESCE($3, valid_to), content = COALESCE($4, content), updated_at = NOW()
+         WHERE id = $5 RETURNING *`,
+        [title || null, validFrom || null, validTo || null, content || null, id]
+      );
+      return res.json({ success: true, plan: result.rows[0] });
+    }
+    res.json({ success: true, message: 'Plan updated' });
+  } catch (err: any) {
+    console.error('Update workout plan error:', err.message);
+    res.status(500).json({ error: 'Failed to update workout plan' });
+  }
+});
+
+app.delete('/api/booking-workout-plans/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (dbPool) {
+      await dbPool.query('DELETE FROM booking_workout_plans WHERE id = $1', [id]);
+    }
+    res.json({ success: true, message: 'Workout plan deleted' });
+  } catch (err: any) {
+    console.error('Delete workout plan error:', err.message);
+    res.status(500).json({ error: 'Failed to delete workout plan' });
+  }
+});
+
 app.get('/api/users', async (req, res) => {
   try {
     if (dbPool) {

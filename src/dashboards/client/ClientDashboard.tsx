@@ -141,8 +141,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     { id: 'free-demo', label: 'FREE DEMO (15-MIN)', icon: Sparkles },
     { id: 'assessments', label: 'MY ASSESSMENT', icon: ClipboardCheck },
     { id: 'stats', label: 'BODY STATS & BMI', icon: Scale },
-    ...(permissions.showUserWorkoutLogger !== false ? [{ id: 'workouts', label: 'WORKOUT PLANS', icon: Dumbbell }] : []),
-    ...(permissions.showUserNutritionTracker !== false ? [{ id: 'nutrition', label: 'NUTRITION DIET', icon: Utensils }] : []),
+    ...(permissions.showUserWorkoutLogger !== false ? [{ id: 'workouts', label: 'WORKOUT PROGRAMS', icon: Dumbbell }] : []),
+    ...(permissions.showUserNutritionTracker !== false ? [{ id: 'nutrition', label: 'DIET PLANS', icon: Utensils }] : []),
     { id: 'tickets', label: 'SUPPORT TICKETS', icon: LifeBuoy },
     ...(permissions.showUserBillingHistory !== false ? [{ id: 'subscription', label: 'SUBSCRIPTION', icon: CreditCard }] : []),
     { id: 'profile', label: 'MY PROFILE', icon: UserCheck }
@@ -390,6 +390,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             {activeTab === 'workouts' && (
               <WorkoutPlansView
                 programs={[...programs].sort((a, b) => (a.assignedToUserId === user.id ? -1 : 1))}
+                user={user}
                 onShowToast={showToast}
               />
             )}
@@ -397,6 +398,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             {activeTab === 'nutrition' && (
               <NutritionPlanView
                 plans={[...nutritionPlans].sort((a, b) => (a.assignedToUserId === user.id ? -1 : 1))}
+                user={user}
                 onShowToast={showToast}
               />
             )}

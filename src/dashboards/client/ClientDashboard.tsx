@@ -56,19 +56,20 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [enquiries, setEnquiries] = useState<Enquiry[]>(() => VelocityAPI.getEnquiries(user.email));
   const [notifications, setNotifications] = useState<InAppNotification[]>([]);
   const [consultations, setConsultations] = useState<ConsultationBooking[]>(() => VelocityAPI.getConsultations(user.email));
-  const [assessments, setAssessments] = useState<AthleteAssessment[]>([]);
+  const [assessments, setAssessments] = useState<AthleteAssessment[]>(() => VelocityAPI.getAssessments(user.email));
   const [showNotificationsMenu, setShowNotificationsMenu] = useState<boolean>(false);
 
   const loadDashboardData = async (_isInitial = false) => {
     try {
       // Fire all background API fetches in parallel for maximum speed
-      const [progRes, nutRes, classRes, subRes, consRes, notifRes] = await Promise.allSettled([
+      const [progRes, nutRes, classRes, subRes, consRes, notifRes, assessRes] = await Promise.allSettled([
         VelocityAPI.fetchPrograms(user.id),
         VelocityAPI.fetchNutritionPlans(user.id),
         VelocityAPI.fetchClasses(),
         VelocityAPI.fetchSubscriptions(),
         VelocityAPI.fetchConsultations(user.email),
-        VelocityAPI.fetchInAppNotifications(user.email)
+        VelocityAPI.fetchInAppNotifications(user.email),
+        VelocityAPI.fetchAssessments({ email: user.email })
       ]);
 
       if (progRes.status === 'fulfilled' && Array.isArray(progRes.value)) setPrograms(progRes.value);
@@ -84,6 +85,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       if (subRes.status === 'fulfilled' && Array.isArray(subRes.value)) setSubscriptions(subRes.value);
       if (consRes.status === 'fulfilled' && Array.isArray(consRes.value)) setConsultations(consRes.value);
       if (notifRes.status === 'fulfilled' && Array.isArray(notifRes.value)) setNotifications(notifRes.value);
+      if (assessRes.status === 'fulfilled' && Array.isArray(assessRes.value)) setAssessments(assessRes.value);
 
       setBodyStats(VelocityAPI.getBodyStats(user.id));
       setBookings(VelocityAPI.getBookings(user.id));

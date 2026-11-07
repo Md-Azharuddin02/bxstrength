@@ -1,7 +1,7 @@
 import React from 'react';
 import { User, AthleteAssessment } from '../../types';
 import {
-  ClipboardCheck, CheckCircle2, Clock, Sparkles, ChevronRight, AlertCircle, Activity
+  ClipboardCheck, CheckCircle2, Clock, Sparkles, ChevronRight
 } from 'lucide-react';
 import { decodeHtmlEntities } from '../../services/api';
 
@@ -41,32 +41,40 @@ export const MyAssessmentsView: React.FC<MyAssessmentsViewProps> = ({
     }
   };
 
+  const formatContactMethod = (method?: string) => {
+    if (!method) return 'Not specified';
+    const m = method.toLowerCase().trim();
+    if (m === 'whatsapp') return 'WhatsApp';
+    if (m === 'email') return 'Email';
+    if (m === 'call') return 'Phone Call';
+    return method;
+  };
+
   return (
     <div className="space-y-6 text-white font-sans">
-      {/* Top Header - Only shown when user has NOT yet submitted an assessment */}
+      {/* STATE 1: NO ASSESSMENT YET (Clean, simple card without duplicate banners) */}
       {!hasAssessment && (
-        <div className="bg-[#111114] border border-zinc-800 p-6 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-mono font-bold text-[#CCFF00] bg-[#CCFF00]/10 px-2 py-0.5 border border-[#CCFF00]/30 rounded uppercase">
-                ATHLETIC DIAGNOSTIC PROFILE
-              </span>
-              <span className="text-[10px] font-bold text-zinc-400 uppercase">
-                100% Free Assessment
-              </span>
+        <div className="bg-[#121215] border border-zinc-800 p-6 sm:p-8 rounded-2xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-[#CCFF00]/10 border border-[#CCFF00]/30 flex items-center justify-center text-[#CCFF00] shrink-0">
+              <ClipboardCheck className="w-6 h-6" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white flex items-center gap-2">
-              <ClipboardCheck className="w-6 h-6 text-[#CCFF00]" />
-              MY ATHLETIC SELF-ASSESSMENT
-            </h1>
-            <p className="text-xs text-zinc-400 mt-1 max-w-2xl leading-relaxed">
-              Your comprehensive 5-min movement diagnostic, training history, and personalized coaching recommendations directly reviewed by our coaching staff.
-            </p>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#CCFF00] font-mono">
+                ATHLETIC ONBOARDING
+              </span>
+              <h2 className="text-xl font-black text-white uppercase tracking-tight mt-0.5">
+                You Haven't Submitted Your Athletic Assessment Yet!
+              </h2>
+              <p className="text-xs text-zinc-400 mt-1 max-w-xl leading-relaxed">
+                Take 5 minutes to complete your diagnostic fitness assessment. Share your goals, training days, and injury history so our Head Coach can build your tailored training roadmap.
+              </p>
+            </div>
           </div>
 
           <button
             onClick={onOpenAssessment}
-            className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase px-6 py-3 rounded-xl transition-all shadow-xl shadow-[#CCFF00]/20 hover:scale-[1.02] flex items-center justify-center gap-2 cursor-pointer shrink-0"
+            className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase px-6 py-3.5 rounded-xl transition-all shadow-xl shadow-[#CCFF00]/20 hover:scale-[1.02] flex items-center justify-center gap-2 cursor-pointer shrink-0"
           >
             <Sparkles className="w-4 h-4 fill-black" />
             <span>Start Free Assessment</span>
@@ -75,55 +83,7 @@ export const MyAssessmentsView: React.FC<MyAssessmentsViewProps> = ({
         </div>
       )}
 
-      {/* STATE 1: NO ASSESSMENT YET */}
-      {!hasAssessment && (
-        <div className="bg-gradient-to-r from-emerald-500/10 via-[#141417] to-zinc-950 border-2 border-emerald-500/40 p-6 sm:p-8 rounded-2xl shadow-2xl space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="flex items-start gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0 shadow-xl">
-                <Activity className="w-8 h-8 animate-pulse" />
-              </div>
-              <div className="space-y-1.5">
-                <span className="text-[11px] font-black uppercase tracking-widest text-[#CCFF00] font-mono">
-                  DIAGNOSTIC ONBOARDING
-                </span>
-                <h3 className="text-xl font-black text-white uppercase tracking-tight">
-                  You Haven't Submitted Your Athletic Assessment Yet!
-                </h3>
-                <p className="text-xs text-zinc-300 max-w-2xl leading-relaxed">
-                  Take 5 minutes to complete our diagnostic fitness assessment. Share your current training level, fat loss / strength goals, schedule constraints, and injury history so our Head Coach can build your tailored training roadmap.
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={onOpenAssessment}
-              className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-sm uppercase px-8 py-4 rounded-xl transition-all shadow-xl shadow-[#CCFF00]/25 hover:scale-[1.02] flex items-center justify-center gap-2 cursor-pointer shrink-0"
-            >
-              <Sparkles className="w-5 h-5 fill-black" />
-              <span>Start 5-Min Diagnostic Now</span>
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-zinc-800/80">
-            <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
-              <span className="text-[#CCFF00] font-black text-xs uppercase block mb-1">1. Movement & Goal Audit</span>
-              <p className="text-[11px] text-zinc-400">Specify your targets: fat loss, boxing technique, mobility, or progressive strength.</p>
-            </div>
-            <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
-              <span className="text-[#CCFF00] font-black text-xs uppercase block mb-1">2. Injury Flagging</span>
-              <p className="text-[11px] text-zinc-400">Ensure all workouts are safe and customized around joint or past medical history.</p>
-            </div>
-            <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
-              <span className="text-[#CCFF00] font-black text-xs uppercase block mb-1">3. Direct Consultation</span>
-              <p className="text-[11px] text-zinc-400">Our coaching and support team directly reviews your goals and reaches out via your preferred contact method.</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* STATE 2: ASSESSMENT SUBMITTED & IN RECORD (Clean, real submitted details only) */}
+      {/* STATE 2: ASSESSMENT SUBMITTED & IN RECORD (Only actual submitted answers) */}
       {hasAssessment && latestAssessment && (
         <div className="bg-[#121215] border-2 border-emerald-500/40 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
           {/* Header Status Bar */}
@@ -164,7 +124,7 @@ export const MyAssessmentsView: React.FC<MyAssessmentsViewProps> = ({
             </span>
           </div>
 
-          {/* Coach Recommendations & Protocol (if coach has reviewed and added notes) */}
+          {/* Coach Recommendations & Protocol (if reviewed and feedback added by coach) */}
           {(latestAssessment.recommendedPlan || latestAssessment.coachFeedback) && (
             <div className="bg-emerald-950/20 border-2 border-emerald-500/50 p-5 rounded-xl space-y-3">
               <div className="flex items-center justify-between">
@@ -193,13 +153,13 @@ export const MyAssessmentsView: React.FC<MyAssessmentsViewProps> = ({
             </div>
           )}
 
-          {/* Real Submitted Intake Details (Only fields filled during assessment) */}
+          {/* Real Submitted Intake Details (Only fields actually filled in form) */}
           <div className="space-y-3">
             <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 block">
               YOUR SUBMITTED INTAKE RESPONSES:
             </span>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
               <div className="bg-zinc-900/70 p-3.5 rounded-xl border border-zinc-800 space-y-1">
                 <span className="text-[10px] uppercase font-bold text-zinc-500 block">Primary Goal</span>
                 <p className="font-bold text-[#CCFF00] truncate">{decodeHtmlEntities(latestAssessment.primaryGoal || 'General Fitness')}</p>
@@ -224,23 +184,23 @@ export const MyAssessmentsView: React.FC<MyAssessmentsViewProps> = ({
                 <span className="text-[10px] uppercase font-bold text-zinc-500 block">Equipment Available</span>
                 <p className="font-bold text-white truncate">{decodeHtmlEntities(latestAssessment.equipment || 'Bodyweight / Dumbbells')}</p>
               </div>
+
+              <div className="bg-zinc-900/70 p-3.5 rounded-xl border border-zinc-800 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-zinc-500 block">Mode of Contact</span>
+                <p className="font-bold text-[#CCFF00] truncate">
+                  {formatContactMethod(latestAssessment.preferredContactMethod)}
+                </p>
+              </div>
             </div>
 
-            {/* Contact Preference Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
-              <div className="bg-zinc-900/50 p-3.5 rounded-xl border border-zinc-800/80 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-zinc-500 block">Preferred Contact Method</span>
-                <p className="text-white font-bold uppercase tracking-wide">
-                  {latestAssessment.preferredContactMethod ? latestAssessment.preferredContactMethod.toUpperCase() : 'CALL / WHATSAPP'}
-                </p>
-              </div>
-
-              <div className="bg-zinc-900/50 p-3.5 rounded-xl border border-zinc-800/80 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-zinc-500 block">Injury / Medical Restrictions</span>
-                <p className={`font-bold ${latestAssessment.hasInjury && latestAssessment.hasInjury.toLowerCase() !== 'no' ? 'text-amber-400' : 'text-zinc-300'}`}>
-                  {latestAssessment.hasInjury ? decodeHtmlEntities(latestAssessment.hasInjury) : 'None reported'}
-                </p>
-              </div>
+            {/* Injury Row */}
+            <div className="bg-zinc-900/50 p-3.5 rounded-xl border border-zinc-800/80 space-y-1 text-xs">
+              <span className="text-[10px] uppercase font-bold text-zinc-500 block">Injury / Medical Restrictions</span>
+              <p className={`font-bold ${latestAssessment.hasInjury && latestAssessment.hasInjury.toLowerCase() !== 'no' ? 'text-amber-400' : 'text-zinc-300'}`}>
+                {latestAssessment.hasInjury && latestAssessment.hasInjury.toLowerCase() !== 'no'
+                  ? decodeHtmlEntities(latestAssessment.hasInjury)
+                  : 'No injuries or medical restrictions reported'}
+              </p>
             </div>
           </div>
         </div>

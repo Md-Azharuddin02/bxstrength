@@ -2464,6 +2464,15 @@ export const VelocityAPI = {
     return result;
   },
 
+  getAssessments(email?: string): AthleteAssessment[] {
+    const raw = getItem<AthleteAssessment[]>('bxstrength_assessments', []);
+    if (email) {
+      const search = email.toLowerCase().trim();
+      return raw.filter((a) => (a.clientEmail || '').toLowerCase().trim() === search);
+    }
+    return raw;
+  },
+
   async fetchAssessments(params?: { email?: string; coachId?: string }): Promise<AthleteAssessment[]> {
     try {
       let url = getApiUrl('/api/assessments');

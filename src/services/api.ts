@@ -57,6 +57,7 @@ import {
 } from "./core/http";
 import {
   decodeHtmlEntities,
+  formatMeetingUrl,
   dicebearAvatar,
   toUser,
   upsertUser,
@@ -84,7 +85,7 @@ import { trainersApi } from "./features/trainers";
 
 // Re-exported so existing `services/api` importers keep working unchanged.
 export { getApiUrl, apiFetch } from "./core/http";
-export { decodeHtmlEntities } from "./core/mappers";
+export { decodeHtmlEntities, formatMeetingUrl } from "./core/mappers";
 export { initStore } from "./core/storage";
 export { DEFAULT_COACH_PERMISSIONS } from "./core/constants";
 
@@ -2375,6 +2376,15 @@ export const VelocityAPI = {
     return clean;
   },
 
+  getConsultations(email?: string): ConsultationBooking[] {
+    const raw = getItem<ConsultationBooking[]>('bxstrength_consultations', []);
+    if (email) {
+      const search = email.toLowerCase().trim();
+      return raw.filter((c) => (c.clientEmail || '').toLowerCase().trim() === search);
+    }
+    return raw;
+  },
+
   async fetchConsultations(email?: string): Promise<ConsultationBooking[]> {
     try {
       const url = email 
@@ -2384,13 +2394,20 @@ export const VelocityAPI = {
       if (res.ok) {
         const raw = await res.json();
         if (Array.isArray(raw)) {
+          // Merge with existing local cache
+          const current = getItem<ConsultationBooking[]>('bxstrength_consultations', []);
+          const merged = [...raw];
+          current.forEach(c => {
+            if (!merged.some(m => m.id === c.id)) merged.push(c);
+          });
+          setItem('bxstrength_consultations', merged);
           return raw;
         }
       }
     } catch (err: any) {
       console.warn('Failed to fetch consultations from backend:', err?.message);
     }
-    return [];
+    return this.getConsultations(email);
   },
 
   async assignConsultation(id: string, data: {
@@ -2409,7 +2426,16 @@ export const VelocityAPI = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Failed to assign consultation');
     }
-    return await res.json();
+    const result = await res.json();
+    if (result.consultation) {
+      const current = getItem<ConsultationBooking[]>('bxstrength_consultations', []);
+      const updated = current.map(c => c.id === id ? { ...c, ...result.consultation } : c);
+      setItem('bxstrength_consultations', updated);
+      try {
+        window.dispatchEvent(new CustomEvent('bxstrength_consultations_updated'));
+      } catch (_) {}
+    }
+    return result;
   },
 
   async updateConsultationStatus(id: string, data: {
@@ -2426,7 +2452,16 @@ export const VelocityAPI = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Failed to update consultation status');
     }
-    return await res.json();
+    const result = await res.json();
+    if (result.consultation) {
+      const current = getItem<ConsultationBooking[]>('bxstrength_consultations', []);
+      const updated = current.map(c => c.id === id ? { ...c, ...result.consultation } : c);
+      setItem('bxstrength_consultations', updated);
+      try {
+        window.dispatchEvent(new CustomEvent('bxstrength_consultations_updated'));
+      } catch (_) {}
+    }
+    return result;
   },
 
   async fetchAssessments(params?: { email?: string; coachId?: string }): Promise<AthleteAssessment[]> {

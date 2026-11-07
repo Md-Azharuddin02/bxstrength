@@ -1,4 +1,4 @@
-import { decodeHtmlEntities } from '../../services/core/mappers';
+import { decodeHtmlEntities, formatMeetingUrl } from '../../services/core/mappers';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { PaidPackageBooking, User } from '../../types';
 import { VelocityAPI } from '../../services/api';
@@ -560,7 +560,7 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                     <p className="text-gray-400 font-bold uppercase text-[10px]">Live Meeting Link</p>
                     {b.meetingLink ? (
                       <a
-                        href={b.meetingLink.startsWith('http') ? b.meetingLink : `https://${b.meetingLink}`}
+                        href={formatMeetingUrl(b.meetingLink)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[#CCFF00] hover:underline font-bold text-xs flex items-center gap-1 mt-0.5"

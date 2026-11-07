@@ -579,6 +579,9 @@ export interface ConsultationBooking {
   assignedBy?: string | null;
   assignedAt?: string | null;
   meetingLink?: string;
+  preferredDate?: string;
+  preferredTime?: string;
+  updatedAt?: string | null;
   remindersSent?: {
     h24?: boolean;
     h2?: boolean;

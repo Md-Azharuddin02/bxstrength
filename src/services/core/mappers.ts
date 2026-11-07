@@ -48,3 +48,11 @@ export function upsertUser(user: User): void {
   else users.push(user);
   setItem(STORAGE_KEYS.USERS, users);
 }
+
+export const formatMeetingUrl = (rawLink?: string | null): string => {
+  if (!rawLink || typeof rawLink !== "string") return "";
+  const decoded = decodeHtmlEntities(rawLink).trim();
+  if (!decoded) return "";
+  if (/^https?:\/\//i.test(decoded)) return decoded;
+  return `https://${decoded}`;
+};

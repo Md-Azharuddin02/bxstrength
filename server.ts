@@ -94,22 +94,35 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb', verify: (req, _res, buf) => { (req as any).rawBody = buf; } }));
 
-// Global Request Body & Query XSS Protection Sanitizer
+// Global Request Body & Query XSS Protection Sanitizer (Preserves valid URLs & Meeting Links)
 app.use((req, res, next) => {
   const sanitize = (obj: any, keyName?: string): any => {
     if (typeof obj === 'string') {
+      const lowerKey = (keyName || '').toLowerCase();
+      const isUrlOrLink =
+        lowerKey.includes('link') ||
+        lowerKey.includes('url') ||
+        lowerKey.includes('meeting') ||
+        obj.startsWith('http://') ||
+        obj.startsWith('https://') ||
+        obj.startsWith('//');
+
       // Do not escape HTML markup strings meant for email body or base64 images
-      if (keyName === 'htmlContent' || keyName === 'html' || keyName === 'htmlBody' || obj.startsWith('data:image/')) {
+      if (
+        keyName === 'htmlContent' ||
+        keyName === 'html' ||
+        keyName === 'htmlBody' ||
+        obj.startsWith('data:image/')
+      ) {
         return obj;
       }
-      return obj
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#x27;')
-        .replace(/\//g, '&#x2F;')
-        .trim();
+
+      // Preserve URLs and meeting links without escaping slashes or query parameters
+      if (isUrlOrLink) {
+        return decodeHtmlEntities(obj).trim();
+      }
+
+      return sanitizeInput(obj);
     }
     if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
       for (const k of Object.keys(obj)) {
@@ -3433,8 +3446,9 @@ app.get('/api/consultations', async (req, res) => {
           assignedCoachName: r.assigned_coach_name || null,
           assignedBy: r.assigned_by || null,
           assignedAt: r.assigned_at ? new Date(r.assigned_at).toISOString() : null,
-          meetingLink: r.meeting_link || '',
-          notes: r.notes || '',
+          meetingLink: decodeHtmlEntities(r.meeting_link || ''),
+          notes: decodeHtmlEntities(r.notes || ''),
+          updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : null,
           createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString()
         }));
         return res.json(formatted);
@@ -3684,7 +3698,7 @@ const formatPaidBookingRow = (r: any): ServerPaidBooking => ({
   assignedCoachName: r.assigned_coach_name || null,
   assignedBy: r.assigned_by || null,
   assignedAt: r.assigned_at ? new Date(r.assigned_at).toISOString() : null,
-  meetingLink: r.meeting_link || null,
+  meetingLink: r.meeting_link ? decodeHtmlEntities(r.meeting_link) : null,
   coachNotes: r.coach_notes || null,
   createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
   updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString()

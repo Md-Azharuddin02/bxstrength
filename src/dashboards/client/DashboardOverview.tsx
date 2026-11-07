@@ -1,4 +1,4 @@
-import { decodeHtmlEntities } from '../../services/core/mappers';
+import { decodeHtmlEntities, formatMeetingUrl } from '../../services/core/mappers';
 import React from 'react';
 import { User, BodyStat, Booking, WorkoutProgram, NutritionPlan, Announcement, Enquiry, ConsultationBooking } from '../../types';
 import { Scale, Activity, Calendar, Dumbbell, Award, ShieldAlert, CheckCircle2, ChevronRight, Zap, Mail, Video, Sparkles, Clock, ExternalLink } from 'lucide-react';
@@ -14,6 +14,7 @@ interface DashboardOverviewProps {
   enquiries?: Enquiry[];
   consultations?: ConsultationBooking[];
   onOpenBooking?: () => void;
+  onOpenAssessment?: () => void;
   onNavigateTab: (tab: string) => void;
 }
 
@@ -27,6 +28,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   enquiries = [],
   consultations = [],
   onOpenBooking,
+  onOpenAssessment,
   onNavigateTab
 }) => {
   const [activeJourney, setActiveJourney] = React.useState<any>(null);
@@ -163,7 +165,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
               {latestPaidPackage.meetingLink && (
                 <a
-                  href={latestPaidPackage.meetingLink.startsWith('http') ? latestPaidPackage.meetingLink : `https://${latestPaidPackage.meetingLink}`}
+                  href={formatMeetingUrl(latestPaidPackage.meetingLink)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase px-4 py-3 rounded-lg flex items-center justify-center gap-2 shadow-lg transition-all"
@@ -211,7 +213,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </div>
             <div className="shrink-0 flex items-center">
               <button
-                onClick={onOpenBooking}
+                onClick={onOpenBooking ? onOpenBooking : () => onNavigateTab('free-demo')}
                 className="w-full sm:w-auto bg-amber-400 hover:bg-amber-300 text-black font-black text-xs uppercase px-6 py-3.5 rounded-xl transition-all shadow-xl shadow-amber-500/20 hover:scale-[1.02] flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Sparkles className="w-4 h-4 fill-black" />
@@ -283,7 +285,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             <div className="shrink-0 flex flex-wrap sm:flex-nowrap items-center gap-3">
               {activeConsultation.status === 'Confirmed' && activeConsultation.meetingLink && (
                 <a
-                  href={activeConsultation.meetingLink}
+                  href={formatMeetingUrl(activeConsultation.meetingLink)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase px-5 py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"

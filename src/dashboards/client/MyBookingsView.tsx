@@ -1,4 +1,4 @@
-import { decodeHtmlEntities } from '../../services/core/mappers';
+import { decodeHtmlEntities, formatMeetingUrl } from '../../services/core/mappers';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Booking, Enquiry, ClassSchedule, PaidPackageBooking, User } from '../../types';
 import { VelocityAPI } from '../../services/api';
@@ -270,7 +270,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                             <CheckCircle2 className="w-3.5 h-3.5" /> Meeting link ready
                           </p>
                           <a
-                            href={pkg.meetingLink.startsWith('http') ? pkg.meetingLink : `https://${pkg.meetingLink}`}
+                            href={formatMeetingUrl(pkg.meetingLink)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase tracking-wider py-2.5 px-3 rounded-lg flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(204,255,0,0.2)] transition-all cursor-pointer"

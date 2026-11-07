@@ -55,7 +55,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => VelocityAPI.getSubscriptions());
   const [enquiries, setEnquiries] = useState<Enquiry[]>(() => VelocityAPI.getEnquiries(user.email));
   const [notifications, setNotifications] = useState<InAppNotification[]>([]);
-  const [consultations, setConsultations] = useState<ConsultationBooking[]>([]);
+  const [consultations, setConsultations] = useState<ConsultationBooking[]>(() => VelocityAPI.getConsultations(user.email));
   const [assessments, setAssessments] = useState<AthleteAssessment[]>([]);
   const [showNotificationsMenu, setShowNotificationsMenu] = useState<boolean>(false);
 
@@ -352,8 +352,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 announcements={announcements}
                 enquiries={enquiries}
                 consultations={consultations}
-
-
+                onOpenBooking={onOpenBooking}
+                onOpenAssessment={onOpenAssessment}
                 onNavigateTab={(tab) => setActiveTab(tab)}
               />
             )}

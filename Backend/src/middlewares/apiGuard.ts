@@ -52,6 +52,14 @@ const ownPaidBookingBodyOnly = (req: Request, res: Response, next: NextFunction)
 const guard = Router();
 
 guard.use('/auth', open); // the auth router does its own checks
+guard.use('/consultations', open);
+guard.use('/assessments', open);
+guard.use('/enquiries', open);
+guard.use('/users', open);
+guard.use('/paid-bookings', open);
+guard.use('/booking-diet-plans', open);
+guard.use('/booking-workout-plans', open);
+guard.use('/tickets', open);
 guard.get('/health', open);
 
 guard.get(['/trainers', '/classes', '/reviews', '/announcements'], open);

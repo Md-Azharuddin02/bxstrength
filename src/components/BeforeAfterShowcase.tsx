@@ -193,7 +193,7 @@ export const BeforeAfterShowcase: React.FC<BeforeAfterShowcaseProps> = ({
             <div className="mt-8 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
               <button
                 type="button"
-                onClick={onOpenConsultation}
+                onClick={onOpenAssessment}
                 className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[#CCFF00] px-6 py-3.5 text-sm font-semibold text-black transition-colors hover:bg-[#b8e600] cursor-pointer"
               >
                 Start your transformation

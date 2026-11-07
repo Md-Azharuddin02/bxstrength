@@ -528,7 +528,7 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
                   <div className="bg-[#18181b] border border-zinc-800 px-4 py-2.5 rounded-xl text-left lg:text-right">
                     <span className="text-[10px] font-bold uppercase text-zinc-500 block">SESSION TYPE</span>
                     <span className="text-xs font-black text-[#CCFF00] uppercase block">
-                      {item.goal || 'Fitness Boxing'} ({item.duration || '20 Min'})
+                      {item.goal && item.goal !== 'Fitness Boxing' ? item.goal : '15-MIN STRATEGY DEMO'} ({item.duration && item.duration !== '20 Min' ? item.duration : '15 MIN'})
                     </span>
                   </div>
                 </div>

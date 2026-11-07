@@ -63,27 +63,27 @@ export const FreeDemoView: React.FC<FreeDemoViewProps> = ({
 
   return (
     <div className="space-y-6 text-white font-sans">
-      {/* Top Header */}
-      <div className="bg-[#111114] border border-zinc-800 p-6 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-950/60 px-2 py-0.5 border border-amber-800/80 rounded uppercase">
-              SEPARATE PIPELINE • 1 PER ATHLETE
-            </span>
-            <span className="text-[10px] font-bold text-zinc-400 uppercase">
-              100% Free Consultation
-            </span>
+      {/* Top Header - Only displayed when client has not yet claimed a demo */}
+      {isUnclaimed && (
+        <div className="bg-[#111114] border border-zinc-800 p-6 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-950/60 px-2 py-0.5 border border-amber-800/80 rounded uppercase">
+                SEPARATE PIPELINE • 1 PER ATHLETE
+              </span>
+              <span className="text-[10px] font-bold text-zinc-400 uppercase">
+                100% Free Consultation
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white flex items-center gap-2">
+              <Sparkles className="w-6 h-6 text-amber-400" />
+              1-ON-1 FREE DEMO & STRATEGY SESSION
+            </h1>
+            <p className="text-xs text-zinc-400 mt-1 max-w-2xl leading-relaxed">
+              Every registered athlete is entitled to strictly ONE complimentary 15-minute strategy demo session directly overseen by our Head Coaching team.
+            </p>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-amber-400" />
-            1-ON-1 FREE DEMO & STRATEGY SESSION
-          </h1>
-          <p className="text-xs text-zinc-400 mt-1 max-w-2xl leading-relaxed">
-            Every registered athlete is entitled to strictly ONE complimentary 15-minute strategy demo session directly overseen by our Head Coaching team.
-          </p>
-        </div>
 
-        {isUnclaimed && (
           <button
             onClick={onOpenBooking}
             className="bg-amber-400 hover:bg-amber-300 text-black font-black text-xs uppercase px-6 py-3 rounded-xl transition-all shadow-xl shadow-amber-500/20 hover:scale-[1.02] flex items-center justify-center gap-2 cursor-pointer shrink-0"
@@ -92,8 +92,8 @@ export const FreeDemoView: React.FC<FreeDemoViewProps> = ({
             <span>Claim Free Demo</span>
             <ChevronRight className="w-4 h-4" />
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* STATE 1: UNCLAIMED (Athlete hasn't booked free demo yet) */}
       {isUnclaimed && (
@@ -208,9 +208,9 @@ export const FreeDemoView: React.FC<FreeDemoViewProps> = ({
             </div>
 
             <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Training Goal</span>
-              <p className="text-white font-bold text-sm truncate">{decodeHtmlEntities(consultation.goal || 'Fitness Boxing')}</p>
-              <span className="text-[10px] text-zinc-400 block">Duration: {consultation.duration || '15 Minutes'}</span>
+              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Session Type</span>
+              <p className="text-white font-bold text-sm truncate">{consultation.goal && consultation.goal !== 'Fitness Boxing' ? decodeHtmlEntities(consultation.goal) : '15-Min Free Strategy Demo'}</p>
+              <span className="text-[10px] text-zinc-400 block">Duration: {consultation.duration && consultation.duration !== '20 Min' ? consultation.duration : '15 Minutes'}</span>
             </div>
 
             <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 space-y-1">
@@ -319,9 +319,6 @@ export const FreeDemoView: React.FC<FreeDemoViewProps> = ({
                   <span className="text-[11px] font-mono font-bold text-zinc-400">
                     REF: {consultation.id}
                   </span>
-                  <span className="text-[10px] font-bold text-amber-400 uppercase">
-                    • 1 Per Athlete Benefit Claimed
-                  </span>
                 </div>
                 <h3 className="text-lg sm:text-xl font-black uppercase text-white tracking-tight mt-1">
                   Complimentary 15-Min Strategy Session Completed
@@ -334,32 +331,16 @@ export const FreeDemoView: React.FC<FreeDemoViewProps> = ({
             </span>
           </div>
 
-          {/* Complete Historical Details Summary */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Conducted By Coach</span>
-              <p className="text-white font-bold text-sm truncate">{consultation.assignedCoachName || 'Head Coach & Team'}</p>
-              {consultation.assignedBy && (
-                <span className="text-[10px] text-zinc-400 block">Assigned by: {consultation.assignedBy}</span>
-              )}
-            </div>
-
-            <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Training Focus</span>
-              <p className="text-white font-bold text-sm truncate">{decodeHtmlEntities(consultation.goal || 'Fitness Boxing')}</p>
-              <span className="text-[10px] text-zinc-400 block">Duration: {consultation.duration || '15 Minutes'}</span>
-            </div>
-
+          {/* Historical Details Summary */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 space-y-1">
               <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Applied Date</span>
-              <p className="text-white font-bold text-xs truncate">{formatDate(consultation.createdAt)}</p>
-              <span className="text-[10px] text-zinc-400 block">Slot: {scheduledSlot}</span>
+              <p className="text-white font-bold text-sm truncate">{formatDate(consultation.createdAt)}</p>
             </div>
 
             <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Benefit Status</span>
-              <p className="text-emerald-400 font-bold text-sm">Successfully Fulfilled</p>
-              <span className="text-[10px] text-zinc-400 block">1-on-1 strategy call completed</span>
+              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Completed Date</span>
+              <p className="text-emerald-400 font-bold text-sm truncate">{formatDate(consultation.updatedAt || consultation.createdAt)}</p>
             </div>
           </div>
 
@@ -388,31 +369,6 @@ export const FreeDemoView: React.FC<FreeDemoViewProps> = ({
                 {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copiedLink ? 'Copied' : 'Copy Room Link'}</span>
               </button>
-            </div>
-          )}
-
-          {/* Coach Feedback & Session Notes */}
-          {consultation.notes ? (
-            <div className="bg-zinc-900/90 p-5 rounded-xl border border-zinc-800 space-y-2">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-[#CCFF00]" />
-                <span className="text-xs font-black uppercase text-white tracking-wider">Coach Strategic Feedback & Action Plan:</span>
-              </div>
-              <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line bg-black/40 p-4 rounded-lg border border-zinc-800/80">
-                {decodeHtmlEntities(consultation.notes)}
-              </p>
-            </div>
-          ) : (
-            <div className="bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/80 text-xs text-zinc-400 flex items-center gap-2">
-              <Info className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Your complimentary strategy demo session was successfully delivered by our Head Coaching team.</span>
-            </div>
-          )}
-
-          {consultation.additionalNotes && (
-            <div className="bg-zinc-900/40 p-3.5 rounded-xl border border-zinc-800/60 text-xs text-zinc-400">
-              <span className="text-[10px] font-bold uppercase text-zinc-500 block mb-0.5">Your Initial Submission Request:</span>
-              <p className="italic">{decodeHtmlEntities(consultation.additionalNotes)}</p>
             </div>
           )}
         </div>

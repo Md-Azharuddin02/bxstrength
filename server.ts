@@ -3163,8 +3163,8 @@ app.post('/api/consultations', enquiryLimiter, async (req, res) => {
     const leadName = sanitizeInput(name);
     const leadEmail = sanitizeInput(email).toLowerCase();
     const leadPhone = sanitizeInput(phone || '');
-    const leadGoal = sanitizeInput(goal || 'Fitness Boxing');
-    const leadDuration = sanitizeInput(duration || '20 Min');
+    const leadGoal = sanitizeInput(goal || '15-Min Free Strategy Demo');
+    const leadDuration = sanitizeInput(duration || '15 Min');
     const coach = sanitizeInput(coachPreference || 'Head Coach Assignment');
     const date = sanitizeInput(preferredDate || '');
     const time = sanitizeInput(preferredTime || '');
@@ -3436,7 +3436,7 @@ app.get('/api/consultations', async (req, res) => {
           clientName: r.client_name,
           clientEmail: r.client_email,
           clientPhone: r.client_phone || '',
-          goal: r.goal || 'Fitness Boxing',
+          goal: r.goal && r.goal !== 'Fitness Boxing' ? r.goal : '15-Min Free Strategy Demo',
           duration: r.duration || '15 Min',
           preferredDate: r.preferred_date || 'To be scheduled',
           preferredTime: r.preferred_time || 'To be scheduled',
@@ -3582,7 +3582,7 @@ app.patch('/api/consultations/:id/status', async (req, res) => {
                   <h3 style="color: #CCFF00; margin-top: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">SESSION DETAILS</h3>
                   <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #e4e4e7;">
                     <tr><td style="padding: 6px 0; color: #a1a1aa;">Assigned Coach:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${coachName}</td></tr>
-                    <tr><td style="padding: 6px 0; color: #a1a1aa;">Training Focus / Goal:</td><td style="padding: 6px 0; font-weight: bold; color: #CCFF00;">${r.goal || 'Fitness Boxing & Conditioning'}</td></tr>
+                    <tr><td style="padding: 6px 0; color: #a1a1aa;">Session Type:</td><td style="padding: 6px 0; font-weight: bold; color: #CCFF00;">${r.goal && r.goal !== 'Fitness Boxing' ? r.goal : '15-Min Free Strategy Demo'}</td></tr>
                     <tr><td style="padding: 6px 0; color: #a1a1aa;">Session Duration:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${r.duration || '15-20 Mins'}</td></tr>
                     ${notes ? `<tr><td style="padding: 6px 0; color: #a1a1aa;">Coach Notes:</td><td style="padding: 6px 0; color: #e4e4e7;">${notes}</td></tr>` : ''}
                   </table>

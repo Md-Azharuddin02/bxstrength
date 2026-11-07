@@ -784,15 +784,37 @@ export const VelocityAPI = {
 
     // Real-Time NeonDB Database Sync via REST API
     try {
-      const token = getToken();
-      await fetch(getApiUrl(`/api/users/${id}`), {
+      const res = await apiFetch(getApiUrl(`/api/users/${id}`), {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(updates)
       });
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data?.user) {
+          targetUser = {
+            ...targetUser,
+            name: data.user.name || targetUser.name,
+            email: data.user.email || targetUser.email,
+            phone: data.user.phone || targetUser.phone,
+            heightCm: Number(data.user.height_cm ?? targetUser.heightCm),
+            age: Number(data.user.age ?? targetUser.age),
+            gender: data.user.gender || targetUser.gender,
+            fitnessGoals: data.user.fitness_goals || targetUser.fitnessGoals,
+            emergencyContact: data.user.emergency_contact || targetUser.emergencyContact,
+            avatarUrl: data.user.avatar_url || targetUser.avatarUrl
+          };
+          if (idx !== -1) {
+            users[idx] = targetUser;
+          }
+          setItem(STORAGE_KEYS.USERS, users);
+          if (current && (current.id === id || current.email.toLowerCase() === targetUser.email.toLowerCase())) {
+            setItem(STORAGE_KEYS.CURRENT_USER, targetUser);
+          }
+        }
+      }
     } catch (err: any) {
       console.error('NeonDB Update User Error:', err.message);
     }

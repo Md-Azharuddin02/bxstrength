@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, FC, FormEvent, ChangeEvent } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getApiUrl } from '../../services/api';
+import { getApiUrl, apiFetch } from '../../services/api';
 import { X, Mail, CheckCircle2, ArrowRight, KeyRound, Lock, Eye, EyeOff } from 'lucide-react';
 import { validatePassword } from "../../utils/passwordValidation";
 
@@ -55,15 +55,18 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
 
     const urlStr = window.location.href;
     if (urlStr.includes('reset-password') || urlStr.includes('token=')) {
-      // The reset link carries its params in the hash: #reset-password?email=..&token=..
-      const afterHash = window.location.hash + window.location.search;
-      const q = afterHash.indexOf('?');
-      const params = new URLSearchParams(q >= 0 ? afterHash.slice(q + 1) : '');
-      const urlEmail = params.get('email');
-      const token = params.get('token');
+      const searchParams = new URLSearchParams(window.location.search);
+      const hash = window.location.hash;
+      const hashQIndex = hash.indexOf('?');
+      const hashParams = new URLSearchParams(hashQIndex >= 0 ? hash.slice(hashQIndex + 1) : '');
+
+      const urlEmail = searchParams.get('email') || hashParams.get('email');
+      const token = searchParams.get('token') || hashParams.get('token');
       if (urlEmail) setEmail(urlEmail);
-      if (token) setResetTokenFromUrl(token);
-      setStep('set_new_password');
+      if (token) {
+        setResetTokenFromUrl(token);
+        setStep('set_new_password');
+      }
     }
 
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -83,8 +86,8 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
       setErrorMsg(null);
       setLoading(true);
 
-      // Call backend Express Server API to generate token & send email via Brevo API v3
-      const res = await fetch(getApiUrl('/api/auth/forgot-password'), {
+      // Call backend API to generate token and dispatch reset email
+      const res = await apiFetch(getApiUrl('/api/auth/forgot-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: cleanEmail })
@@ -92,7 +95,11 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to dispatch password reset email via Brevo API.');
+        throw new Error(data.error || 'Failed to dispatch password reset email.');
+      }
+
+      if (data.resetToken) {
+        setResetTokenFromUrl(data.resetToken);
       }
 
       setStep('email_dispatched');
@@ -127,7 +134,7 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
       setLoading(true);
       
       // Call backend API endpoint to update password in database
-      const res = await fetch(getApiUrl('/api/auth/reset-password'), {
+      const res = await apiFetch(getApiUrl('/api/auth/reset-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, newPassword, token: resetTokenFromUrl })
@@ -281,6 +288,17 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
               </div>
 
               <div className="pt-2 space-y-3">
+                {resetTokenFromUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setStep('set_new_password')}
+                    className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black text-xs font-black tracking-widest py-3 uppercase transition-all rounded-lg cursor-pointer shadow-md flex items-center justify-center gap-2"
+                  >
+                    <KeyRound className="w-4 h-4 text-black" />
+                    <span>SET NEW PASSWORD NOW</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {

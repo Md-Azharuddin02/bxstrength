@@ -2904,28 +2904,32 @@ app.get('/api/assessments', async (req, res) => {
 
     if (dbPool) {
       try {
-        let query = 'SELECT * FROM assessments';
+        let query = `
+          SELECT a.*, u.name AS user_name 
+          FROM assessments a 
+          LEFT JOIN users u ON LOWER(a.client_email) = LOWER(u.email)
+        `;
         const params: any[] = [];
         const conditions: string[] = [];
 
         if (email) {
-          conditions.push(`LOWER(client_email) = $${params.length + 1}`);
+          conditions.push(`LOWER(a.client_email) = ${params.length + 1}`);
           params.push(email);
         }
         if (coachId) {
-          conditions.push(`assigned_coach_id = $${params.length + 1}`);
+          conditions.push(`a.assigned_coach_id = ${params.length + 1}`);
           params.push(coachId);
         }
 
         if (conditions.length > 0) {
           query += ' WHERE ' + conditions.join(' AND ');
         }
-        query += ' ORDER BY created_at DESC';
+        query += ' ORDER BY a.created_at DESC';
 
         const result = await dbPool.query(query, params);
         const formatted = result.rows.map((r: any) => ({
           id: r.id,
-          clientName: decodeHtmlEntities(r.client_name || '').replace(/<[^>]*>/g, '').trim() || (r.client_email ? r.client_email.split('@')[0] : 'Athlete'),
+          clientName: decodeHtmlEntities(r.user_name || r.client_name || '').replace(/<[^>]*>/g, '').trim() || (r.client_email ? r.client_email.split('@')[0] : 'Athlete'),
           clientEmail: r.client_email,
           clientPhone: r.client_phone || '',
           preferredContactMethod: r.preferred_contact_method || 'call',
@@ -4153,10 +4157,21 @@ app.post('/api/users', authenticateToken, async (req: any, res: any) => {
 app.patch('/api/users/:id', authenticateToken, async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, role, coachPosition, heightCm, age, gender, fitnessGoals, subscriptionTier, billingStatements, isVerified, status, assignedCoach, assignedHeadCoach } = req.body;
+    const { 
+      name, email, phone, role, coachPosition, heightCm, age, gender, 
+      emergencyContact, emergency_contact, avatarUrl, avatar_url,
+      fitnessGoals, subscriptionTier, billingStatements, isVerified, status, 
+      assignedCoach, assignedHeadCoach, password, password_or_hash, newPassword 
+    } = req.body;
 
-    // Authorization check: User can update their own profile OR must be admin/coach
-    if (req.user.id !== id && req.user.role !== 'admin' && req.user.role !== 'coach' && req.user.role !== 'headcoach') {
+    const targetEmail = (email || req.body.email || '').toLowerCase().trim();
+    const reqEmail = (req.user?.email || '').toLowerCase().trim();
+    const isSelf = (req.user?.id && req.user.id === id) || 
+                   (reqEmail && targetEmail && reqEmail === targetEmail) ||
+                   id === 'me';
+
+    // Authorization check: User can update their own profile OR must be admin/coach/headcoach
+    if (!isSelf && req.user.role !== 'admin' && req.user.role !== 'coach' && req.user.role !== 'headcoach') {
       return res.status(403).json({ error: 'Forbidden: You can only update your own profile.' });
     }
 
@@ -4167,10 +4182,21 @@ app.patch('/api/users/:id', authenticateToken, async (req: any, res: any) => {
     const cleanAssignedHeadCoach = assignedHeadCoach !== undefined ? sanitizeInput(assignedHeadCoach) : null;
     const parsedHeight = heightCm !== undefined && heightCm !== null && !isNaN(Number(heightCm)) ? Number(heightCm) : null;
     const statementsJson = billingStatements !== undefined ? JSON.stringify(billingStatements) : null;
+    const cleanAvatar = avatarUrl || avatar_url ? sanitizeInput(avatarUrl || avatar_url) : null;
+    const cleanEmergency = emergencyContact || emergency_contact ? sanitizeInput(emergencyContact || emergency_contact) : null;
+
+    // Password change support
+    const passToHash = password || password_or_hash || newPassword;
+    let newPasswordHash: string | null = null;
+    if (passToHash && typeof passToHash === 'string' && passToHash.length >= 6) {
+      newPasswordHash = await bcrypt.hash(passToHash, 10);
+    }
+
+    let updatedUser: any = null;
 
     if (dbPool) {
       try {
-        await dbPool.query(
+        const result = await dbPool.query(
           `UPDATE users SET 
             name = COALESCE($1, name), 
             email = COALESCE($2, email), 
@@ -4186,11 +4212,15 @@ app.patch('/api/users/:id', authenticateToken, async (req: any, res: any) => {
             is_verified = CASE WHEN $12::boolean IS NOT NULL THEN $12::boolean ELSE is_verified END,
             status = CASE WHEN $13::text IS NOT NULL THEN $13::text ELSE status END,
             assigned_coach = CASE WHEN $14::text IS NOT NULL THEN $14::text ELSE assigned_coach END,
-            assigned_head_coach = CASE WHEN $15::text IS NOT NULL THEN $15::text ELSE assigned_head_coach END
-           WHERE id = $16`,
+            assigned_head_coach = CASE WHEN $15::text IS NOT NULL THEN $15::text ELSE assigned_head_coach END,
+            avatar_url = COALESCE($16, avatar_url),
+            emergency_contact = COALESCE($17, emergency_contact),
+            password_hash = CASE WHEN $18::text IS NOT NULL THEN $18::text ELSE password_hash END
+           WHERE id = $19 OR LOWER(email) = LOWER($20)
+           RETURNING id, name, email, phone, role, coach_position, height_cm, age, gender, fitness_goals, subscription_tier, is_verified, status, avatar_url, emergency_contact, created_at`,
           [
             name ? sanitizeInput(name) : null,
-            email ? sanitizeInput(email).toLowerCase() : null,
+            targetEmail || null,
             phone ? sanitizeInput(phone) : null,
             cleanRole,
             coachPosition ? sanitizeInput(coachPosition) : null,
@@ -4204,15 +4234,22 @@ app.patch('/api/users/:id', authenticateToken, async (req: any, res: any) => {
             cleanStatus,
             cleanAssignedCoach,
             cleanAssignedHeadCoach,
-            id
+            cleanAvatar,
+            cleanEmergency,
+            newPasswordHash,
+            id === 'me' ? req.user.id : id,
+            targetEmail || reqEmail
           ]
         );
+        if (result.rows.length > 0) {
+          updatedUser = result.rows[0];
+        }
       } catch (e: any) {
         console.error('database PATCH /api/users Error:', e.message);
       }
     }
 
-    res.json({ message: `User profile ${id} updated in database!` });
+    res.json({ message: `User profile updated in database!`, user: updatedUser });
   } catch (err: any) {
     console.error('Update user error:', err.message);
     res.status(500).json({ error: 'Failed to update user' });

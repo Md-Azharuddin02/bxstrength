@@ -574,11 +574,16 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
     const emailResult = await sendServerEmail(passwordResetEmail(cleanEmail, resetUrl, senderEmail));
     if (!emailResult.success) {
-
       console.error(`[FORGOT PASSWORD] send failed for ${cleanEmail}: ${emailResult.error}`);
     }
 
-    res.json({ message: sentMessage, success: true });
+    res.json({ 
+      message: sentMessage, 
+      success: true, 
+      resetToken, 
+      resetUrl,
+      emailSent: emailResult.success 
+    });
   } catch (err: any) {
     console.error('Forgot password error:', err.message);
     res.status(500).json({ error: 'Failed to process password reset request' });

@@ -166,36 +166,6 @@ export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="bg-[#121214] border border-zinc-800 p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-mono font-bold text-[#CCFF00] bg-[#CCFF00]/10 px-2 py-0.5 border border-[#CCFF00]/30 rounded uppercase">
-              {isAdmin ? 'ADMIN INTAKE DESK' : isHeadCoach ? 'HEAD COACH INTAKE DESK' : 'CUSTOMER SUPPORT DESK'}
-            </span>
-            <span className="text-[10px] font-bold text-zinc-400 font-mono">
-              {totalCount} Total Diagnostic Assessments
-            </span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white flex items-center gap-2.5">
-            <ClipboardCheck className="w-6 h-6 text-[#CCFF00]" />
-            ATHLETE DIAGNOSTIC ASSESSMENTS
-          </h1>
-          <p className="text-xs text-zinc-400 mt-1 max-w-2xl leading-relaxed">
-            Direct intake lead management for athletes who submitted the 5-Minute Self-Assessment. Review movement goals, schedule constraints, and injury flags to reach out directly via WhatsApp, Phone, or Email.
-          </p>
-        </div>
-
-        <button
-          onClick={loadAssessments}
-          disabled={isLoading}
-          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white text-xs font-black uppercase px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 cursor-pointer shrink-0"
-        >
-          <RefreshCw className={`w-4 h-4 text-[#CCFF00] ${isLoading ? 'animate-spin' : ''}`} />
-          <span>Refresh Intakes</span>
-        </button>
-      </div>
-
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-[#121214] border border-zinc-800 p-4 rounded-xl">
@@ -243,6 +213,15 @@ export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
               {tab === 'all' ? 'ALL ASSESSMENTS' : tab === 'pending' ? 'PENDING ACTION' : tab}
             </button>
           ))}
+
+          <button
+            onClick={loadAssessments}
+            disabled={isLoading}
+            className="p-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg text-white transition-all cursor-pointer shrink-0 ml-1"
+            title="Refresh Intakes"
+          >
+            <RefreshCw className={`w-4 h-4 text-[#CCFF00] ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 

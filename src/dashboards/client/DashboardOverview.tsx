@@ -307,40 +307,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         </div>
       )}
 
-      {isConsultationCompleted && activeConsultation && (
-        <div className="bg-[#121215] border border-emerald-900/50 p-5 rounded-xl shadow-xl">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-                <CheckCircle2 className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded">
-                    FREE DEMO COMPLETED
-                  </span>
-                  <span className="text-[10px] font-mono font-bold text-zinc-500">REF: {activeConsultation.id}</span>
-                  <span className="text-[10px] font-bold text-zinc-400 uppercase">• ALREADY CLAIMED (1 PER ATHLETE)</span>
-                </div>
-                <h3 className="text-sm font-black text-white uppercase mt-1">
-                  Complimentary 15-Min Strategy Session Completed
-                </h3>
-                <p className="text-xs text-zinc-400 mt-0.5 max-w-xl">
-                  You have already claimed and completed your 1-on-1 complimentary 15-minute strategy demo session. Ready to begin your full athletic transformation?
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => onNavigateTab('subscription')}
-              className="bg-zinc-800 hover:bg-zinc-700 text-white font-black text-xs uppercase px-4 py-2.5 rounded-lg border border-zinc-700 shrink-0 transition-all cursor-pointer flex items-center gap-1.5"
-            >
-              <span>Explore Training Plans</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* ACTIVE TRAINING JOURNEY BANNER (STEP 4 / STEP 5 PERSISTENT DASHBOARD STATE) */}
       {activeJourney && activeJourney.journeyState === 'SCHEDULING_PENDING' && (
         <div className="bg-[#121214] border border-amber-500/40 p-5 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">

@@ -27,13 +27,16 @@ const ownTicketsOnly = (req: Request, res: Response, next: NextFunction) => {
 };
 
 const ownNotificationsOnly = (req: Request, res: Response, next: NextFunction) => {
-  if (isStaff(req) || sameText(req.query.email, (req as any).user.email)) return next();
+  if ((req as any).isPublicRoute) return next();
+  if (isStaff(req) || sameText(req.query.email, (req as any).user?.email)) return next();
   return res.status(403).json({ error: 'Forbidden: You can only view your own notifications.' });
 };
 
 // Paid bookings, consultations and assessments: every record belongs to a client and may be assigned to a coach.
 const ownClientRecordsOnly = (req: Request, res: Response, next: NextFunction) => {
+  if ((req as any).isPublicRoute) return next();
   const user = (req as any).user;
+  if (!user) return next();
   const role = String(user.role || '').toLowerCase();
   if (MANAGERS.includes(role) || role === 'customer_support' || role === 'support') return next();
   if (role === 'coach' && req.query.coachId === user.id) return next();
@@ -43,7 +46,9 @@ const ownClientRecordsOnly = (req: Request, res: Response, next: NextFunction) =
 };
 
 const ownPaidBookingBodyOnly = (req: Request, res: Response, next: NextFunction) => {
+  if ((req as any).isPublicRoute) return next();
   const user = (req as any).user;
+  if (!user) return next();
   const { clientEmail, userId } = req.body || {};
   if (typeof clientEmail === 'string' && sameText(clientEmail.trim(), user.email) && (!userId || userId === user.id)) return next();
   return res.status(403).json({ error: 'Forbidden: You can only create bookings for yourself.' });

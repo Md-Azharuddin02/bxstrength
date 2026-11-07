@@ -2870,6 +2870,32 @@ app.post('/api/assessments', enquiryLimiter, async (req, res) => {
     const interest = sanitizeInput(trainingInterest || 'Not provided');
     const injuryDetails = sanitizeInput(hasInjury || 'Not provided');
 
+    // Duplicate submission check: Each athlete is permitted strictly 1 diagnostic assessment
+    if (dbPool) {
+      try {
+        const existingCheck = await dbPool.query(
+          `SELECT id, status, client_email 
+           FROM assessments 
+           WHERE LOWER(client_email) = $1
+           ORDER BY created_at DESC 
+           LIMIT 1`,
+          [leadEmail]
+        );
+
+        if (existingCheck.rows.length > 0) {
+          const prev = existingCheck.rows[0];
+          return res.status(409).json({
+            error: `You have already submitted an athletic assessment (#${prev.id}). Each athlete is permitted strictly one diagnostic assessment.`,
+            alreadySubmitted: true,
+            assessmentId: prev.id,
+            status: prev.status
+          });
+        }
+      } catch (checkErr: any) {
+        console.warn('Assessment eligibility check warning:', checkErr?.message);
+      }
+    }
+
     const assessmentId = `BX-ASSESS-${Math.floor(100000 + Math.random() * 900000)}`;
     const enquiryId = `enq-assess-${Date.now()}`;
     const assessmentMessage = `[SELF ASSESSMENT DIAGNOSTIC]\nGoal: ${goal}\nMain Obstacle: ${obstacle}\nExperience Level: ${experience}\nWeekly Commitment: ${commitment}\nTraining Location: ${location}\nEquipment: ${equipmentDetails}\nTraining Interest: ${interest}\nInjury / Medical Restriction: ${injuryDetails}\nPreferred Contact Method: ${preferredContactMethod || 'Not provided'}`;

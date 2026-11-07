@@ -63,84 +63,36 @@ export const FreeDemoView: React.FC<FreeDemoViewProps> = ({
 
   return (
     <div className="space-y-6 text-white font-sans">
-      {/* Top Header - Only displayed when client has not yet claimed a demo */}
+      {/* STATE 1: UNCLAIMED (Athlete hasn't booked free demo yet - Clean single card) */}
       {isUnclaimed && (
-        <div className="bg-[#111114] border border-zinc-800 p-6 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-950/60 px-2 py-0.5 border border-amber-800/80 rounded uppercase">
-                SEPARATE PIPELINE • 1 PER ATHLETE
-              </span>
-              <span className="text-[10px] font-bold text-zinc-400 uppercase">
-                100% Free Consultation
-              </span>
+        <div className="bg-[#121215] border border-zinc-800 p-6 sm:p-8 rounded-2xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+              <Sparkles className="w-6 h-6" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-amber-400" />
-              1-ON-1 FREE DEMO & STRATEGY SESSION
-            </h1>
-            <p className="text-xs text-zinc-400 mt-1 max-w-2xl leading-relaxed">
-              Every registered athlete is entitled to strictly ONE complimentary 15-minute strategy demo session directly overseen by our Head Coaching team.
-            </p>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-950/60 px-2 py-0.5 border border-amber-800/80 rounded uppercase">
+                  100% FREE CONSULTATION • 1 PER ATHLETE
+                </span>
+              </div>
+              <h2 className="text-xl font-black text-white uppercase tracking-tight">
+                You Haven't Claimed Your Free 15-Min Strategy Session Yet!
+              </h2>
+              <p className="text-xs text-zinc-400 mt-1 max-w-xl leading-relaxed">
+                Kickstart your transformation with a direct 1-on-1 video call. Our Head Coaching team will evaluate your athletic background, discuss injury management, and tailor a personalized fitness strategy for your goals.
+              </p>
+            </div>
           </div>
 
           <button
             onClick={onOpenBooking}
-            className="bg-amber-400 hover:bg-amber-300 text-black font-black text-xs uppercase px-6 py-3 rounded-xl transition-all shadow-xl shadow-amber-500/20 hover:scale-[1.02] flex items-center justify-center gap-2 cursor-pointer shrink-0"
+            className="bg-amber-400 hover:bg-amber-300 text-black font-black text-xs uppercase px-6 py-3.5 rounded-xl transition-all shadow-xl shadow-amber-500/20 hover:scale-[1.02] flex items-center justify-center gap-2 cursor-pointer shrink-0"
           >
             <Sparkles className="w-4 h-4 fill-black" />
             <span>Claim Free Demo</span>
             <ChevronRight className="w-4 h-4" />
           </button>
-        </div>
-      )}
-
-      {/* STATE 1: UNCLAIMED (Athlete hasn't booked free demo yet) */}
-      {isUnclaimed && (
-        <div className="bg-gradient-to-r from-amber-500/10 via-[#141417] to-zinc-950 border-2 border-amber-500/40 p-6 sm:p-8 rounded-2xl shadow-2xl relative overflow-hidden space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="flex items-start gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 shadow-xl">
-                <Sparkles className="w-8 h-8 animate-pulse" />
-              </div>
-              <div className="space-y-1.5">
-                <span className="text-[11px] font-black uppercase tracking-widest text-amber-400 font-mono">
-                  COMPLIMENTARY WELCOME BENEFIT
-                </span>
-                <h3 className="text-xl font-black text-white uppercase tracking-tight">
-                  You Haven't Claimed Your Free 15-Min Strategy Session Yet!
-                </h3>
-                <p className="text-xs text-zinc-300 max-w-2xl leading-relaxed">
-                  Kickstart your transformation with a direct 1-on-1 video call. Our Head Coaching team will evaluate your athletic background, discuss injury management, and tailor a personalized fitness strategy for your goals.
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={onOpenBooking}
-              className="bg-amber-400 hover:bg-amber-300 text-black font-black text-sm uppercase px-8 py-4 rounded-xl transition-all shadow-xl shadow-amber-500/25 hover:scale-[1.02] flex items-center justify-center gap-2 cursor-pointer shrink-0"
-            >
-              <Sparkles className="w-5 h-5 fill-black" />
-              <span>Claim Free 15-Min Session Now</span>
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* 3 Value Pillars */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-zinc-800/80">
-            <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
-              <span className="text-amber-400 font-black text-xs uppercase block mb-1">1. Direct Head Coach Review</span>
-              <p className="text-[11px] text-zinc-400">All intake forms go directly to our Head Coach for specialist coach allocation.</p>
-            </div>
-            <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
-              <span className="text-amber-400 font-black text-xs uppercase block mb-1">2. 1-on-1 Live Video Call</span>
-              <p className="text-[11px] text-zinc-400">Conduct your consultation via Google Meet or Zoom from anywhere in the world.</p>
-            </div>
-            <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
-              <span className="text-amber-400 font-black text-xs uppercase block mb-1">3. Zero Obligation</span>
-              <p className="text-[11px] text-zinc-400">100% free with no credit card or purchase requirement.</p>
-            </div>
-          </div>
         </div>
       )}
 

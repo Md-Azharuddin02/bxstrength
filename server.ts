@@ -3740,7 +3740,25 @@ app.post('/api/paid-bookings', async (req, res) => {
     const price = Number(totalPrice) || 0;
     const curr = sanitizeInput(currency || 'GBP');
     const sessions = Math.max(1, Number(totalSessions) || (cleanPkgType === 'weekly' ? 3 : cleanPkgType === 'monthly' ? 12 : 1));
-    const duration = Number(durationMinutes) || 45;
+    const pkgLower = cleanPkgName.toLowerCase();
+    let duration = Number(durationMinutes);
+    if (!duration || isNaN(duration) || (pkgLower.includes('basic') && duration !== 15) || (pkgLower.includes('complete') && duration !== 60)) {
+      if (customizedDetails && typeof customizedDetails === 'object' && customizedDetails.totalMinutes) {
+        duration = Number(customizedDetails.totalMinutes);
+      } else if (pkgLower.includes('basic')) {
+        duration = 15;
+      } else if (pkgLower.includes('complete')) {
+        duration = 60;
+      } else if (pkgLower.includes('performance')) {
+        duration = 45;
+      } else if (pkgLower.includes('monthly')) {
+        duration = 45;
+      } else if (pkgLower.includes('focus') || pkgLower.includes('weekly') || pkgLower.includes('wellness')) {
+        duration = 30;
+      } else if (!duration || isNaN(duration)) {
+        duration = 30;
+      }
+    }
     const validity = Number(validityDays) || 30;
 
     const bookingId = orderId && orderId.length > 5 ? (orderId.startsWith('BX-') ? orderId : `BX-BOOK-${orderId.slice(-8)}`) : `BX-BOOK-${Date.now()}`;

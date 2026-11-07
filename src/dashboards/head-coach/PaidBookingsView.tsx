@@ -496,6 +496,9 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                           ORDER: {b.orderId}
                         </span>
                       )}
+                      <span className="text-[10px] font-mono text-zinc-300 bg-zinc-900 border border-zinc-700 px-2 py-0.5 rounded flex items-center gap-1 font-bold">
+                        <Clock className="w-3 h-3 text-[#CCFF00]" /> {b.durationMinutes} Min / Session
+                      </span>
                       <span className="text-[10px] text-gray-500">
                         • {new Date(b.createdAt).toLocaleDateString()}
                       </span>

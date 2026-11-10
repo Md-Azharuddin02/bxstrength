@@ -189,7 +189,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             <button
-              onClick={onOpenBooking}
+              onClick={onOpenAssessment}
               className="bg-white hover:bg-zinc-200 text-black font-black text-xs tracking-wider uppercase px-5 py-2.5 rounded-lg transition-all shadow-md cursor-pointer flex items-center gap-1.5"
             >
               <Calendar className="w-4 h-4" />
@@ -431,7 +431,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  onOpenBooking();
+                  onOpenAssessment();
                 }}
                 className="w-full bg-white text-black text-xs font-black tracking-widest py-3 rounded-lg uppercase text-center flex items-center justify-center gap-2 shadow-md"
               >

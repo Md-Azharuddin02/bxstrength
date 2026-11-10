@@ -122,7 +122,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [userEmail, setUserEmail] = useState(user?.email || '');
   const [userPhone, setUserPhone] = useState(user?.phone || '');
   const [additionalNotes, setAdditionalNotes] = useState('');
-  const [goal, setGoal] = useState<string>(preSelectedClass || 'Fitness Boxing');
+  const [goal, setGoal] = useState<string>(preSelectedClass || '15-Min Free Strategy Demo');
+  const [selectedDuration, setSelectedDuration] = useState<number>(15);
   const [selectedTrainer, setSelectedTrainer] = useState(preSelectedTrainer || 'Assigned Lead Coach');
   
   const [confirmedBooking, setConfirmedBooking] = useState<ConsultationBooking & { duration?: string } | null>(null);
@@ -162,7 +163,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     setUserEmail('');
     setUserPhone('');
     setAdditionalNotes('');
-    setGoal('Fitness Boxing');
+    setGoal('15-Min Free Strategy Demo');
+    setSelectedDuration(15);
   };
 
   const handleBookingSubmit = async (e: React.FormEvent) => {

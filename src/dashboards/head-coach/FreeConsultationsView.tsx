@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ConsultationBooking, User } from '../../types';
-import { VelocityAPI } from '../../services/api';
+import { VelocityAPI, formatMeetingUrl } from '../../services/api';
 import { normalizeRole } from '../../utils/auth';
 import {
   Calendar, Clock, UserCheck, CheckCircle2, Phone, Mail, Award,
@@ -529,7 +529,7 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
                   <div className="bg-[#18181b] border border-zinc-800 px-4 py-2.5 rounded-xl text-left lg:text-right">
                     <span className="text-[10px] font-bold uppercase text-zinc-500 block">SESSION TYPE</span>
                     <span className="text-xs font-black text-[#CCFF00] uppercase block">
-                      {item.goal || 'Fitness Boxing'} ({item.duration || '20 Min'})
+                      {item.goal && item.goal !== 'Fitness Boxing' ? item.goal : '15-MIN STRATEGY DEMO'} ({item.duration && item.duration !== '20 Min' ? item.duration : '15 MIN'})
                     </span>
                   </div>
                 </div>
@@ -575,7 +575,7 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
                     {item.meetingLink && (
                       <div className="mt-3 pt-3 border-t border-zinc-800/80 flex flex-wrap items-center justify-between gap-2">
                         <a
-                          href={item.meetingLink.startsWith('http') ? item.meetingLink : `https://${item.meetingLink}`}
+                          href={formatMeetingUrl(item.meetingLink)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="bg-[#CCFF00]/10 hover:bg-[#CCFF00]/20 text-[#CCFF00] border border-[#CCFF00]/30 px-3 py-1.5 rounded-lg font-black text-xs flex items-center gap-1.5 transition-colors"
@@ -587,7 +587,7 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
 
                         {item.clientPhone && (
                           <a
-                            href={`https://wa.me/${item.clientPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${item.clientName}, your BxStrength Free 15-Min Strategy Session link is ready: ${item.meetingLink}`)}`}
+                            href={`https://wa.me/${item.clientPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${item.clientName}, your BxStrength Free 15-Min Strategy Session link is ready: ${formatMeetingUrl(item.meetingLink)}`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="bg-emerald-950/70 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/60 px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"

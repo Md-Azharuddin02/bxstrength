@@ -63,20 +63,22 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => VelocityAPI.getSubscriptions());
   const [enquiries, setEnquiries] = useState<Enquiry[]>(() => VelocityAPI.getEnquiries(user.email));
   const [notifications, setNotifications] = useState<InAppNotification[]>([]);
-  const [consultations, setConsultations] = useState<ConsultationBooking[]>([]);
-  const [assessments, setAssessments] = useState<AthleteAssessment[]>([]);
+  const [consultations, setConsultations] = useState<ConsultationBooking[]>(() => VelocityAPI.getConsultations(user.email));
+  const [assessments, setAssessments] = useState<AthleteAssessment[]>(() => VelocityAPI.getAssessments(user.email));
+  const [isAssessmentsLoading, setIsAssessmentsLoading] = useState<boolean>(() => VelocityAPI.getAssessments(user.email).length === 0);
   const [showNotificationsMenu, setShowNotificationsMenu] = useState<boolean>(false);
 
   const loadDashboardData = async (_isInitial = false) => {
     try {
       // Fire all background API fetches in parallel for maximum speed
-      const [progRes, nutRes, classRes, subRes, consRes, notifRes, statsRes] = await Promise.allSettled([
+      const [progRes, nutRes, classRes, subRes, consRes, notifRes, assessRes, statsRes] = await Promise.allSettled([
         VelocityAPI.fetchPrograms(user.id),
         VelocityAPI.fetchNutritionPlans(user.id),
         VelocityAPI.fetchClasses(),
         VelocityAPI.fetchSubscriptions(),
         VelocityAPI.fetchConsultations(user.email),
         VelocityAPI.fetchInAppNotifications(user.email),
+        VelocityAPI.fetchAssessments({ email: user.email }),
         VelocityAPI.fetchBodyStats(user.id)
       ]);
 
@@ -93,6 +95,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       if (subRes.status === 'fulfilled' && Array.isArray(subRes.value)) setSubscriptions(subRes.value);
       if (consRes.status === 'fulfilled' && Array.isArray(consRes.value)) setConsultations(consRes.value);
       if (notifRes.status === 'fulfilled' && Array.isArray(notifRes.value)) setNotifications(notifRes.value);
+      if (assessRes.status === 'fulfilled' && Array.isArray(assessRes.value)) setAssessments(assessRes.value);
+      if (statsRes.status === 'fulfilled' && Array.isArray(statsRes.value)) setBodyStats(statsRes.value);
 
       if (statsRes.status === 'fulfilled') {
         setBodyStats(statsRes.value);
@@ -107,6 +111,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       console.warn('Dashboard sync background error:', err?.message);
     } finally {
       setIsLoading(false);
+      setIsAssessmentsLoading(false);
     }
   };
 
@@ -153,8 +158,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     { id: 'free-demo', label: 'FREE DEMO (15-MIN)', icon: Sparkles },
     { id: 'assessments', label: 'MY ASSESSMENT', icon: ClipboardCheck },
     { id: 'stats', label: 'BODY STATS & BMI', icon: Scale },
-    ...(permissions.showUserWorkoutLogger !== false ? [{ id: 'workouts', label: 'WORKOUT ROUTINES', icon: Dumbbell }] : []),
-    ...(permissions.showUserNutritionTracker !== false ? [{ id: 'nutrition', label: 'NUTRITION DIET', icon: Utensils }] : []),
+    ...(permissions.showUserWorkoutLogger !== false ? [{ id: 'workouts', label: 'WORKOUT PROGRAMS', icon: Dumbbell }] : []),
+    ...(permissions.showUserNutritionTracker !== false ? [{ id: 'nutrition', label: 'DIET PLANS', icon: Utensils }] : []),
     { id: 'tickets', label: 'SUPPORT TICKETS', icon: LifeBuoy },
     ...(permissions.showUserBillingHistory !== false ? [{ id: 'subscription', label: 'SUBSCRIPTION', icon: CreditCard }] : []),
     { id: 'profile', label: 'MY PROFILE', icon: UserCheck }
@@ -381,8 +386,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 announcements={announcements}
                 enquiries={enquiries}
                 consultations={consultations}
-
-
+                onOpenBooking={onOpenBooking}
+                onOpenAssessment={onOpenAssessment}
                 onNavigateTab={(tab) => setActiveTab(tab)}
               />
             )}
@@ -400,6 +405,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
               <MyAssessmentsView
                 user={user}
                 assessments={assessments}
+                isLoading={isAssessmentsLoading}
                 onOpenAssessment={onOpenAssessment}
                 onNavigateTab={(tab) => setActiveTab(tab)}
               />
@@ -417,6 +423,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             {activeTab === 'workouts' && (
               <WorkoutPlansView
                 programs={[...programs].sort((a, b) => (a.assignedToUserId === user.id ? -1 : 1))}
+                user={user}
                 onShowToast={showToast}
               />
             )}
@@ -424,6 +431,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             {activeTab === 'nutrition' && (
               <NutritionPlanView
                 plans={[...nutritionPlans].sort((a, b) => (a.assignedToUserId === user.id ? -1 : 1))}
+                user={user}
                 onShowToast={showToast}
               />
             )}

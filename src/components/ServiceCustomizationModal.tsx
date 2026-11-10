@@ -1010,7 +1010,23 @@ export const ServiceCustomizationModal: React.FC<
           try {
             const pkgType = isCustomPlan ? 'custom' : isWeeklyPlan ? 'weekly' : isMonthlyPlan ? 'monthly' : 'standard';
             const totalSess = isWeeklyPlan ? 3 : isMonthlyPlan ? 12 : isCustomPlan ? 1 : 1;
-            const durationMin = isCustomPlan ? customPlanTotalMinutes : (isWeeklyPlan ? 30 : isMonthlyPlan ? 45 : 30);
+            const durationMin = isCustomPlan
+              ? customPlanTotalMinutes
+              : isBasic
+              ? 15
+              : isFocus
+              ? 30
+              : isPerformance
+              ? 45
+              : isComplete
+              ? 60
+              : isWellness
+              ? 30
+              : isWeeklyPlan
+              ? 30
+              : isMonthlyPlan
+              ? 45
+              : parseInt(String(service.duration || '')) || 30;
 
             const disclosuresObj = {
               ageConfirmed: Boolean(ageConfirmed),

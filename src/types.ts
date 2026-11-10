@@ -581,6 +581,9 @@ export interface ConsultationBooking {
   assignedBy?: string | null;
   assignedAt?: string | null;
   meetingLink?: string;
+  preferredDate?: string;
+  preferredTime?: string;
+  updatedAt?: string | null;
   remindersSent?: {
     h24?: boolean;
     h2?: boolean;
@@ -615,6 +618,38 @@ export interface PaidPackageBooking {
   meetingLink?: string | null;
   coachNotes?: string | null;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface BookingDietPlan {
+  id: string;
+  bookingId: string;
+  clientEmail: string;
+  clientName: string;
+  coachId?: string | null;
+  coachName?: string | null;
+  title: string;
+  validFrom: string;
+  validTo: string;
+  content: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BookingWorkoutPlan {
+  id: string;
+  bookingId: string;
+  clientEmail: string;
+  clientName: string;
+  coachId?: string | null;
+  coachName?: string | null;
+  title: string;
+  validFrom: string;
+  validTo: string;
+  content: string;
+  status?: string;
+  createdAt?: string;
   updatedAt?: string;
 }
 

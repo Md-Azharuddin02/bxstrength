@@ -3,7 +3,7 @@ import { SupportTicket, TicketStatus, TicketPriority, TicketCategory, TicketSour
 import { PaidBookingsView } from '../head-coach/PaidBookingsView';
 import { CoachAvailabilityRoster } from './CoachAvailabilityRoster';
 import { normalizeRole } from '../../utils/auth';
-import { VelocityAPI, getApiUrl, decodeHtmlEntities } from '../../services/api';
+import { VelocityAPI, getApiUrl, decodeHtmlEntities, apiFetch } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { PhoneInput } from '../../components/PhoneInput';
@@ -76,17 +76,40 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
   // Delete Confirm Modal State
   const [deletingTicket, setDeletingTicket] = useState<SupportTicket | null>(null);
 
-  const fetchTickets = (isInitial = false) => {
+  const fetchTickets = async (isInitial = false) => {
     if (isInitial) setIsLoading(true);
-    const loaded = VelocityAPI.getTickets();
-    setTickets(loaded);
-    if (loaded.length > 0 && !selectedTicket) {
-      setSelectedTicket(loaded[0]);
-    } else if (selectedTicket) {
-      const updated = loaded.find(t => t.id === selectedTicket.id);
-      if (updated) setSelectedTicket(updated);
+    try {
+      const localTickets = VelocityAPI.getTickets();
+      let serverTickets: SupportTicket[] = [];
+      try {
+        const res = await apiFetch('/api/tickets');
+        if (res.ok) {
+          serverTickets = await res.json();
+        }
+      } catch (err) {
+        console.warn('Failed to fetch server tickets in CS:', err);
+      }
+
+      const mapById = new Map<string, SupportTicket>();
+      [...localTickets, ...serverTickets].forEach(t => {
+        if (t && t.id && t.id !== 'TICKET-849201' && t.id !== 'TICKET-739104') {
+          mapById.set(t.id, t);
+        }
+      });
+      const loaded = Array.from(mapById.values());
+      setTickets(loaded);
+      if (loaded.length > 0 && !selectedTicket) {
+        setSelectedTicket(loaded[0]);
+      } else if (selectedTicket) {
+        const updated = loaded.find(t => t.id === selectedTicket.id);
+        if (updated) setSelectedTicket(updated);
+      }
+    } catch {
+      const loaded = VelocityAPI.getTickets().filter(t => t.id !== 'TICKET-849201' && t.id !== 'TICKET-739104');
+      setTickets(loaded);
+    } finally {
+      if (isInitial) setIsLoading(false);
     }
-    if (isInitial) setIsLoading(false);
   };
 
   // Live Coaches & Paid Bookings state for Customer Support Oversight
@@ -190,9 +213,16 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     return 0;
   });
 
-  const handleUpdateStatus = (status: TicketStatus) => {
+  const handleUpdateStatus = async (status: TicketStatus) => {
     if (!selectedTicket) return;
     const updated = VelocityAPI.updateTicketStatus(selectedTicket.id, status);
+    try {
+      await apiFetch(`/api/tickets/${encodeURIComponent(selectedTicket.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+    } catch {}
     if (updated) {
       setSelectedTicket(updated);
       fetchTickets();
@@ -210,15 +240,23 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     }
   };
 
-  const handleSendResponse = () => {
+  const handleSendResponse = async () => {
     if (!selectedTicket || !responseInput.trim()) return;
+    const text = responseInput.trim();
     const updated = VelocityAPI.addTicketMessage(
       selectedTicket.id,
-      responseInput.trim(),
+      text,
       communicationTab === 'chat' ? 'chat' : 'email',
       activeRoleView === 'admin' ? 'Admin Support Desk' : (activeRoleView === 'headcoach' ? 'Head Coach Desk' : (activeRoleView === 'coach' ? 'Coach Support Desk' : 'CS Team Agent')),
       'agent'
     );
+    try {
+      await apiFetch(`/api/tickets/${encodeURIComponent(selectedTicket.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminResponse: text, status: 'resolved' })
+      });
+    } catch {}
     if (updated) {
       setSelectedTicket(updated);
       setResponseInput('');
@@ -300,9 +338,12 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     onShowToast(`New ticket #${created.id} logged successfully in CS Dashboard.`);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deletingTicket) return;
     VelocityAPI.deleteTicket(deletingTicket.id);
+    try {
+      await apiFetch(`/api/tickets/${encodeURIComponent(deletingTicket.id)}`, { method: 'DELETE' });
+    } catch {}
     if (selectedTicket?.id === deletingTicket.id) {
       setSelectedTicket(null);
     }

@@ -1,4 +1,6 @@
 import { PaidPackageBooking,
+  BookingDietPlan,
+  BookingWorkoutPlan,
   ConsultationBooking,
   AthleteAssessment,
   User,
@@ -57,6 +59,7 @@ import {
 } from "./core/http";
 import {
   decodeHtmlEntities,
+  formatMeetingUrl,
   dicebearAvatar,
   toUser,
   upsertUser,
@@ -81,10 +84,11 @@ import { reviewsApi } from "./features/reviews";
 import { ticketsApi } from "./features/tickets";
 import { coachPermissionsApi } from "./features/coachPermissions";
 import { trainersApi } from "./features/trainers";
+import { bookingPlansApi } from "./features/bookingPlans";
 
 // Re-exported so existing `services/api` importers keep working unchanged.
 export { getApiUrl, apiFetch } from "./core/http";
-export { decodeHtmlEntities } from "./core/mappers";
+export { decodeHtmlEntities, formatMeetingUrl } from "./core/mappers";
 export { initStore } from "./core/storage";
 export { DEFAULT_COACH_PERMISSIONS } from "./core/constants";
 
@@ -783,15 +787,37 @@ export const VelocityAPI = {
 
     // Real-Time NeonDB Database Sync via REST API
     try {
-      const token = getToken();
-      await fetch(getApiUrl(`/api/users/${id}`), {
+      const res = await apiFetch(getApiUrl(`/api/users/${id}`), {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(updates)
       });
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data?.user) {
+          targetUser = {
+            ...targetUser,
+            name: data.user.name || targetUser.name,
+            email: data.user.email || targetUser.email,
+            phone: data.user.phone || targetUser.phone,
+            heightCm: Number(data.user.height_cm ?? targetUser.heightCm),
+            age: Number(data.user.age ?? targetUser.age),
+            gender: data.user.gender || targetUser.gender,
+            fitnessGoals: data.user.fitness_goals || targetUser.fitnessGoals,
+            emergencyContact: data.user.emergency_contact || targetUser.emergencyContact,
+            avatarUrl: data.user.avatar_url || targetUser.avatarUrl
+          };
+          if (idx !== -1) {
+            users[idx] = targetUser;
+          }
+          setItem(STORAGE_KEYS.USERS, users);
+          if (current && (current.id === id || current.email.toLowerCase() === targetUser.email.toLowerCase())) {
+            setItem(STORAGE_KEYS.CURRENT_USER, targetUser);
+          }
+        }
+      }
     } catch (err: any) {
       console.error('NeonDB Update User Error:', err.message);
     }
@@ -2337,6 +2363,15 @@ export const VelocityAPI = {
     return clean;
   },
 
+  getConsultations(email?: string): ConsultationBooking[] {
+    const raw = getItem<ConsultationBooking[]>('bxstrength_consultations', []);
+    if (email) {
+      const search = email.toLowerCase().trim();
+      return raw.filter((c) => (c.clientEmail || '').toLowerCase().trim() === search);
+    }
+    return raw;
+  },
+
   async fetchConsultations(email?: string, coachId?: string): Promise<ConsultationBooking[]> {
     try {
       const q = new URLSearchParams();
@@ -2347,13 +2382,20 @@ export const VelocityAPI = {
       if (res.ok) {
         const raw = await res.json();
         if (Array.isArray(raw)) {
+          // Merge with existing local cache
+          const current = getItem<ConsultationBooking[]>('bxstrength_consultations', []);
+          const merged = [...raw];
+          current.forEach(c => {
+            if (!merged.some(m => m.id === c.id)) merged.push(c);
+          });
+          setItem('bxstrength_consultations', merged);
           return raw;
         }
       }
     } catch (err: any) {
       console.warn('Failed to fetch consultations from backend:', err?.message);
     }
-    return [];
+    return this.getConsultations(email);
   },
 
   async assignConsultation(id: string, data: {
@@ -2372,7 +2414,16 @@ export const VelocityAPI = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Failed to assign consultation');
     }
-    return await res.json();
+    const result = await res.json();
+    if (result.consultation) {
+      const current = getItem<ConsultationBooking[]>('bxstrength_consultations', []);
+      const updated = current.map(c => c.id === id ? { ...c, ...result.consultation } : c);
+      setItem('bxstrength_consultations', updated);
+      try {
+        window.dispatchEvent(new CustomEvent('bxstrength_consultations_updated'));
+      } catch (_) {}
+    }
+    return result;
   },
 
   async updateConsultationStatus(id: string, data: {
@@ -2389,7 +2440,25 @@ export const VelocityAPI = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Failed to update consultation status');
     }
-    return await res.json();
+    const result = await res.json();
+    if (result.consultation) {
+      const current = getItem<ConsultationBooking[]>('bxstrength_consultations', []);
+      const updated = current.map(c => c.id === id ? { ...c, ...result.consultation } : c);
+      setItem('bxstrength_consultations', updated);
+      try {
+        window.dispatchEvent(new CustomEvent('bxstrength_consultations_updated'));
+      } catch (_) {}
+    }
+    return result;
+  },
+
+  getAssessments(email?: string): AthleteAssessment[] {
+    const raw = getItem<AthleteAssessment[]>('bxstrength_assessments', []);
+    if (email) {
+      const search = email.toLowerCase().trim();
+      return raw.filter((a) => (a.clientEmail || '').toLowerCase().trim() === search);
+    }
+    return raw;
   },
 
   async fetchAssessments(params?: { email?: string; coachId?: string }): Promise<AthleteAssessment[]> {
@@ -3731,5 +3800,7 @@ export const VelocityAPI = {
   ...reviewsApi,
   ...ticketsApi,
   ...coachPermissionsApi,
+
   ...trainersApi,
+  ...bookingPlansApi,
 };

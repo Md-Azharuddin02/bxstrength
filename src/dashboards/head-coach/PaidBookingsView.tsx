@@ -1,4 +1,4 @@
-import { decodeHtmlEntities } from '../../services/core/mappers';
+import { decodeHtmlEntities, formatMeetingUrl } from '../../services/core/mappers';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { PaidPackageBooking, User } from '../../types';
 import { VelocityAPI } from '../../services/api';
@@ -361,9 +361,6 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
             <Award className="w-5 h-5 text-[#CCFF00]" />
             PAID PACKAGES & 1-ON-1 SESSIONS DESK
           </h2>
-          <p className="text-xs text-gray-400 mt-1">
-            Manage purchases from Train Your Way, Personalised Support, and Commit & Save. Assign coaches, set video meeting links, and log completed sessions.
-          </p>
         </div>
 
         <button
@@ -376,18 +373,20 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-2 ${isCustomerSupport ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-4`}>
         <div className="bg-[#111111] border border-gray-800 p-4 rounded-lg">
           <p className="text-[11px] font-mono text-gray-400 uppercase">Total Paid Bookings</p>
           <p className="text-2xl font-black text-white mt-1">{metrics.total}</p>
           <p className="text-[10px] text-gray-500 mt-0.5">{metrics.active} active / scheduled</p>
         </div>
 
-        <div className="bg-[#111111] border border-gray-800 p-4 rounded-lg">
-          <p className="text-[11px] font-mono text-gray-400 uppercase">Total Revenue</p>
-          <p className="text-2xl font-black text-[#CCFF00] mt-1">£{metrics.totalRevenue.toLocaleString()}</p>
-          <p className="text-[10px] text-gray-500 mt-0.5">Verified package payments</p>
-        </div>
+        {!isCustomerSupport && (
+          <div className="bg-[#111111] border border-gray-800 p-4 rounded-lg">
+            <p className="text-[11px] font-mono text-gray-400 uppercase">Total Revenue</p>
+            <p className="text-2xl font-black text-[#CCFF00] mt-1">£{metrics.totalRevenue.toLocaleString()}</p>
+            <p className="text-[10px] text-gray-500 mt-0.5">Verified package payments</p>
+          </div>
+        )}
 
         <div className="bg-[#111111] border border-gray-800 p-4 rounded-lg">
           <p className="text-[11px] font-mono text-gray-400 uppercase">Session Delivery</p>
@@ -488,14 +487,17 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                       <span className="text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded bg-[#CCFF00]/10 text-[#CCFF00] border border-[#CCFF00]/30">
                         {b.packageType}
                       </span>
-                      <span className="text-[10px] font-mono text-gray-400">
-                        REF: {b.id}
+                      <span className="text-[10px] font-mono text-gray-300 bg-zinc-900 border border-zinc-700/80 px-2 py-0.5 rounded">
+                        <strong className="text-zinc-400">ORDER ID:</strong> {b.id}
                       </span>
-                      {b.orderId && (
-                        <span className="text-[10px] font-mono text-zinc-500">
-                          ORDER: {b.orderId}
+                      {(b.paymentId || b.orderId) && (
+                        <span className="text-[10px] font-mono text-zinc-400 bg-zinc-900/60 border border-zinc-800 px-2 py-0.5 rounded">
+                          <strong className="text-zinc-500">TRANSACTION ID:</strong> {b.paymentId || b.orderId}
                         </span>
                       )}
+                      <span className="text-[10px] font-mono text-zinc-300 bg-zinc-900 border border-zinc-700 px-2 py-0.5 rounded flex items-center gap-1 font-bold">
+                        <Clock className="w-3 h-3 text-[#CCFF00]" /> {b.durationMinutes} Min / Session
+                      </span>
                       <span className="text-[10px] text-gray-500">
                         • {new Date(b.createdAt).toLocaleDateString()}
                       </span>
@@ -512,9 +514,11 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-black text-[#CCFF00] font-mono">
-                      £{b.totalPrice}
-                    </span>
+                    {!isCustomerSupport && (
+                      <span className="text-sm font-black text-[#CCFF00] font-mono">
+                        £{b.totalPrice}
+                      </span>
+                    )}
 
                     <span
                       className={`text-xs font-black uppercase px-2.5 py-1 rounded-full border ${
@@ -560,7 +564,7 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                     <p className="text-gray-400 font-bold uppercase text-[10px]">Live Meeting Link</p>
                     {b.meetingLink ? (
                       <a
-                        href={b.meetingLink.startsWith('http') ? b.meetingLink : `https://${b.meetingLink}`}
+                        href={formatMeetingUrl(b.meetingLink)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[#CCFF00] hover:underline font-bold text-xs flex items-center gap-1 mt-0.5"

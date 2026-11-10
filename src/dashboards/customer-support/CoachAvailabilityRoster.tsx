@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { PaidPackageBooking, User } from '../../types';
-import { VelocityAPI, decodeHtmlEntities } from '../../services/api';
+import { VelocityAPI, decodeHtmlEntities, formatMeetingUrl } from '../../services/api';
 import { normalizeRole } from '../../utils/auth';
 import {
   UserCheck, CheckCircle2, AlertCircle, Clock, Video, ExternalLink,
@@ -382,7 +382,7 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
                               <span className="text-zinc-500">Live Video:</span>
                               {b.meetingLink ? (
                                 <a
-                                  href={b.meetingLink.startsWith('http') ? b.meetingLink : `https://${b.meetingLink}`}
+                                  href={formatMeetingUrl(b.meetingLink)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-[#CCFF00] hover:underline font-bold flex items-center gap-1"
@@ -489,7 +489,7 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
                   <option value="" disabled>-- Select athlete booking --</option>
                   {unassignedBookings.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {decodeHtmlEntities(b.clientName)} — {decodeHtmlEntities(b.packageName)} (£{b.totalPrice}) [Ref: {b.id}]
+                      {decodeHtmlEntities(b.clientName)} — {decodeHtmlEntities(b.packageName)} [Ref: {b.id}]
                     </option>
                   ))}
                 </select>

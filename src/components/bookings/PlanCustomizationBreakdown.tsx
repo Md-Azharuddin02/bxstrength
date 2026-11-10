@@ -75,8 +75,14 @@ export const PlanCustomizationBreakdown: React.FC<PlanCustomizationBreakdownProp
     : [];
 
   const structureLabel: string =
-    customizedDetails?.structure ||
-    (durationMinutes ? `${durationMinutes} minutes` : '');
+    (packageName?.toLowerCase().includes('basic')
+      ? '15 minutes'
+      : packageName?.toLowerCase().includes('complete')
+      ? '60 minutes'
+      : packageName?.toLowerCase().includes('performance')
+      ? '45 minutes'
+      : customizedDetails?.structure ||
+        (durationMinutes ? `${durationMinutes} minutes` : ''));
 
   const totalCustomMinutes: number | undefined =
     customizedDetails?.totalMinutes || durationMinutes;

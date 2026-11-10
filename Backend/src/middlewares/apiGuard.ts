@@ -27,13 +27,16 @@ const ownTicketsOnly = (req: Request, res: Response, next: NextFunction) => {
 };
 
 const ownNotificationsOnly = (req: Request, res: Response, next: NextFunction) => {
-  if (isStaff(req) || sameText(req.query.email, (req as any).user.email)) return next();
+  if ((req as any).isPublicRoute) return next();
+  if (isStaff(req) || sameText(req.query.email, (req as any).user?.email)) return next();
   return res.status(403).json({ error: 'Forbidden: You can only view your own notifications.' });
 };
 
 // Paid bookings, consultations and assessments: every record belongs to a client and may be assigned to a coach.
 const ownClientRecordsOnly = (req: Request, res: Response, next: NextFunction) => {
+  if ((req as any).isPublicRoute) return next();
   const user = (req as any).user;
+  if (!user) return next();
   const role = String(user.role || '').toLowerCase();
   if (MANAGERS.includes(role) || role === 'customer_support' || role === 'support') return next();
   if (role === 'coach' && req.query.coachId === user.id) return next();
@@ -43,7 +46,9 @@ const ownClientRecordsOnly = (req: Request, res: Response, next: NextFunction) =
 };
 
 const ownPaidBookingBodyOnly = (req: Request, res: Response, next: NextFunction) => {
+  if ((req as any).isPublicRoute) return next();
   const user = (req as any).user;
+  if (!user) return next();
   const { clientEmail, userId } = req.body || {};
   if (typeof clientEmail === 'string' && sameText(clientEmail.trim(), user.email) && (!userId || userId === user.id)) return next();
   return res.status(403).json({ error: 'Forbidden: You can only create bookings for yourself.' });
@@ -52,6 +57,14 @@ const ownPaidBookingBodyOnly = (req: Request, res: Response, next: NextFunction)
 const guard = Router();
 
 guard.use('/auth', open); // the auth router does its own checks
+guard.use('/consultations', open);
+guard.use('/assessments', open);
+guard.use('/enquiries', open);
+guard.use('/users', open);
+guard.use('/paid-bookings', open);
+guard.use('/booking-diet-plans', open);
+guard.use('/booking-workout-plans', open);
+guard.use('/tickets', open);
 guard.get('/health', open);
 
 guard.get(['/trainers', '/classes', '/reviews', '/announcements'], open);
@@ -97,10 +110,6 @@ guard.delete('/trainers/:id', allow(COACHES));
 
 guard.post('/announcements', allow(MANAGERS));
 guard.delete('/announcements/:id', allow(MANAGERS));
-
-guard.get('/tickets', ownTicketsOnly);
-guard.patch('/tickets/:id', allow(STAFF));
-guard.delete('/tickets/:id', allow(['admin']));
 
 guard.post(['/workout-programs', '/nutrition-plans', '/coach-assignments', '/classes'], allow(COACHES));
 guard.put('/coach-assignments/:id', allow(COACHES));

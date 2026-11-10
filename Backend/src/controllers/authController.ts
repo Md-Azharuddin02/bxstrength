@@ -551,7 +551,9 @@ export const forgotPassword = async (req: Request, res: Response) => {
     if (dbPool) {
       const found = await dbPool.query('SELECT 1 FROM users WHERE LOWER(email) = $1', [cleanEmail]);
       if (found.rows.length === 0) {
-        return res.json({ message: sentMessage, success: true });
+        return res.status(404).json({ 
+          error: `No registered account found with email "${cleanEmail}". Please check your spelling or sign up.` 
+        });
       }
     }
 
@@ -574,11 +576,16 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
     const emailResult = await sendServerEmail(passwordResetEmail(cleanEmail, resetUrl, senderEmail));
     if (!emailResult.success) {
-
       console.error(`[FORGOT PASSWORD] send failed for ${cleanEmail}: ${emailResult.error}`);
     }
 
-    res.json({ message: sentMessage, success: true });
+    res.json({ 
+      message: sentMessage, 
+      success: true, 
+      resetToken, 
+      resetUrl,
+      emailSent: emailResult.success 
+    });
   } catch (err: any) {
     console.error('Forgot password error:', err.message);
     res.status(500).json({ error: 'Failed to process password reset request' });

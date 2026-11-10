@@ -82,6 +82,25 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
     }
   }, [user, isOpen]);
 
+    const [alreadySubmittedId, setAlreadySubmittedId] = useState<string | null>(null);
+
+  // Check if athlete has already submitted an assessment
+  useEffect(() => {
+    if (isOpen && user?.email) {
+      VelocityAPI.fetchAssessments({ email: user.email })
+        .then((list) => {
+          if (Array.isArray(list) && list.length > 0) {
+            setAlreadySubmittedId(list[0].id);
+          } else {
+            setAlreadySubmittedId(null);
+          }
+        })
+        .catch(() => {});
+    } else {
+      setAlreadySubmittedId(null);
+    }
+  }, [isOpen, user?.email]);
+
   const [isCompleted, setIsCompleted] = useState<boolean>(
     () => loadAssessmentDraft()?.isCompleted ?? false,
   );
@@ -225,7 +244,29 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
 
         {/* Modal Body Container with Scroll */}
         <div className="p-5 sm:p-8 overflow-y-auto flex-1">
-          {!isCompleted ? (
+          {alreadySubmittedId ? (
+            <div className="bg-[#121215] border border-amber-500/30 rounded-2xl p-8 text-center space-y-4 my-6">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 mx-auto flex items-center justify-center border border-amber-500/30 shadow-lg">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+              <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-950/60 px-2.5 py-1 border border-amber-800/80 rounded uppercase">
+                1 ASSESSMENT PER ATHLETE
+              </span>
+              <h3 className="text-xl font-black text-white uppercase tracking-tight">Assessment Already Submitted</h3>
+              <p className="text-xs text-zinc-300 max-w-md mx-auto leading-relaxed">
+                You have already submitted your athletic diagnostic assessment (<strong className="text-white font-mono">{alreadySubmittedId}</strong>). Each athlete is permitted strictly one assessment so our coaching team can provide focused guidance.
+              </p>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-6 py-3 bg-[#CCFF00] hover:bg-[#b8e600] text-black rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-xl shadow-[rgba(204,255,0,0.2)] cursor-pointer"
+                >
+                  Close & View Dashboard
+                </button>
+              </div>
+            </div>
+          ) : !isCompleted ? (
             <div>
               {/* Single Navigation Header Bar */}
               <div className="flex items-center justify-between gap-2 mb-6 pb-4 border-b border-zinc-800/60">

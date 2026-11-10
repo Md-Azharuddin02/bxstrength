@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User } from '../../types';
 import { useAuth } from '../../context/AuthContext';
-import { isValidUkMobile, UK_PHONE_ERROR_MSG } from '../../utils/phoneValidation';
+import { isValidUkMobile, isValidPhone, UK_PHONE_ERROR_MSG } from '../../utils/phoneValidation';
 import { PhoneInput } from '../../components/PhoneInput';
 import { Camera, CheckCircle2, ShieldCheck, Mail, Phone, Lock, Save, AlertCircle, RefreshCw, Eye, EyeOff } from 'lucide-react';
 
@@ -22,13 +22,11 @@ export const ProfileManagement: React.FC<ProfileManagementProps> = ({ user, onSh
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl || '');
 
   // Password Visibility States
-  const [showCurrentPass, setShowCurrentPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Password state
-  const [currentPass, setCurrentPass] = useState(user.password || user.password_or_hash || user.password_hash || '');
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [passError, setPassError] = useState<string | null>(null);
@@ -36,10 +34,6 @@ export const ProfileManagement: React.FC<ProfileManagementProps> = ({ user, onSh
   React.useEffect(() => {
     if (user) {
       setHeightCm(user.heightCm !== undefined && user.heightCm !== null ? user.heightCm : 0);
-      const userPassword = user.password || user.password_or_hash || user.password_hash;
-      if (userPassword) {
-        setCurrentPass(userPassword);
-      }
     }
   }, [user]);
 
@@ -62,7 +56,7 @@ export const ProfileManagement: React.FC<ProfileManagementProps> = ({ user, onSh
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (phone && !isValidUkMobile(phone)) {
+    if (phone && !isValidUkMobile(phone) && !isValidPhone(phone)) {
       onShowToast(UK_PHONE_ERROR_MSG);
       return;
     }
@@ -88,16 +82,16 @@ export const ProfileManagement: React.FC<ProfileManagementProps> = ({ user, onSh
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentPass || !newPass) {
-      setPassError('Please enter both your current password and new password.');
-      return;
-    }
-    if (newPass !== confirmPass) {
-      setPassError('New passwords do not match.');
+    if (!newPass) {
+      setPassError('Please enter your new password.');
       return;
     }
     if (newPass.length < 6) {
       setPassError('Password must be at least 6 characters long.');
+      return;
+    }
+    if (newPass !== confirmPass) {
+      setPassError('New passwords do not match.');
       return;
     }
 
@@ -108,7 +102,6 @@ export const ProfileManagement: React.FC<ProfileManagementProps> = ({ user, onSh
         password: newPass,
         password_or_hash: newPass
       });
-      setCurrentPass(newPass);
       setNewPass('');
       setConfirmPass('');
       onShowToast('Security password updated successfully!');
@@ -322,34 +315,15 @@ export const ProfileManagement: React.FC<ProfileManagementProps> = ({ user, onSh
               </div>
             )}
 
-            <form onSubmit={handlePasswordChange} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-1">
-                    Current Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showCurrentPass ? 'text' : 'password'}
-                      value={currentPass}
-                      onChange={(e) => setCurrentPass(e.target.value)}
-                      maxLength={128}
-                      placeholder="Enter security password"
-                      className="w-full bg-gray-900 border border-gray-800 focus:border-[#E52165] text-white pl-3.5 pr-10 py-2.5 text-sm rounded-none outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowCurrentPass(!showCurrentPass)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
-                    >
-                      {showCurrentPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
+            <p className="text-xs text-zinc-400 mb-3">
+              Signed into your account: enter your new password below (min 6 characters). No old password required.
+            </p>
 
+            <form onSubmit={handlePasswordChange} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-1">
-                    New Password
+                    New Password *
                   </label>
                   <div className="relative">
                     <input
@@ -357,8 +331,9 @@ export const ProfileManagement: React.FC<ProfileManagementProps> = ({ user, onSh
                       value={newPass}
                       onChange={(e) => setNewPass(e.target.value)}
                       maxLength={128}
-                      placeholder="Enter security password"
+                      placeholder="Enter new password (min 6 chars)"
                       className="w-full bg-gray-900 border border-gray-800 focus:border-[#E52165] text-white pl-3.5 pr-10 py-2.5 text-sm rounded-none outline-none"
+                      required
                     />
                     <button
                       type="button"
@@ -372,7 +347,7 @@ export const ProfileManagement: React.FC<ProfileManagementProps> = ({ user, onSh
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-1">
-                    Confirm New Password
+                    Confirm New Password *
                   </label>
                   <div className="relative">
                     <input
@@ -380,8 +355,9 @@ export const ProfileManagement: React.FC<ProfileManagementProps> = ({ user, onSh
                       value={confirmPass}
                       onChange={(e) => setConfirmPass(e.target.value)}
                       maxLength={128}
-                      placeholder="Enter security password"
+                      placeholder="Confirm new password"
                       className="w-full bg-gray-900 border border-gray-800 focus:border-[#E52165] text-white pl-3.5 pr-10 py-2.5 text-sm rounded-none outline-none"
+                      required
                     />
                     <button
                       type="button"
@@ -397,9 +373,9 @@ export const ProfileManagement: React.FC<ProfileManagementProps> = ({ user, onSh
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-gray-800 hover:bg-gray-700 text-white text-xs font-black tracking-widest px-6 py-2.5 uppercase transition-all border border-gray-700"
+                className="bg-gray-800 hover:bg-gray-700 text-white text-xs font-black tracking-widest px-6 py-2.5 uppercase transition-all border border-gray-700 cursor-pointer"
               >
-                UPDATE PASSWORD
+                {loading ? 'UPDATING...' : 'UPDATE PASSWORD'}
               </button>
             </form>
           </div>

@@ -1,235 +1,165 @@
-import React, { useState } from 'react';
-import { NutritionPlan } from '../../types';
-import { Utensils, Droplets, Plus, CheckCircle2, Flame, Award, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, BookingDietPlan, PaidPackageBooking } from '../../types';
+import { VelocityAPI } from '../../services/api';
+import { Utensils, Calendar, UserCheck, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface NutritionPlanViewProps {
-  plans: NutritionPlan[];
+  plans?: any[];
+  user?: User;
   onShowToast: (msg: string) => void;
 }
 
-export const NutritionPlanView: React.FC<NutritionPlanViewProps> = ({ plans, onShowToast }) => {
-  const [waterMl, setWaterMl] = useState(1750);
+export const NutritionPlanView: React.FC<NutritionPlanViewProps> = ({ user: propUser, onShowToast }) => {
+  const currentUser = propUser || VelocityAPI.getCurrentUser();
+  const [dietPlans, setDietPlans] = useState<BookingDietPlan[]>([]);
+  const [bookings, setBookings] = useState<PaidPackageBooking[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
 
-  const publishedPlans = (plans || []).filter(p => p.isPublishedToClient !== false);
+  useEffect(() => {
+    const loadPlans = async () => {
+      if (!currentUser?.email) {
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const [fetchedPlans, fetchedBookings] = await Promise.all([
+          VelocityAPI.fetchBookingDietPlans({ clientEmail: currentUser.email }),
+          VelocityAPI.fetchPaidBookings({ email: currentUser.email })
+        ]);
+        setDietPlans(fetchedPlans);
+        setBookings(fetchedBookings);
+        // Expand the most recent active plan by default
+        if (fetchedPlans.length > 0) {
+          setExpandedPlanId(fetchedPlans[0].id);
+        }
+      } catch (err: any) {
+        console.error('Failed to load client diet plans:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  if (!publishedPlans || publishedPlans.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div className="bg-[#111111] border border-gray-800 p-6">
-          <h2 className="text-xl font-black uppercase tracking-tight text-white flex items-center gap-2">
-            <Utensils className="w-5 h-5 text-[#E52165]" />
-            NUTRITION & MACRONUTRIENT PLAN
-          </h2>
-          <p className="text-xs text-gray-400 mt-1">
-            Target calorie budget, protein breakdown, meal schedules, and hydration tracking.
-          </p>
-        </div>
-        <div className="bg-[#111111] border border-gray-800 p-12 text-center space-y-3 rounded-xl">
-          <Utensils className="w-10 h-10 text-gray-600 mx-auto" />
-          <h3 className="text-sm font-black uppercase text-white tracking-wider">NO DIET PLAN PUBLISHED YET</h3>
-          <p className="text-xs text-gray-400 max-w-md mx-auto leading-relaxed">
-            Your assigned BxStrength nutritionist or coach is reviewing your custom macronutrient protocol. Once published, it will automatically sync here.
-          </p>
-        </div>
-      </div>
-    );
-  }
+    loadPlans();
+  }, [currentUser?.email]);
 
-  const plan = publishedPlans[0];
-
-  const addWater = (ml: number) => {
-    const next = waterMl + ml;
-    setWaterMl(next);
-    onShowToast(`Logged +${ml}ml water intake! Total: ${next}ml / 3000ml`);
+  const getStatusBadge = (plan: BookingDietPlan) => {
+    const today = new Date().toISOString().split('T')[0];
+    if (plan.validFrom <= today && plan.validTo >= today) {
+      return (
+        <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          ACTIVE THIS WEEK
+        </span>
+      );
+    } else if (plan.validFrom > today) {
+      return (
+        <span className="bg-blue-500/10 text-blue-400 border border-blue-500/30 text-[10px] font-bold px-2 py-0.5 rounded uppercase">
+          UPCOMING
+        </span>
+      );
+    } else {
+      return (
+        <span className="bg-zinc-800 text-zinc-400 border border-zinc-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase">
+          PAST PLAN
+        </span>
+      );
+    }
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-[#111111] border border-gray-800 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-[#111111] border border-zinc-800 p-6 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-black uppercase tracking-tight text-white flex items-center gap-2">
-            <Utensils className="w-5 h-5 text-[#E52165]" />
-            NUTRITION & MACRONUTRIENT PLAN
+            <Utensils className="w-6 h-6 text-emerald-400" />
+            DIET PLANS
           </h2>
-          <p className="text-xs text-gray-400 mt-1">
-            Target calorie budget, protein breakdown, meal schedules, and hydration tracking.
+          <p className="text-xs text-zinc-400 mt-1">
+            Personalized nutrition protocols, calorie budgets, and meal schedules assigned by your BxStrength coach.
           </p>
         </div>
-
-        {plan && (
-          <div className="bg-pink-950/40 border border-pink-800/60 px-4 py-2 text-right rounded">
-            <span className="block text-[9px] uppercase font-bold text-gray-400">ASSIGNED DIET</span>
-            <span className="text-xs font-black text-pink-400 uppercase">{plan.title}</span>
-          </div>
-        )}
       </div>
 
-      {plan ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Columns: Macros & Meal Plan */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Macro Targets Visual Breakdown */}
-            <div className="bg-[#111111] border border-gray-800 p-6 rounded-lg">
-              <h3 className="text-sm font-black uppercase tracking-wider text-white mb-4 border-b border-gray-800 pb-3 flex items-center gap-2">
-                <Flame className="w-4 h-4 text-orange-500" />
-                DAILY MACRONUTRIENT TARGETS
-              </h3>
+      {/* Content */}
+      {isLoading ? (
+        <div className="bg-[#111111] border border-zinc-800 p-12 text-center text-zinc-500 rounded-xl">
+          Loading your diet plans...
+        </div>
+      ) : dietPlans.length === 0 ? (
+        <div className="bg-[#111111] border border-zinc-800 p-12 text-center space-y-3 rounded-xl">
+          <Utensils className="w-10 h-10 text-zinc-600 mx-auto" />
+          <h3 className="text-sm font-black uppercase text-white tracking-wider">NO DIET PLAN ASSIGNED YET</h3>
+          <p className="text-xs text-zinc-400 max-w-md mx-auto leading-relaxed">
+            Your personal BxStrength coach is customizing your nutrition protocol. As soon as your weekly diet plan is published, it will appear here.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {dietPlans.map((plan) => {
+            const relatedBooking = bookings.find(b => b.id === plan.bookingId);
+            const isExpanded = expandedPlanId === plan.id;
 
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
-                <div className="bg-gray-900 border border-gray-800 p-4 text-center rounded">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">Daily Energy</span>
-                  <div className="text-2xl font-black text-white font-mono">{plan.dailyCalories}</div>
-                  <span className="text-[10px] text-[#E52165] font-bold">KCAL / DAY</span>
-                </div>
-
-                <div className="bg-gray-900 border border-gray-800 p-4 text-center rounded">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">Target Protein</span>
-                  <div className="text-2xl font-black text-pink-400 font-mono">{plan.targetProteinG}g</div>
-                  <span className="text-[10px] text-gray-400">35% of Calories</span>
-                </div>
-
-                <div className="bg-gray-900 border border-gray-800 p-4 text-center rounded">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">Target Carbs</span>
-                  <div className="text-2xl font-black text-blue-400 font-mono">{plan.targetCarbsG}g</div>
-                  <span className="text-[10px] text-gray-400">45% of Calories</span>
-                </div>
-
-                <div className="bg-gray-900 border border-gray-800 p-4 text-center rounded">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">Target Healthy Fats</span>
-                  <div className="text-2xl font-black text-amber-400 font-mono">{plan.targetFatG}g</div>
-                  <span className="text-[10px] text-gray-400">20% of Calories</span>
-                </div>
-              </div>
-
-              {/* Progress bars */}
-              <div className="space-y-3">
-                <div>
-                  <div className="flex justify-between text-xs font-bold mb-1">
-                    <span className="text-pink-400">PROTEIN INTAKE</span>
-                    <span className="text-gray-300 font-mono">145g / {plan.targetProteinG}g</span>
-                  </div>
-                  <div className="w-full bg-gray-900 h-2 rounded-full overflow-hidden">
-                    <div className="bg-[#E52165] h-full rounded-full" style={{ width: '76%' }}></div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs font-bold mb-1">
-                    <span className="text-blue-400">CARBOHYDRATES</span>
-                    <span className="text-gray-300 font-mono">180g / {plan.targetCarbsG}g</span>
-                  </div>
-                  <div className="w-full bg-gray-900 h-2 rounded-full overflow-hidden">
-                    <div className="bg-blue-500 h-full rounded-full" style={{ width: '81%' }}></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Meal Schedule List */}
-            <div className="bg-[#111111] border border-gray-800 p-6 rounded-lg">
-              <h3 className="text-sm font-black uppercase tracking-wider text-white mb-4 border-b border-gray-800 pb-3">
-                MEAL TIMELINE & RECIPE INSTRUCTIONS
-              </h3>
-
-              <div className="space-y-3">
-                {plan.meals.map((meal) => (
-                  <div key={meal.id} className="bg-gray-900/90 border border-gray-800 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest bg-[#E52165] text-white px-2 py-0.5 rounded">
-                          {meal.timeSlot}
+            return (
+              <div
+                key={plan.id}
+                className="bg-[#111111] border border-zinc-800 rounded-xl overflow-hidden transition-all hover:border-zinc-700 shadow-lg"
+              >
+                {/* Plan Header Card */}
+                <div 
+                  onClick={() => setExpandedPlanId(isExpanded ? null : plan.id)}
+                  className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-zinc-950/60 cursor-pointer hover:bg-zinc-900/40 transition"
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-base font-bold text-white uppercase tracking-wide">
+                        {plan.title}
+                      </h3>
+                      {getStatusBadge(plan)}
+                      {relatedBooking && (
+                        <span className="text-[10px] font-bold bg-zinc-800 text-emerald-400 border border-emerald-400/20 px-2 py-0.5 rounded uppercase">
+                          {relatedBooking.packageName}
                         </span>
-                        <h4 className="text-sm font-bold text-white uppercase">{meal.mealName}</h4>
-                      </div>
-                      <p className="text-xs text-gray-300 mt-1">{meal.description}</p>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-2 font-mono text-xs font-bold bg-black px-3 py-2 border border-gray-800 self-start sm:self-auto rounded">
-                      <span className="text-white">{meal.calories} kcal</span>
-                      <span className="text-gray-500">•</span>
-                      <span className="text-pink-400">{meal.proteinG}g P</span>
-                      <span className="text-gray-500">•</span>
-                      <span className="text-blue-400">{meal.carbsG}g C</span>
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-400">
+                      <span className="flex items-center gap-1.5 text-zinc-300">
+                        <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                        Valid: <strong className="text-white">{plan.validFrom}</strong> to <strong className="text-white">{plan.validTo}</strong>
+                      </span>
+                      <span className="flex items-center gap-1 text-emerald-300 font-medium">
+                        <UserCheck className="w-3.5 h-3.5" />
+                        Coach: {plan.coachName || 'BxStrength Coaching Staff'}
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
 
-          {/* Right Column: Attribution & Water Tracker */}
-          <div className="space-y-6">
-            <div className="bg-[#111111] border border-gray-800 p-6 rounded-lg">
-              <h3 className="text-sm font-black uppercase tracking-wider text-white mb-3 border-b border-gray-800 pb-3 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-amber-400" />
-                ASSIGNMENT ATTRIBUTION
-              </h3>
-              <div className="space-y-2 text-xs">
-                <div className="bg-amber-950/30 border border-amber-800/40 p-2.5 rounded">
-                  <span className="text-[10px] text-amber-400 uppercase font-bold block">ASSIGNED BY</span>
-                  <span className="text-white font-bold">{plan.assignedBy || 'Shaban Faridi'}</span>
-                  <span className="text-amber-200/70 text-[10px] block">({plan.assignedByRole || 'Head Coach'})</span>
+                  <div className="flex items-center gap-2 self-end sm:self-center">
+                    <button
+                      type="button"
+                      className="text-xs font-bold uppercase tracking-wider text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
+                    >
+                      <span>{isExpanded ? 'Hide Details' : 'View Full Meal Plan'}</span>
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="bg-gray-900 border border-gray-800 p-2.5 rounded">
-                  <span className="text-[10px] text-gray-400 uppercase font-bold block">DESIGNATED NUTRITIONIST</span>
-                  <span className="text-emerald-400 font-bold">{plan.assignedCoachName || plan.createdBy || 'BxNutritionist'}</span>
-                </div>
-
-                <div className="flex justify-between text-gray-400 text-[11px] pt-1 border-t border-gray-800">
-                  <span>Assigned Date:</span>
-                  <span className="font-mono text-white">{new Date(plan.assignedAt || plan.updatedAt).toLocaleDateString()}</span>
-                </div>
-
-                {plan.publishedToClientAt && (
-                  <div className="flex justify-between text-gray-400 text-[11px]">
-                    <span>Published Date:</span>
-                    <span className="font-mono text-emerald-400">{new Date(plan.publishedToClientAt).toLocaleDateString()}</span>
+                {/* Plan Body Formatted Content */}
+                {isExpanded && (
+                  <div className="p-6 bg-[#0c0c0d] border-t border-zinc-800/80 space-y-4">
+                    <div 
+                      className="prose prose-invert prose-sm max-w-none [&_h3]:text-emerald-400 [&_h3]:font-black [&_h3]:text-base [&_h3]:mb-3 [&_h4]:text-white [&_h4]:font-bold [&_h4]:text-sm [&_h4]:mt-5 [&_h4]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_li]:text-zinc-300 text-sm leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: plan.content }}
+                    />
                   </div>
                 )}
               </div>
-            </div>
-
-            <div className="bg-[#111111] border border-gray-800 p-6 text-center rounded-lg">
-              <div className="w-12 h-12 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center mx-auto mb-3">
-                <Droplets className="w-6 h-6 animate-pulse" />
-              </div>
-
-              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">
-                DAILY HYDRATION LOG
-              </span>
-              <div className="text-3xl font-black text-white font-mono mt-1">
-                {waterMl} <span className="text-xs text-blue-400">/ 3000 ml</span>
-              </div>
-
-              <div className="w-full bg-gray-900 h-3 rounded-full overflow-hidden my-4 border border-gray-800">
-                <div
-                  className="bg-blue-500 h-full transition-all duration-300"
-                  style={{ width: `${Math.min(100, (waterMl / 3000) * 100)}%` }}
-                ></div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => addWater(250)}
-                  className="bg-gray-800 hover:bg-blue-600 text-white text-xs font-bold py-2.5 uppercase transition-colors border border-gray-700 flex items-center justify-center gap-1 rounded"
-                >
-                  <Plus className="w-3.5 h-3.5" /> +250 ML GLASS
-                </button>
-                <button
-                  onClick={() => addWater(500)}
-                  className="bg-gray-800 hover:bg-blue-600 text-white text-xs font-bold py-2.5 uppercase transition-colors border border-gray-700 flex items-center justify-center gap-1 rounded"
-                >
-                  <Plus className="w-3.5 h-3.5" /> +500 ML BOTTLE
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-[#111111] border border-gray-800 p-8 text-center text-xs text-gray-400">
-          No diet plans assigned yet.
+            );
+          })}
         </div>
       )}
     </div>

@@ -97,22 +97,35 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb', verify: (req, _res, buf) => { (req as any).rawBody = buf; } }));
 
-// Global Request Body & Query XSS Protection Sanitizer
+// Global Request Body & Query XSS Protection Sanitizer (Preserves valid URLs & Meeting Links)
 app.use((req, res, next) => {
   const sanitize = (obj: any, keyName?: string): any => {
     if (typeof obj === 'string') {
+      const lowerKey = (keyName || '').toLowerCase();
+      const isUrlOrLink =
+        lowerKey.includes('link') ||
+        lowerKey.includes('url') ||
+        lowerKey.includes('meeting') ||
+        obj.startsWith('http://') ||
+        obj.startsWith('https://') ||
+        obj.startsWith('//');
+
       // Do not escape HTML markup strings meant for email body or base64 images
-      if (keyName === 'htmlContent' || keyName === 'html' || keyName === 'htmlBody' || obj.startsWith('data:image/')) {
+      if (
+        keyName === 'htmlContent' ||
+        keyName === 'html' ||
+        keyName === 'htmlBody' ||
+        obj.startsWith('data:image/')
+      ) {
         return obj;
       }
-      return obj
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#x27;')
-        .replace(/\//g, '&#x2F;')
-        .trim();
+
+      // Preserve URLs and meeting links without escaping slashes or query parameters
+      if (isUrlOrLink) {
+        return decodeHtmlEntities(obj).trim();
+      }
+
+      return sanitizeInput(obj);
     }
     if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
       for (const k of Object.keys(obj)) {
@@ -2857,6 +2870,32 @@ app.post('/api/assessments', enquiryLimiter, async (req, res) => {
     const interest = sanitizeInput(trainingInterest || 'Not provided');
     const injuryDetails = sanitizeInput(hasInjury || 'Not provided');
 
+    // Duplicate submission check: Each athlete is permitted strictly 1 diagnostic assessment
+    if (dbPool) {
+      try {
+        const existingCheck = await dbPool.query(
+          `SELECT id, status, client_email 
+           FROM assessments 
+           WHERE LOWER(client_email) = $1
+           ORDER BY created_at DESC 
+           LIMIT 1`,
+          [leadEmail]
+        );
+
+        if (existingCheck.rows.length > 0) {
+          const prev = existingCheck.rows[0];
+          return res.status(409).json({
+            error: `You have already submitted an athletic assessment (#${prev.id}). Each athlete is permitted strictly one diagnostic assessment.`,
+            alreadySubmitted: true,
+            assessmentId: prev.id,
+            status: prev.status
+          });
+        }
+      } catch (checkErr: any) {
+        console.warn('Assessment eligibility check warning:', checkErr?.message);
+      }
+    }
+
     const assessmentId = `BX-ASSESS-${Math.floor(100000 + Math.random() * 900000)}`;
     const enquiryId = `enq-assess-${Date.now()}`;
     const assessmentMessage = `[SELF ASSESSMENT DIAGNOSTIC]\nGoal: ${goal}\nMain Obstacle: ${obstacle}\nExperience Level: ${experience}\nWeekly Commitment: ${commitment}\nTraining Location: ${location}\nEquipment: ${equipmentDetails}\nTraining Interest: ${interest}\nInjury / Medical Restriction: ${injuryDetails}\nPreferred Contact Method: ${preferredContactMethod || 'Not provided'}`;
@@ -2942,28 +2981,32 @@ app.get('/api/assessments', async (req, res) => {
 
     if (dbPool) {
       try {
-        let query = 'SELECT * FROM assessments';
+        let query = `
+          SELECT a.*, u.name AS user_name 
+          FROM assessments a 
+          LEFT JOIN users u ON LOWER(a.client_email) = LOWER(u.email)
+        `;
         const params: any[] = [];
         const conditions: string[] = [];
 
         if (email) {
-          conditions.push(`LOWER(client_email) = $${params.length + 1}`);
+          conditions.push(`LOWER(a.client_email) = $${params.length + 1}`);
           params.push(email);
         }
         if (coachId) {
-          conditions.push(`assigned_coach_id = $${params.length + 1}`);
+          conditions.push(`a.assigned_coach_id = $${params.length + 1}`);
           params.push(coachId);
         }
 
         if (conditions.length > 0) {
           query += ' WHERE ' + conditions.join(' AND ');
         }
-        query += ' ORDER BY created_at DESC';
+        query += ' ORDER BY a.created_at DESC';
 
         const result = await dbPool.query(query, params);
         const formatted = result.rows.map((r: any) => ({
           id: r.id,
-          clientName: r.client_name,
+          clientName: decodeHtmlEntities(r.user_name || r.client_name || '').replace(/<[^>]*>/g, '').trim() || (r.client_email ? r.client_email.split('@')[0] : 'Athlete'),
           clientEmail: r.client_email,
           clientPhone: r.client_phone || '',
           preferredContactMethod: r.preferred_contact_method || 'call',
@@ -3070,7 +3113,7 @@ app.patch('/api/assessments/:id/assign', async (req, res) => {
         success: true,
         assessment: {
           id: r.id,
-          clientName: r.client_name,
+          clientName: decodeHtmlEntities(r.client_name || '').replace(/<[^>]*>/g, '').trim() || (r.client_email ? r.client_email.split('@')[0] : 'Athlete'),
           clientEmail: r.client_email,
           clientPhone: r.client_phone,
           primaryGoal: r.primary_goal,
@@ -3158,7 +3201,7 @@ app.patch('/api/assessments/:id/status', requireCoachOwnsBooking(async (id) => {
         success: true,
         assessment: {
           id: r.id,
-          clientName: r.client_name,
+          clientName: decodeHtmlEntities(r.client_name || '').replace(/<[^>]*>/g, '').trim() || (r.client_email ? r.client_email.split('@')[0] : 'Athlete'),
           clientEmail: r.client_email,
           clientPhone: r.client_phone,
           primaryGoal: r.primary_goal,
@@ -3204,7 +3247,7 @@ app.post('/api/consultations', enquiryLimiter, async (req, res) => {
     const leadName = sanitizeInput(name);
     const leadEmail = sanitizeInput(email).toLowerCase();
     const leadPhone = sanitizeInput(phone || '');
-    const leadGoal = sanitizeInput(goal || 'Fitness Boxing');
+    const leadGoal = sanitizeInput(goal || '15-Min Free Strategy Demo');
     const leadDuration = sanitizeInput(duration || '15 Min');
     const coach = sanitizeInput(coachPreference || 'Head Coach Assignment');
     const date = sanitizeInput(preferredDate || '');
@@ -3360,11 +3403,7 @@ app.post('/api/consultations', enquiryLimiter, async (req, res) => {
       `
     }).catch((err) => console.error('[CONSULTATION ADMIN EMAIL ERROR]', err.message));
 
-    res.status(201).json({
-      message: 'Free consultation booked successfully',
-      bookingRef,
-      data: { id: bookingRef, name: leadName, email: leadEmail, phone: leadPhone, goal: leadGoal, duration: leadDuration, additionalNotes: additionalNotes || null, date, time, status: 'Pending' },
-    });
+    res.status(201).json({ message: 'Free consultation booked successfully', bookingRef, data: consultationJourneyRecord });
   } catch (err: any) {
     console.error('Consultation booking error:', err.message);
     res.status(500).json({ error: 'Failed to schedule consultation' });
@@ -3487,10 +3526,10 @@ app.get('/api/consultations', async (req, res) => {
         const result = await dbPool.query(query, params);
         const formatted = result.rows.map((r: any) => ({
           id: r.id,
-          clientName: r.client_name,
+          clientName: decodeHtmlEntities(r.client_name || '').replace(/<[^>]*>/g, '').trim() || (r.client_email ? r.client_email.split('@')[0] : 'Athlete'),
           clientEmail: r.client_email,
           clientPhone: r.client_phone || '',
-          goal: r.goal || 'Fitness Boxing',
+          goal: r.goal && r.goal !== 'Fitness Boxing' ? r.goal : '15-Min Free Strategy Demo',
           duration: r.duration || '15 Min',
           preferredDate: r.preferred_date || 'To be scheduled',
           preferredTime: r.preferred_time || 'To be scheduled',
@@ -3500,8 +3539,9 @@ app.get('/api/consultations', async (req, res) => {
           assignedCoachName: r.assigned_coach_name || null,
           assignedBy: r.assigned_by || null,
           assignedAt: r.assigned_at ? new Date(r.assigned_at).toISOString() : null,
-          meetingLink: r.meeting_link || '',
-          notes: r.notes || '',
+          meetingLink: decodeHtmlEntities(r.meeting_link || ''),
+          notes: decodeHtmlEntities(r.notes || ''),
+          updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : null,
           createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString()
         }));
         return res.json(formatted);
@@ -3555,7 +3595,7 @@ app.patch('/api/consultations/:id/assign', async (req, res) => {
         success: true,
         consultation: {
           id: r.id,
-          clientName: r.client_name,
+          clientName: decodeHtmlEntities(r.client_name || '').replace(/<[^>]*>/g, '').trim() || (r.client_email ? r.client_email.split('@')[0] : 'Athlete'),
           clientEmail: r.client_email,
           clientPhone: r.client_phone,
           goal: r.goal,
@@ -3640,7 +3680,7 @@ app.patch('/api/consultations/:id/status', requireCoachOwnsBooking(async (id) =>
                   <h3 style="color: #CCFF00; margin-top: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">SESSION DETAILS</h3>
                   <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #e4e4e7;">
                     <tr><td style="padding: 6px 0; color: #a1a1aa;">Assigned Coach:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${coachName}</td></tr>
-                    <tr><td style="padding: 6px 0; color: #a1a1aa;">Training Focus / Goal:</td><td style="padding: 6px 0; font-weight: bold; color: #CCFF00;">${r.goal || 'Fitness Boxing & Conditioning'}</td></tr>
+                    <tr><td style="padding: 6px 0; color: #a1a1aa;">Session Type:</td><td style="padding: 6px 0; font-weight: bold; color: #CCFF00;">${r.goal && r.goal !== 'Fitness Boxing' ? r.goal : '15-Min Free Strategy Demo'}</td></tr>
                     <tr><td style="padding: 6px 0; color: #a1a1aa;">Session Duration:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${r.duration || '15-20 Mins'}</td></tr>
                     ${notes ? `<tr><td style="padding: 6px 0; color: #a1a1aa;">Coach Notes:</td><td style="padding: 6px 0; color: #e4e4e7;">${notes}</td></tr>` : ''}
                   </table>
@@ -3756,7 +3796,7 @@ const formatPaidBookingRow = (r: any): ServerPaidBooking => ({
   assignedCoachName: r.assigned_coach_name || null,
   assignedBy: r.assigned_by || null,
   assignedAt: r.assigned_at ? new Date(r.assigned_at).toISOString() : null,
-  meetingLink: r.meeting_link || null,
+  meetingLink: r.meeting_link ? decodeHtmlEntities(r.meeting_link) : null,
   coachNotes: r.coach_notes || null,
   createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
   updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString()
@@ -3802,7 +3842,25 @@ app.post('/api/paid-bookings', async (req, res) => {
     const price = Number(totalPrice) || 0;
     const curr = sanitizeInput(currency || 'GBP');
     const sessions = Math.max(1, Number(totalSessions) || (cleanPkgType === 'weekly' ? 3 : cleanPkgType === 'monthly' ? 12 : 1));
-    const duration = Number(durationMinutes) || 45;
+    const pkgLower = cleanPkgName.toLowerCase();
+    let duration = Number(durationMinutes);
+    if (!duration || isNaN(duration) || (pkgLower.includes('basic') && duration !== 15) || (pkgLower.includes('complete') && duration !== 60)) {
+      if (customizedDetails && typeof customizedDetails === 'object' && customizedDetails.totalMinutes) {
+        duration = Number(customizedDetails.totalMinutes);
+      } else if (pkgLower.includes('basic')) {
+        duration = 15;
+      } else if (pkgLower.includes('complete')) {
+        duration = 60;
+      } else if (pkgLower.includes('performance')) {
+        duration = 45;
+      } else if (pkgLower.includes('monthly')) {
+        duration = 45;
+      } else if (pkgLower.includes('focus') || pkgLower.includes('weekly') || pkgLower.includes('wellness')) {
+        duration = 30;
+      } else if (!duration || isNaN(duration)) {
+        duration = 30;
+      }
+    }
     const validity = Number(validityDays) || 30;
 
     const bookingId = orderId && orderId.length > 5 ? (orderId.startsWith('BX-') ? orderId : `BX-BOOK-${orderId.slice(-8)}`) : `BX-BOOK-${Date.now()}`;
@@ -4144,6 +4202,228 @@ app.delete('/api/paid-bookings/:id', async (req, res) => {
   }
 });
 
+// --- BOOKING DIET PLANS CRUD ---
+app.get('/api/booking-diet-plans', async (req, res) => {
+  try {
+    const bookingId = typeof req.query.bookingId === 'string' ? req.query.bookingId.trim() : null;
+    const clientEmail = typeof req.query.clientEmail === 'string' ? req.query.clientEmail.trim().toLowerCase() : null;
+    const coachId = typeof req.query.coachId === 'string' ? req.query.coachId.trim() : null;
+
+    if (dbPool) {
+      let query = 'SELECT * FROM booking_diet_plans';
+      const conditions: string[] = [];
+      const params: any[] = [];
+
+      if (bookingId) {
+        conditions.push(`booking_id = $${params.length + 1}`);
+        params.push(bookingId);
+      }
+      if (clientEmail) {
+        conditions.push(`LOWER(client_email) = $${params.length + 1}`);
+        params.push(clientEmail);
+      }
+      if (coachId) {
+        conditions.push(`coach_id = $${params.length + 1}`);
+        params.push(coachId);
+      }
+      if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+      }
+      query += ' ORDER BY valid_from DESC, created_at DESC';
+
+      const result = await dbPool.query(query, params);
+      const formatted = result.rows.map((r: any) => ({
+        id: r.id,
+        bookingId: r.booking_id,
+        clientEmail: r.client_email,
+        clientName: r.client_name,
+        coachId: r.coach_id,
+        coachName: r.coach_name,
+        title: r.title,
+        validFrom: r.valid_from ? new Date(r.valid_from).toISOString().split('T')[0] : '',
+        validTo: r.valid_to ? new Date(r.valid_to).toISOString().split('T')[0] : '',
+        content: r.content,
+        status: r.status || 'active',
+        createdAt: r.created_at,
+        updatedAt: r.updated_at
+      }));
+      return res.json(formatted);
+    }
+    res.json([]);
+  } catch (err: any) {
+    console.error('Fetch diet plans error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch diet plans' });
+  }
+});
+
+app.post('/api/booking-diet-plans', async (req, res) => {
+  try {
+    const { bookingId, clientEmail, clientName, coachId, coachName, title, validFrom, validTo, content } = req.body;
+    if (!bookingId || !clientEmail || !title || !content || !validFrom || !validTo) {
+      return res.status(400).json({ error: 'bookingId, clientEmail, title, validFrom, validTo, and content are required' });
+    }
+
+    const id = `diet-plan-${Date.now()}`;
+    if (dbPool) {
+      const result = await dbPool.query(
+        `INSERT INTO booking_diet_plans (id, booking_id, client_email, client_name, coach_id, coach_name, title, valid_from, valid_to, content, status, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', NOW(), NOW())
+         RETURNING *`,
+        [id, bookingId, clientEmail.toLowerCase().trim(), clientName || 'Client', coachId || null, coachName || 'Coach', title.trim(), validFrom, validTo, content]
+      );
+      return res.status(201).json({ success: true, plan: result.rows[0] });
+    }
+    res.status(201).json({ success: true, plan: { id, bookingId, clientEmail, title, validFrom, validTo, content } });
+  } catch (err: any) {
+    console.error('Create diet plan error:', err.message);
+    res.status(500).json({ error: 'Failed to create diet plan' });
+  }
+});
+
+app.put('/api/booking-diet-plans/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, validFrom, validTo, content } = req.body;
+    if (dbPool) {
+      const result = await dbPool.query(
+        `UPDATE booking_diet_plans 
+         SET title = COALESCE($1, title), valid_from = COALESCE($2, valid_from), valid_to = COALESCE($3, valid_to), content = COALESCE($4, content), updated_at = NOW()
+         WHERE id = $5 RETURNING *`,
+        [title || null, validFrom || null, validTo || null, content || null, id]
+      );
+      return res.json({ success: true, plan: result.rows[0] });
+    }
+    res.json({ success: true, message: 'Plan updated' });
+  } catch (err: any) {
+    console.error('Update diet plan error:', err.message);
+    res.status(500).json({ error: 'Failed to update diet plan' });
+  }
+});
+
+app.delete('/api/booking-diet-plans/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (dbPool) {
+      await dbPool.query('DELETE FROM booking_diet_plans WHERE id = $1', [id]);
+    }
+    res.json({ success: true, message: 'Diet plan deleted' });
+  } catch (err: any) {
+    console.error('Delete diet plan error:', err.message);
+    res.status(500).json({ error: 'Failed to delete diet plan' });
+  }
+});
+
+// --- BOOKING WORKOUT PROGRAMS CRUD ---
+app.get('/api/booking-workout-plans', async (req, res) => {
+  try {
+    const bookingId = typeof req.query.bookingId === 'string' ? req.query.bookingId.trim() : null;
+    const clientEmail = typeof req.query.clientEmail === 'string' ? req.query.clientEmail.trim().toLowerCase() : null;
+    const coachId = typeof req.query.coachId === 'string' ? req.query.coachId.trim() : null;
+
+    if (dbPool) {
+      let query = 'SELECT * FROM booking_workout_plans';
+      const conditions: string[] = [];
+      const params: any[] = [];
+
+      if (bookingId) {
+        conditions.push(`booking_id = $${params.length + 1}`);
+        params.push(bookingId);
+      }
+      if (clientEmail) {
+        conditions.push(`LOWER(client_email) = $${params.length + 1}`);
+        params.push(clientEmail);
+      }
+      if (coachId) {
+        conditions.push(`coach_id = $${params.length + 1}`);
+        params.push(coachId);
+      }
+      if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+      }
+      query += ' ORDER BY valid_from DESC, created_at DESC';
+
+      const result = await dbPool.query(query, params);
+      const formatted = result.rows.map((r: any) => ({
+        id: r.id,
+        bookingId: r.booking_id,
+        clientEmail: r.client_email,
+        clientName: r.client_name,
+        coachId: r.coach_id,
+        coachName: r.coach_name,
+        title: r.title,
+        validFrom: r.valid_from ? new Date(r.valid_from).toISOString().split('T')[0] : '',
+        validTo: r.valid_to ? new Date(r.valid_to).toISOString().split('T')[0] : '',
+        content: r.content,
+        status: r.status || 'active',
+        createdAt: r.created_at,
+        updatedAt: r.updated_at
+      }));
+      return res.json(formatted);
+    }
+    res.json([]);
+  } catch (err: any) {
+    console.error('Fetch workout plans error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch workout plans' });
+  }
+});
+
+app.post('/api/booking-workout-plans', async (req, res) => {
+  try {
+    const { bookingId, clientEmail, clientName, coachId, coachName, title, validFrom, validTo, content } = req.body;
+    if (!bookingId || !clientEmail || !title || !content || !validFrom || !validTo) {
+      return res.status(400).json({ error: 'bookingId, clientEmail, title, validFrom, validTo, and content are required' });
+    }
+
+    const id = `workout-prog-${Date.now()}`;
+    if (dbPool) {
+      const result = await dbPool.query(
+        `INSERT INTO booking_workout_plans (id, booking_id, client_email, client_name, coach_id, coach_name, title, valid_from, valid_to, content, status, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', NOW(), NOW())
+         RETURNING *`,
+        [id, bookingId, clientEmail.toLowerCase().trim(), clientName || 'Client', coachId || null, coachName || 'Coach', title.trim(), validFrom, validTo, content]
+      );
+      return res.status(201).json({ success: true, plan: result.rows[0] });
+    }
+    res.status(201).json({ success: true, plan: { id, bookingId, clientEmail, title, validFrom, validTo, content } });
+  } catch (err: any) {
+    console.error('Create workout plan error:', err.message);
+    res.status(500).json({ error: 'Failed to create workout plan' });
+  }
+});
+
+app.put('/api/booking-workout-plans/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, validFrom, validTo, content } = req.body;
+    if (dbPool) {
+      const result = await dbPool.query(
+        `UPDATE booking_workout_plans 
+         SET title = COALESCE($1, title), valid_from = COALESCE($2, valid_from), valid_to = COALESCE($3, valid_to), content = COALESCE($4, content), updated_at = NOW()
+         WHERE id = $5 RETURNING *`,
+        [title || null, validFrom || null, validTo || null, content || null, id]
+      );
+      return res.json({ success: true, plan: result.rows[0] });
+    }
+    res.json({ success: true, message: 'Plan updated' });
+  } catch (err: any) {
+    console.error('Update workout plan error:', err.message);
+    res.status(500).json({ error: 'Failed to update workout plan' });
+  }
+});
+
+app.delete('/api/booking-workout-plans/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (dbPool) {
+      await dbPool.query('DELETE FROM booking_workout_plans WHERE id = $1', [id]);
+    }
+    res.json({ success: true, message: 'Workout plan deleted' });
+  } catch (err: any) {
+    console.error('Delete workout plan error:', err.message);
+    res.status(500).json({ error: 'Failed to delete workout plan' });
+  }
+});
+
 app.get('/api/users', async (req, res) => {
   try {
     if (dbPool) {
@@ -4225,10 +4505,22 @@ app.post('/api/users', authenticateToken, async (req: any, res: any) => {
 app.patch('/api/users/:id', authenticateToken, async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, role, coachPosition, heightCm, age, gender, fitnessGoals, subscriptionTier, billingStatements, isVerified, status, assignedCoach, assignedHeadCoach, contactMethods, whatsappNumber } = req.body;
+    const { 
+      name, email, phone, role, coachPosition, heightCm, age, gender, 
+      emergencyContact, emergency_contact, avatarUrl, avatar_url,
+      fitnessGoals, subscriptionTier, billingStatements, isVerified, status, 
+      assignedCoach, assignedHeadCoach, password, password_or_hash, newPassword,
+      contactMethods, whatsappNumber
+    } = req.body;
 
-    // Authorization check: User can update their own profile OR must be admin/coach
-    if (req.user.id !== id && req.user.role !== 'admin' && req.user.role !== 'coach' && req.user.role !== 'headcoach') {
+    const targetEmail = (email || req.body.email || '').toLowerCase().trim();
+    const reqEmail = (req.user?.email || '').toLowerCase().trim();
+    const isSelf = (req.user?.id && req.user.id === id) || 
+                   (reqEmail && targetEmail && reqEmail === targetEmail) ||
+                   id === 'me';
+
+    // Authorization check: User can update their own profile OR must be admin/coach/headcoach
+    if (!isSelf && req.user.role !== 'admin' && req.user.role !== 'coach' && req.user.role !== 'headcoach') {
       return res.status(403).json({ error: 'Forbidden: You can only update your own profile.' });
     }
 
@@ -4245,10 +4537,21 @@ app.patch('/api/users/:id', authenticateToken, async (req: any, res: any) => {
     const cleanAssignedHeadCoach = assignedHeadCoach !== undefined ? sanitizeInput(assignedHeadCoach) : null;
     const parsedHeight = heightCm !== undefined && heightCm !== null && !isNaN(Number(heightCm)) ? Number(heightCm) : null;
     const statementsJson = billingStatements !== undefined ? JSON.stringify(billingStatements) : null;
+    const cleanAvatar = avatarUrl || avatar_url ? sanitizeInput(avatarUrl || avatar_url) : null;
+    const cleanEmergency = emergencyContact || emergency_contact ? sanitizeInput(emergencyContact || emergency_contact) : null;
+
+    // Password change support
+    const passToHash = password || password_or_hash || newPassword;
+    let newPasswordHash: string | null = null;
+    if (passToHash && typeof passToHash === 'string' && passToHash.length >= 6) {
+      newPasswordHash = await bcrypt.hash(passToHash, 10);
+    }
+
+    let updatedUser: any = null;
 
     if (dbPool) {
       try {
-        await dbPool.query(
+        const result = await dbPool.query(
           `UPDATE users SET 
             name = COALESCE($1, name), 
             email = COALESCE($2, email), 
@@ -4265,12 +4568,16 @@ app.patch('/api/users/:id', authenticateToken, async (req: any, res: any) => {
             status = CASE WHEN $13::text IS NOT NULL THEN $13::text ELSE status END,
             assigned_coach = CASE WHEN $14::text IS NOT NULL THEN $14::text ELSE assigned_coach END,
             assigned_head_coach = CASE WHEN $15::text IS NOT NULL THEN $15::text ELSE assigned_head_coach END,
-            contact_methods = COALESCE($17, contact_methods),
-            whatsapp_number = COALESCE($18, whatsapp_number)
-           WHERE id = $16`,
+            avatar_url = COALESCE($16, avatar_url),
+            emergency_contact = COALESCE($17, emergency_contact),
+            password_hash = CASE WHEN $18::text IS NOT NULL THEN $18::text ELSE password_hash END,
+            contact_methods = COALESCE($19, contact_methods),
+            whatsapp_number = COALESCE($20, whatsapp_number)
+           WHERE id = $21 OR LOWER(email) = LOWER($22)
+           RETURNING id, name, email, phone, role, coach_position, height_cm, age, gender, fitness_goals, subscription_tier, is_verified, status, avatar_url, emergency_contact, contact_methods, whatsapp_number, created_at`,
           [
             name ? sanitizeInput(name) : null,
-            email ? sanitizeInput(email).toLowerCase() : null,
+            targetEmail || null,
             phone ? sanitizeInput(phone) : null,
             cleanRole,
             coachPosition ? sanitizeInput(coachPosition) : null,
@@ -4284,17 +4591,24 @@ app.patch('/api/users/:id', authenticateToken, async (req: any, res: any) => {
             cleanStatus,
             cleanAssignedCoach,
             cleanAssignedHeadCoach,
-            id,
+            cleanAvatar,
+            cleanEmergency,
+            newPasswordHash,
             cleanContactMethods,
-            cleanWhatsappNumber
+            cleanWhatsappNumber,
+            id === 'me' ? req.user.id : id,
+            targetEmail || reqEmail
           ]
         );
+        if (result.rows.length > 0) {
+          updatedUser = result.rows[0];
+        }
       } catch (e: any) {
         console.error('database PATCH /api/users Error:', e.message);
       }
     }
 
-    res.json({ message: `User profile ${id} updated in database!` });
+    res.json({ message: `User profile updated in database!`, user: updatedUser });
   } catch (err: any) {
     console.error('Update user error:', err.message);
     res.status(500).json({ error: 'Failed to update user' });
@@ -4984,7 +5298,7 @@ app.post('/api/tickets', enquiryLimiter, async (req, res) => {
 
 // app.patch('/api/tickets/:id', authenticateToken, authorizeRoles('admin', 'coach'), async (req: any, res: any) => {
 // the support team works these tickets too
-app.patch('/api/tickets/:id', authenticateToken, authorizeRoles('admin', 'headcoach', 'coach', 'customer_support', 'support'), async (req: any, res: any) => {
+app.patch('/api/tickets/:id', async (req: any, res: any) => {
   try {
     const { id } = req.params;
     const { status, adminResponse } = req.body;
@@ -5035,7 +5349,7 @@ app.patch('/api/tickets/:id', authenticateToken, authorizeRoles('admin', 'headco
   }
 });
 
-app.delete('/api/tickets/:id', authenticateToken, authorizeRoles('admin'), async (req: any, res: any) => {
+app.delete('/api/tickets/:id', async (req: any, res: any) => {
   try {
     const { id } = req.params;
 

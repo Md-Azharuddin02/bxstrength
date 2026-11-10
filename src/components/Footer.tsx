@@ -116,7 +116,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-white group-hover:text-[#CCFF00] transition-colors truncate">Instagram</p>
-                  <p className="text-[10px] text-zinc-400 font-mono truncate">@bxstrength_</p>
+                  {/*<p className="text-[10px] text-zinc-400 font-mono truncate">@bxstrength_</p>*/}
                 </div>
               </a>
 
@@ -133,7 +133,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-white group-hover:text-[#CCFF00] transition-colors truncate">Facebook</p>
-                  <p className="text-[10px] text-zinc-400 font-mono truncate">@bxstrength</p>
+                  {/*<p className="text-[10px] text-zinc-400 font-mono truncate">@bxstrength</p>*/}
                 </div>
               </a>
 
@@ -150,7 +150,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-white group-hover:text-[#CCFF00] transition-colors truncate">YouTube</p>
-                  <p className="text-[10px] text-zinc-400 font-mono truncate">@BXSTRENGTH</p>
+                  {/*<p className="text-[10px] text-zinc-400 font-mono truncate">@BXSTRENGTH</p>*/}
                 </div>
               </a>
 
@@ -167,7 +167,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-white group-hover:text-[#CCFF00] transition-colors truncate">X (Twitter)</p>
-                  <p className="text-[10px] text-zinc-400 font-mono truncate">@Bxstrength_</p>
+                  {/*<p className="text-[10px] text-zinc-400 font-mono truncate">@Bxstrength_</p>*/}
                 </div>
               </a>
 
@@ -184,7 +184,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-white group-hover:text-[#CCFF00] transition-colors truncate">LinkedIn</p>
-                  <p className="text-[10px] text-zinc-400 font-mono truncate">/bxstrength</p>
+                  {/*<p className="text-[10px] text-zinc-400 font-mono truncate">/bxstrength</p>*/}
                 </div>
               </a>
 
@@ -203,7 +203,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-white group-hover:text-[#CCFF00] transition-colors truncate">Pinterest</p>
-                  <p className="text-[10px] text-zinc-400 font-mono truncate">/bxstrength</p>
+                  {/*<p className="text-[10px] text-zinc-400 font-mono truncate">/bxstrength</p>*/}
                 </div>
               </a>
 
@@ -222,7 +222,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 </div>
                 <div className="flex items-center gap-1.5 min-w-0">
                   <p className="text-xs font-bold text-white group-hover:text-[#CCFF00] transition-colors truncate">Threads</p>
-                  <p className="text-[10px] text-zinc-400 font-mono truncate">@bxstrength_</p>
+                  {/*<p className="text-[10px] text-zinc-400 font-mono truncate">@bxstrength_</p>*/}
                 </div>
               </a>
             </div>

@@ -1,6 +1,6 @@
 
 
-const LOGO = 'https://res.cloudinary.com/yuyxn5b0/image/upload/v1788842924/bxlogo.jpg';
+const LOGO = 'https://res.cloudinary.com/yuyxn5b0/image/upload/v1794325334/favicon.svg';
 
 export const otpEmail = (toEmail: string, toName: string, otpCode: string, senderEmail: string) => ({
   toEmail,

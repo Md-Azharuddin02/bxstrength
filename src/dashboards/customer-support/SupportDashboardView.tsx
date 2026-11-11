@@ -9,18 +9,19 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { PhoneInput } from '../../components/PhoneInput';
 import { ProfileManagement } from '../client/ProfileManagement';
 import { FreeAssessmentsView } from '../head-coach/FreeAssessmentsView';
+import { FreeConsultationsView } from '../head-coach/FreeConsultationsView';
 import { 
   LifeBuoy, CheckCircle2, Clock, AlertCircle, MessageSquare, Search, Filter, ShieldAlert, 
   Send, Trash2, UserCheck, ArrowUpRight, Phone, Mail, Globe, Tag, ChevronRight, RefreshCw, 
   BarChart2, Lock, AlertTriangle, Plus, FileText, Check, ShieldCheck, X, Zap, CornerUpRight,
-  User as UserIcon, Settings, LogOut, Home, ClipboardCheck, Package, Users
+  User as UserIcon, Settings, LogOut, Home, ClipboardCheck, Package, Users, Video
 } from 'lucide-react';
 
 interface SupportDashboardViewProps {
   onShowToast?: (msg: string) => void;
   onNavigateHome?: () => void;
   onLogout?: () => void;
-  initialTab?: 'inbox' | 'analytics' | 'audit_logs' | 'account_settings' | 'assessments' | 'paid_bookings' | 'coaches_workload';
+  initialTab?: 'inbox' | 'analytics' | 'audit_logs' | 'account_settings' | 'assessments' | 'paid_bookings' | 'coaches_workload' | 'free_consultations';
 }
 
 export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({ 
@@ -36,7 +37,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     user?.role === 'admin' ? 'admin' : ((user?.role === 'headcoach' || user?.role === 'coach') ? user.role : 'customer_support')
   );
 
-  const [activeTab, setActiveTab] = useState<'inbox' | 'analytics' | 'audit_logs' | 'account_settings' | 'assessments' | 'paid_bookings' | 'coaches_workload'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'inbox' | 'analytics' | 'audit_logs' | 'account_settings' | 'assessments' | 'paid_bookings' | 'coaches_workload' | 'free_consultations'>(initialTab);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -516,6 +517,18 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
               }`}>
                 {filteredTickets.length}
               </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('free_consultations')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                activeTab === 'free_consultations'
+                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
+                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
+              }`}
+            >
+              <Video className="w-3.5 h-3.5" />
+              <span>Free Demo Sessions</span>
             </button>
 
             <button
@@ -1323,6 +1336,15 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
         {activeTab === 'assessments' && user && (
           <FreeAssessmentsView
             user={user}
+            onShowToast={onShowToast}
+          />
+        )}
+
+        {/* TAB 6: FREE DEMO & CONSULTATIONS DESK */}
+        {activeTab === 'free_consultations' && user && (
+          <FreeConsultationsView
+            user={user}
+            coaches={coaches}
             onShowToast={onShowToast}
           />
         )}

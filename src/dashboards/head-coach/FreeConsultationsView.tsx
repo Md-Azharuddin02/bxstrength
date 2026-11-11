@@ -28,7 +28,8 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
       user.coachPosition.toLowerCase().includes('chief')
     )
   ));
-  const isHeadCoachOrAdmin = isAdmin || isHeadCoach;
+  const isCustomerSupport = normRole === 'customer_support' || normRole === 'support';
+  const isHeadCoachOrAdmin = isAdmin || isHeadCoach || isCustomerSupport;
 
   const [consultations, setConsultations] = useState<ConsultationBooking[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);

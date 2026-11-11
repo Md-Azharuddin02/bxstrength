@@ -16,25 +16,48 @@ export const RichPlanEditor: React.FC<RichPlanEditorProps> = ({
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const isFocusedRef = useRef<boolean>(false);
+  const lastHtmlRef = useRef<string>(value || '');
   const [activeTab, setActiveTab] = useState<'visual' | 'code' | 'preview'>('visual');
   const [htmlCode, setHtmlCode] = useState(value || '');
 
-  // Only sync value into DOM if user is NOT actively typing inside visual editor
+  // Initialize or synchronize visual editor DOM
   useEffect(() => {
     setHtmlCode(value || '');
-    if (!isFocusedRef.current && editorRef.current && activeTab === 'visual') {
-      if (editorRef.current.innerHTML !== (value || '')) {
+    if (editorRef.current && activeTab === 'visual') {
+      // Only sync into DOM if content changed externally (not from user typing inside)
+      if (!isFocusedRef.current && value !== lastHtmlRef.current) {
         editorRef.current.innerHTML = value || '';
+        lastHtmlRef.current = value || '';
       }
     }
   }, [value, activeTab]);
 
+  // Set initial content on mount when editorRef is attached
+  useEffect(() => {
+    if (editorRef.current && activeTab === 'visual') {
+      editorRef.current.innerHTML = value || '';
+      lastHtmlRef.current = value || '';
+    }
+  }, []);
+
   const handleInput = () => {
     if (editorRef.current) {
       const newHtml = editorRef.current.innerHTML;
+      lastHtmlRef.current = newHtml;
       setHtmlCode(newHtml);
       onChange(newHtml);
     }
+  };
+
+  const handleSwitchTab = (tab: 'visual' | 'code' | 'preview') => {
+    if (tab === 'visual' && activeTab === 'code') {
+      // Switching back to visual from code tab: sync code changes into visual editor
+      if (editorRef.current) {
+        editorRef.current.innerHTML = htmlCode;
+        lastHtmlRef.current = htmlCode;
+      }
+    }
+    setActiveTab(tab);
   };
 
   const executeCommand = (command: string, arg: string | undefined = undefined) => {
@@ -104,6 +127,7 @@ export const RichPlanEditor: React.FC<RichPlanEditorProps> = ({
 <p><strong>Daily Hydration:</strong> Minimum 3.5 Litres of water throughout the day.</p>`;
 
     isFocusedRef.current = false;
+    lastHtmlRef.current = template;
     if (editorRef.current) {
       editorRef.current.innerHTML = template;
     }
@@ -171,9 +195,9 @@ export const RichPlanEditor: React.FC<RichPlanEditorProps> = ({
           <button
             type="button"
             onClick={insertTemplate}
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded text-[11px] font-semibold transition"
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded text-[11px] font-semibold transition cursor-pointer"
           >
-            <Sparkles className="w-3 h-3 text-amber-400" />
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <span>Load Template</span>
           </button>
         </div>
@@ -182,8 +206,8 @@ export const RichPlanEditor: React.FC<RichPlanEditorProps> = ({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => setActiveTab('visual')}
-            className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition ${
+            onClick={() => handleSwitchTab('visual')}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
               activeTab === 'visual'
                 ? 'bg-zinc-800 text-white font-bold'
                 : 'text-zinc-400 hover:text-white'
@@ -194,8 +218,8 @@ export const RichPlanEditor: React.FC<RichPlanEditorProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('code')}
-            className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition ${
+            onClick={() => handleSwitchTab('code')}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
               activeTab === 'code'
                 ? 'bg-zinc-800 text-white font-bold'
                 : 'text-zinc-400 hover:text-white'
@@ -206,8 +230,8 @@ export const RichPlanEditor: React.FC<RichPlanEditorProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('preview')}
-            className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition ${
+            onClick={() => handleSwitchTab('preview')}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
               activeTab === 'preview'
                 ? 'bg-zinc-800 text-white font-bold'
                 : 'text-zinc-400 hover:text-white'
@@ -225,7 +249,9 @@ export const RichPlanEditor: React.FC<RichPlanEditorProps> = ({
           <div
             ref={editorRef}
             contentEditable
+            suppressContentEditableWarning
             dir="ltr"
+            data-placeholder={placeholder}
             style={{ direction: 'ltr', textAlign: 'left', unicodeBidi: 'normal' }}
             onFocus={() => {
               isFocusedRef.current = true;
@@ -235,8 +261,7 @@ export const RichPlanEditor: React.FC<RichPlanEditorProps> = ({
               handleInput();
             }}
             onInput={handleInput}
-            className="focus:outline-none min-h-[200px] text-left prose prose-invert prose-sm max-w-none [&_h3]:text-amber-400 [&_h3]:font-black [&_h3]:text-base [&_h3]:mb-2 [&_h4]:text-white [&_h4]:font-bold [&_h4]:text-sm [&_h4]:mt-3 [&_h4]:mb-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2 [&_li]:text-zinc-300"
-            dangerouslySetInnerHTML={{ __html: value || '' }}
+            className="focus:outline-none min-h-[200px] text-left prose prose-invert prose-sm max-w-none [&_h3]:text-amber-400 [&_h3]:font-black [&_h3]:text-base [&_h3]:mb-2 [&_h4]:text-white [&_h4]:font-bold [&_h4]:text-sm [&_h4]:mt-3 [&_h4]:mb-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2 [&_li]:text-zinc-300 empty:before:content-[attr(data-placeholder)] empty:before:text-zinc-500 empty:before:pointer-events-none"
           />
         )}
 

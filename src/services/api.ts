@@ -660,7 +660,7 @@ export const VelocityAPI = {
   async fetchUsers(): Promise<User[]> {
     initStore();
     try {
-      const res = await fetch(getApiUrl('/api/users'));
+      const res = await apiFetch(getApiUrl('/api/users'));
       if (res.ok) {
         const rawUsers = await res.json();
         if (Array.isArray(rawUsers) && rawUsers.length > 0) {

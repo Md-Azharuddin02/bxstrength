@@ -9,7 +9,7 @@ import {
 } from '../data/gymData';
 import { FitnessClass, Trainer, ServiceItem, BlogPost, MembershipPlan, ViewPage, User } from '../types';
 import { PhoneInput } from './PhoneInput';
-import { VelocityAPI } from '../services/api';
+import { VelocityAPI, apiFetch } from '../services/api';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -175,7 +175,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     if (!isOpen) return;
     const loadRealCoaches = async () => {
       try {
-        const res = await fetch('/api/users');
+        const res = await apiFetch('/api/users');
         if (res.ok) {
           const rawUsers = await res.json();
           if (Array.isArray(rawUsers)) {

@@ -53,23 +53,31 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
 
-    const urlStr = window.location.href;
-    if (urlStr.includes('reset-password') || urlStr.includes('token=')) {
-      const searchParams = new URLSearchParams(window.location.search);
-      const hash = window.location.hash;
-      const hashQIndex = hash.indexOf('?');
-      const hashParams = new URLSearchParams(hashQIndex >= 0 ? hash.slice(hashQIndex + 1) : '');
+    const checkResetUrl = () => {
+      const urlStr = window.location.href;
+      if (urlStr.includes('reset-password') || urlStr.includes('token=')) {
+        const searchParams = new URLSearchParams(window.location.search);
+        const hash = window.location.hash;
+        const hashQIndex = hash.indexOf('?');
+        const hashParams = new URLSearchParams(hashQIndex >= 0 ? hash.slice(hashQIndex + 1) : '');
 
-      const urlEmail = searchParams.get('email') || hashParams.get('email');
-      const token = searchParams.get('token') || hashParams.get('token');
-      if (urlEmail) setEmail(urlEmail);
-      if (token) {
-        setResetTokenFromUrl(token);
-        setStep('set_new_password');
+        const urlEmail = searchParams.get('email') || hashParams.get('email');
+        const token = searchParams.get('token') || hashParams.get('token');
+        if (urlEmail) setEmail(urlEmail);
+        if (token) {
+          setResetTokenFromUrl(token);
+          setStep('set_new_password');
+        }
       }
-    }
+    };
 
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    checkResetUrl();
+    window.addEventListener('hashchange', checkResetUrl);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('hashchange', checkResetUrl);
+    };
   }, [isOpen, handleCloseAll]);
 
   if (!isOpen) return null;
@@ -98,12 +106,7 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
         throw new Error(data.error || 'Failed to dispatch password reset email.');
       }
 
-      if (data.resetToken) {
-        setResetTokenFromUrl(data.resetToken);
-        setStep('set_new_password');
-        return;
-      }
-
+      // Secure flow: always require user to check their email and click the link
       setStep('email_dispatched');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to dispatch reset link email.';
@@ -145,6 +148,14 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Password reset failed on server.');
+      }
+
+      // Clean the URL hash/search params so refreshing doesn't keep reset-password open
+      if (window.location.hash.includes('reset-password')) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+      if (window.location.search.includes('token=') || window.location.search.includes('reset-password')) {
+        window.history.replaceState(null, '', window.location.pathname);
       }
 
       // Call AuthContext to sync client-side state
@@ -282,25 +293,14 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
 
               <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-4 text-left space-y-2 text-xs text-zinc-400">
                 <div className="flex items-center gap-2 text-amber-400 font-bold text-[11px] uppercase tracking-wider">
-                  <span>⏱️ 5-Minute Time Limit</span>
+                  <span>⏱️ 10-Minute Time Limit</span>
                 </div>
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
-                  For your security, the reset link will expire in <strong>5 minutes</strong>. If you don't see the email within a minute, please check your spam or junk folder.
+                  For your security, the reset link will expire in <strong>10 minutes</strong>. If you don't see the email within a minute, please check your spam or junk folder.
                 </p>
               </div>
 
               <div className="pt-2 space-y-3">
-                {resetTokenFromUrl && (
-                  <button
-                    type="button"
-                    onClick={() => setStep('set_new_password')}
-                    className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black text-xs font-black tracking-widest py-3 uppercase transition-all rounded-lg cursor-pointer shadow-md flex items-center justify-center gap-2"
-                  >
-                    <KeyRound className="w-4 h-4 text-black" />
-                    <span>SET NEW PASSWORD NOW</span>
-                  </button>
-                )}
-
                 <button
                   type="button"
                   onClick={() => {
@@ -326,6 +326,20 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
 
           {/* STEP 3: SET NEW PASSWORD */}
           {step === 'set_new_password' && (
+            !resetTokenFromUrl ? (
+              <div className="space-y-4 text-center py-4">
+                <div className="p-3.5 bg-amber-950/60 border border-amber-800 text-amber-300 text-xs font-bold rounded-lg">
+                  Password reset link is missing or expired. Please click the link in your email or request a new one.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStep('request')}
+                  className="w-full bg-white hover:bg-zinc-200 text-black text-xs font-black tracking-widest py-3 uppercase transition-all rounded-lg cursor-pointer shadow-md"
+                >
+                  REQUEST NEW RESET LINK
+                </button>
+              </div>
+            ) : (
             <form onSubmit={handleResetSubmit} className="space-y-4 animate-in fade-in duration-200">
               <div>
                 <span className="text-[10px] font-bold uppercase text-emerald-400 tracking-wider bg-emerald-950/60 border border-emerald-800 px-2.5 py-1 rounded inline-block mb-2">
@@ -415,6 +429,7 @@ export const ForgotPasswordModal: FC<ForgotPasswordModalProps> = ({
                 )}
               </div>
             </form>
+            )
           )}
 
           {/* STEP 4: SUCCESS CONFIRMATION */}

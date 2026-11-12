@@ -4650,11 +4650,6 @@ app.patch('/api/paid-bookings/:id/assign', coachOwnsPaidBooking, async (req, res
     res.status(500).json({ error: 'Failed to assign coach' });
   }
 });
-  } catch (err: any) {
-    console.error('Assign paid booking error:', err);
-    res.status(500).json({ error: 'Failed to assign coach' });
-  }
-});
 
 app.patch('/api/paid-bookings/:id/session', coachOwnsPaidBooking, async (req, res) => {
   try {

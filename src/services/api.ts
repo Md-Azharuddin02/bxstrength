@@ -2404,6 +2404,7 @@ export const VelocityAPI = {
     assignedBy?: string;
     meetingLink?: string;
     notes?: string;
+    scheduledAt?: string | null;
   }): Promise<{ success: boolean; consultation?: ConsultationBooking }> {
     const res = await apiFetch(getApiUrl(`/api/consultations/${id}/assign`), {
       method: 'PATCH',
@@ -2430,6 +2431,7 @@ export const VelocityAPI = {
     status: string;
     meetingLink?: string;
     notes?: string;
+    scheduledAt?: string | null;
   }): Promise<{ success: boolean; consultation?: ConsultationBooking }> {
     const res = await apiFetch(getApiUrl(`/api/consultations/${id}/status`), {
       method: 'PATCH',

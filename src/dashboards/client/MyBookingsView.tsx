@@ -139,7 +139,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                           {pkg.packageType}
                         </span>
                         <span className="text-[10px] font-mono text-gray-400">
-                          REF: {pkg.id}
+                          ORDER ID: {pkg.orderId || pkg.id}
                         </span>
                         {pkg.createdAt && (
                           <span className="text-[10px] text-gray-500">

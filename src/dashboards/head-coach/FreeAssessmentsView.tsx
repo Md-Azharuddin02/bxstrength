@@ -276,7 +276,7 @@ export const FreeAssessmentsView: React.FC<FreeAssessmentsViewProps> = ({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800 pb-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-xs font-bold text-amber-300 bg-amber-950/60 px-2.5 py-0.5 border border-amber-800/80 rounded">
-                      REF: {a.id}
+                      ORDER ID: {a.id}
                     </span>
                     <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
                       isCompleted

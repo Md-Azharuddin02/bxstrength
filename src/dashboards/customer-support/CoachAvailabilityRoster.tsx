@@ -492,7 +492,7 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
                   <option value="" disabled>-- Select athlete booking --</option>
                   {unassignedBookings.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {decodeHtmlEntities(b.clientName)} — {decodeHtmlEntities(b.packageName)} [Ref: {b.id}]
+                      {decodeHtmlEntities(b.clientName)} — {decodeHtmlEntities(b.packageName)} [Order ID: {b.orderId || b.id}]
                     </option>
                   ))}
                 </select>

@@ -580,6 +580,7 @@ export interface ConsultationBooking {
   assignedCoachName?: string | null;
   assignedBy?: string | null;
   assignedAt?: string | null;
+  scheduledAt?: string | null;
   meetingLink?: string;
   preferredDate?: string;
   preferredTime?: string;

@@ -40,13 +40,16 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
   const [assignTarget, setAssignTarget] = useState<ConsultationBooking | null>(null);
   const [selectedCoachId, setSelectedCoachId] = useState<string>('');
   const [selectedCoachName, setSelectedCoachName] = useState<string>('');
+  const [assignMeetingLink, setAssignMeetingLink] = useState<string>('');
+  const [assignScheduledAt, setAssignScheduledAt] = useState<string>('');
   const [assignNotes, setAssignNotes] = useState<string>('');
   const [isSubmittingAssign, setIsSubmittingAssign] = useState<boolean>(false);
 
   // Status Update Modal State
   const [statusTarget, setStatusTarget] = useState<ConsultationBooking | null>(null);
-  const [newStatus, setNewStatus] = useState<string>('Completed');
+  const [newStatus, setNewStatus] = useState<string>('Confirmed');
   const [statusMeetingLink, setStatusMeetingLink] = useState<string>('');
+  const [statusScheduledAt, setStatusScheduledAt] = useState<string>('');
   const [statusNotes, setStatusNotes] = useState<string>('');
 
   // Delete Confirm State
@@ -182,9 +185,10 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
         assignedBy: user.name,
         notes: 'Head Coach claimed this free demo strategy session directly.'
       });
-      onShowToast(`✓ Free Demo #${item.id} claimed! Moved to "TAKEN BY HEAD COACH" tab.`);
+      onShowToast(`✓ Free Demo #${item.id} claimed! Set scheduled date & meeting link below.`);
       setFilterTab('headcoach');
-      loadConsultations();
+      await loadConsultations();
+      handleOpenStatusModal({ ...item, assignedCoachId: user.id, assignedCoachName: selfName });
     } catch (err: any) {
       onShowToast(err.message || 'Failed to claim consultation');
     }
@@ -193,18 +197,25 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
   // Quick Action 2: Open modal to assign to coach
   const handleOpenAssignModal = (item: ConsultationBooking) => {
     setAssignTarget(item);
-    const initialCoach = availableSpecialistCoaches[0];
-    if (initialCoach) {
-      setSelectedCoachId(initialCoach.id);
-      setSelectedCoachName(initialCoach.name);
+    if (item.assignedCoachId) {
+      setSelectedCoachId(item.assignedCoachId);
+      setSelectedCoachName(item.assignedCoachName || '');
     } else {
-      setSelectedCoachId('coach-mazhar');
-      setSelectedCoachName('Coach (Mazhar Ali)');
+      const initialCoach = availableSpecialistCoaches[0];
+      if (initialCoach) {
+        setSelectedCoachId(initialCoach.id);
+        setSelectedCoachName(initialCoach.name);
+      } else {
+        setSelectedCoachId('coach-mazhar');
+        setSelectedCoachName('Coach (Mazhar Ali)');
+      }
     }
+    setAssignMeetingLink(item.meetingLink || '');
+    setAssignScheduledAt(item.scheduledAt ? item.scheduledAt.slice(0, 16) : '');
     setAssignNotes(item.notes || '');
   };
 
-  // Confirm delegation to specialist coach (NO meeting link field)
+  // Confirm delegation to specialist coach with meeting link & schedule
   const handleConfirmAssign = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!assignTarget) return;
@@ -229,12 +240,14 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
       await VelocityAPI.assignConsultation(assignTarget.id, {
         assignedCoachId: coachId || null,
         assignedCoachName: coachName,
-        assignedBy: user.name,
+        assignedBy: user.name || (isCustomerSupport ? 'Customer Support' : 'Head Coach'),
+        meetingLink: assignMeetingLink,
+        scheduledAt: assignScheduledAt,
         notes: assignNotes || `Delegated to Coach ${coachName} by ${isCustomerSupport ? 'Customer Support' : 'Head Coach'}`
       });
-      onShowToast(`✓ Successfully delegated #${assignTarget.id} to Coach ${coachName}. Moved to "COACH DELEGATED" tab.`);
+      onShowToast(`✓ Successfully scheduled & delegated #${assignTarget.id} to Coach ${coachName}. Email confirmations sent!`);
       setAssignTarget(null);
-      setFilterTab('coaches');
+      setFilterTab(coachName.toLowerCase().includes('head coach') ? 'headcoach' : 'coaches');
       loadConsultations();
     } catch (err: any) {
       onShowToast(err.message || 'Failed to assign coach');
@@ -249,6 +262,7 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
       await VelocityAPI.updateConsultationStatus(item.id, {
         status: 'Completed',
         meetingLink: item.meetingLink,
+        scheduledAt: item.scheduledAt,
         notes: item.notes
       });
       onShowToast(`✓ Free Demo #${item.id} marked as Completed!`);
@@ -263,6 +277,7 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
     setStatusTarget(item);
     setNewStatus(item.status || 'Confirmed');
     setStatusMeetingLink(item.meetingLink || '');
+    setStatusScheduledAt(item.scheduledAt ? item.scheduledAt.slice(0, 16) : '');
     setStatusNotes(item.notes || '');
   };
 
@@ -274,10 +289,11 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
       await VelocityAPI.updateConsultationStatus(statusTarget.id, {
         status: newStatus,
         meetingLink: statusMeetingLink,
+        scheduledAt: statusScheduledAt,
         notes: statusNotes
       });
       if (statusMeetingLink && statusMeetingLink.trim()) {
-        onShowToast(`✓ Meeting link saved & email notification sent to ${statusTarget.clientEmail}!`);
+        onShowToast(`✓ Meeting link saved & email notification sent to ${statusTarget.clientEmail} and coach!`);
       } else {
         onShowToast(`✓ Status updated for #${statusTarget.id}!`);
       }
@@ -490,7 +506,7 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
                           {item.clientName}
                         </h4>
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
-                          {item.id}
+                          ORDER ID : {item.id}
                         </span>
 
                         {/* Status Pills */}
@@ -581,6 +597,21 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
                         <p className="text-zinc-400 text-xs mt-1.5 bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800/60">
                           <strong className="text-zinc-300">Coach Instructions:</strong> {item.notes}
                         </p>
+                      )}
+                      {item.scheduledAt && (
+                        <div className="flex items-center gap-1.5 mt-2 text-[#CCFF00] font-bold text-xs bg-[#CCFF00]/10 border border-[#CCFF00]/25 px-2.5 py-1.5 rounded-lg">
+                          <Calendar className="w-3.5 h-3.5 text-[#CCFF00]" />
+                          <span>
+                            Scheduled: {new Date(item.scheduledAt).toLocaleString('en-GB', {
+                              weekday: 'short',
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
                       )}
                     </div>
 
@@ -759,14 +790,22 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
         </div>
       )}
 
-      {/* MODAL 1: Delegate Demo to Specialist Coach (NO meeting link field) */}
+      {/* MODAL 1: Assign Specialist Coach & Schedule Free Demo */}
       {assignTarget && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-[#121214] border border-zinc-800 rounded-2xl max-w-lg w-full p-6 space-y-6 shadow-2xl">
+          <div className="bg-[#121214] border border-zinc-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
               <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#CCFF00]/10 text-[#CCFF00] border border-[#CCFF00]/30 font-bold uppercase">
+                    FREE 15-MIN DEMO
+                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
+                    ORDER ID : {assignTarget.id}
+                  </span>
+                </div>
                 <h3 className="text-base font-black uppercase text-white">
-                  DELEGATE DEMO TO SPECIALIST COACH
+                  ASSIGN SPECIALIST COACH & VIDEO LINK
                 </h3>
                 <p className="text-xs text-zinc-400 mt-0.5">
                   Client: <strong className="text-white">{assignTarget.clientName}</strong> ({assignTarget.clientEmail})
@@ -809,19 +848,55 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
                       ))}
                     </select>
                     <p className="text-[10px] text-zinc-500 mt-1">
-                      Only verified coaches with role 'coach' from your database appear here.
+                      Staff coaches from your team directory appear here.
                     </p>
                   </>
                 )}
               </div>
 
+              {/* Scheduled Session Date & Time */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-zinc-300 mb-1.5 flex items-center justify-between">
+                  <span>SCHEDULED SESSION DATE & TIME (UK / GMT)</span>
+                  <Calendar className="w-3.5 h-3.5 text-[#CCFF00]" />
+                </label>
+                <input
+                  type="datetime-local"
+                  value={assignScheduledAt}
+                  onChange={(e) => setAssignScheduledAt(e.target.value)}
+                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-[#CCFF00] [color-scheme:dark]"
+                />
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  Scheduled date & time will be included in confirmation emails dispatched to both client and coach.
+                </p>
+              </div>
+
+              {/* Live Video Meeting URL */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-zinc-300 mb-1.5 flex items-center justify-between">
+                  <span>LIVE VIDEO MEETING URL (GOOGLE MEET / ZOOM)</span>
+                  <Video className="w-3.5 h-3.5 text-[#CCFF00]" />
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://meet.google.com/xxx-xxxx-xxx or Zoom URL"
+                  value={assignMeetingLink}
+                  onChange={(e) => setAssignMeetingLink(e.target.value)}
+                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
+                />
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  This meeting link will be emailed to both client and coach upon assignment.
+                </p>
+              </div>
+
+              {/* Instructions / Notes */}
               <div>
                 <label className="block text-[11px] font-bold uppercase text-zinc-300 mb-1.5">
-                  INSTRUCTIONS / NOTES FOR COACH (OPTIONAL)
+                  COACHING NOTES / INSTRUCTIONS FOR ATHLETE (OPTIONAL)
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="e.g. Please contact client within 24 hours, perform 15-min assessment, and schedule session."
+                  placeholder="Notes on client focus, warmup emphasis, fitness background, or session instructions..."
                   value={assignNotes}
                   onChange={(e) => setAssignNotes(e.target.value)}
                   className="w-full bg-[#18181b] border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-[#CCFF00] resize-none"
@@ -841,7 +916,7 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
                   disabled={isSubmittingAssign || availableSpecialistCoaches.length === 0}
                   className="bg-[#CCFF00] disabled:bg-zinc-800 disabled:text-zinc-500 hover:bg-[#b8e600] text-black font-black uppercase px-5 py-2.5 rounded-xl text-xs transition-all shadow-md cursor-pointer"
                 >
-                  {isSubmittingAssign ? 'DELEGATING...' : 'CONFIRM DELEGATION'}
+                  {isSubmittingAssign ? 'CONFIRMING...' : 'CONFIRM & SAVE ASSIGNMENT'}
                 </button>
               </div>
             </form>
@@ -852,15 +927,23 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
       {/* MODAL 2: Add / Edit Meeting Link & Status */}
       {statusTarget && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-[#121214] border border-zinc-800 rounded-2xl max-w-lg w-full p-6 space-y-6 shadow-2xl">
+          <div className="bg-[#121214] border border-zinc-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
               <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#CCFF00]/10 text-[#CCFF00] border border-[#CCFF00]/30 font-bold uppercase">
+                    FREE DEMO
+                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
+                    ORDER ID : {statusTarget.id}
+                  </span>
+                </div>
                 <h3 className="text-base font-black uppercase text-white flex items-center gap-2">
                   <Video className="w-5 h-5 text-[#CCFF00]" />
-                  ADD / EDIT MEETING LINK
+                  EDIT LIVE MEETING LINK & SCHEDULE
                 </h3>
                 <p className="text-xs text-zinc-400 mt-0.5">
-                  Ref: <strong className="text-white">{statusTarget.id}</strong> — Athlete: <strong className="text-white">{statusTarget.clientName}</strong>
+                  Athlete: <strong className="text-white">{statusTarget.clientName}</strong> ({statusTarget.clientEmail})
                 </p>
               </div>
               <button
@@ -872,6 +955,23 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
             </div>
 
             <form onSubmit={handleSaveStatus} className="space-y-4 text-xs">
+              {/* Scheduled Session Date & Time */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-zinc-300 mb-1.5 flex items-center justify-between">
+                  <span>SCHEDULED SESSION DATE & TIME (UK / GMT)</span>
+                  <Calendar className="w-3.5 h-3.5 text-[#CCFF00]" />
+                </label>
+                <input
+                  type="datetime-local"
+                  value={statusScheduledAt}
+                  onChange={(e) => setStatusScheduledAt(e.target.value)}
+                  className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-[#CCFF00] [color-scheme:dark]"
+                />
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  Updating scheduled date & time will notify both client and coach via email.
+                </p>
+              </div>
+
               <div>
                 <label className="block text-[11px] font-bold uppercase text-zinc-300 mb-1.5">
                   GOOGLE MEET / ZOOM LINK *
@@ -885,7 +985,7 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
                   className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
                 />
                 <p className="text-[10px] text-zinc-500 mt-1">
-                  Once saved, this link will be visible to join and can be sent to the client via WhatsApp or Email.
+                  Once saved, this link will be visible to join and will be dispatched to the client and coach via email.
                 </p>
               </div>
 
@@ -907,7 +1007,7 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
 
               <div>
                 <label className="block text-[11px] font-bold uppercase text-zinc-300 mb-1.5">
-                  INTERNAL COACH NOTES
+                  INTERNAL COACH NOTES / ATHLETE INSTRUCTIONS
                 </label>
                 <textarea
                   rows={2}
@@ -930,7 +1030,7 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
                   type="submit"
                   className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black uppercase px-5 py-2.5 rounded-xl text-xs transition-all shadow-md cursor-pointer"
                 >
-                  SAVE & UPDATE
+                  SAVE & UPDATE SESSION
                 </button>
               </div>
             </form>

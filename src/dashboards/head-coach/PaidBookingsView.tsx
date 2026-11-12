@@ -737,7 +737,7 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                           Assign Coach & Link
                         </button>
                       </>
-                    ) : b.assignedCoachId === user.id ? (
+                    ) : (!isCustomerSupport && b.assignedCoachId === user.id) ? (
                       <>
                         <span className="px-2.5 py-1 bg-emerald-950/80 text-emerald-400 border border-emerald-800 text-[11px] font-bold rounded-lg flex items-center gap-1.5">
                           <CheckCircle2 className="w-3.5 h-3.5" />
@@ -949,7 +949,9 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#CCFF00]/10 text-[#CCFF00] border border-[#CCFF00]/30 font-bold uppercase">
                     {assignTarget.packageType}
                   </span>
-                  <span className="text-[10px] font-mono text-gray-400">REF: {assignTarget.id}</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
+                    ORDER ID : {assignTarget.orderId || assignTarget.id}
+                  </span>
                 </div>
                 <h3 className="text-lg font-black uppercase text-white mt-1">
                   {isAssignedToMe && !isReassigning ? 'Edit Live Meeting Link & Coaching Notes' : 'Assign Specialist Coach & Video Link'}
@@ -999,7 +1001,7 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                       <label className="block text-xs font-bold text-gray-300 uppercase">
                         Select Coach Assignment
                       </label>
-                      {assignTarget.assignedCoachId && (
+                      {!isCustomerSupport && assignTarget.assignedCoachId === user.id && (
                         <button
                           type="button"
                           onClick={() => {

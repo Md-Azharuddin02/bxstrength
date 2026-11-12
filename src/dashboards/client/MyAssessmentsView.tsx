@@ -120,7 +120,7 @@ export const MyAssessmentsView: React.FC<MyAssessmentsViewProps> = ({
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-mono text-[10px] font-bold text-amber-400 bg-amber-950/60 px-2.5 py-0.5 border border-amber-800/80 rounded">
-                    REF: {latestAssessment.id}
+                    ORDER ID: {latestAssessment.id}
                   </span>
                   <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full font-mono ${
                     isReviewed

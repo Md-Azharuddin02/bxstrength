@@ -928,7 +928,7 @@ app.post('/api/journey/verify-payment', async (req, res) => {
         <div style="font-family: Arial, sans-serif; background-color: #0d0d0f; color: #ffffff; padding: 32px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
           <div style="text-align: center; border-bottom: 2px solid #CCFF00; padding-bottom: 16px; margin-bottom: 24px;">
             <h1 style="color: #CCFF00; margin: 0; font-size: 22px; text-transform: uppercase; font-weight: 900;">PAYMENT RECEIVED SUCCESSFULLY</h1>
-            <p style="color: #a1a1aa; font-size: 12px; margin-top: 6px;">Booking Ref: <strong style="color: #ffffff;">${record.id}</strong></p>
+            <p style="color: #a1a1aa; font-size: 12px; margin-top: 6px;">ORDER ID : <strong style="color: #ffffff;">${record.id}</strong></p>
           </div>
           <p style="font-size: 15px; color: #e4e4e7;">Dear <strong>${record.userName}</strong>,</p>
           <p style="font-size: 14px; color: #a1a1aa; line-height: 1.6;">Thank you for choosing BXSTRENGTH! Your payment of <strong style="color: #CCFF00;">£${record.amountGbp}.00 GBP</strong> for <strong>${record.serviceTitle}</strong> has been received and verified.</p>
@@ -947,12 +947,12 @@ app.post('/api/journey/verify-payment', async (req, res) => {
     sendServerEmail({
       toEmail: adminEmail,
       toName: 'BXSTRENGTH Head Coach & Admin Team',
-      subject: `[URGENT ACTION REQUIRED] Assign Coach for ${record.userName} (Ref: ${record.id})`,
+      subject: `[URGENT ACTION REQUIRED] Assign Coach for ${record.userName} (ORDER ID: ${record.id})`,
       htmlContent: `
         <div style="font-family: Arial, sans-serif; background-color: #0d0d0f; color: #ffffff; padding: 32px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
           <div style="text-align: center; border-bottom: 2px solid #CCFF00; padding-bottom: 16px; margin-bottom: 24px;">
             <h1 style="color: #CCFF00; margin: 0; font-size: 20px; text-transform: uppercase; font-weight: 900;">ACTION REQUIRED: COACH ASSIGNMENT PENDING</h1>
-            <p style="color: #a1a1aa; font-size: 12px; margin-top: 4px;">Booking Ref: <strong style="color: #ffffff;">${record.id}</strong></p>
+            <p style="color: #a1a1aa; font-size: 12px; margin-top: 4px;">ORDER ID : <strong style="color: #ffffff;">${record.id}</strong></p>
           </div>
           <p style="font-size: 14px; color: #e4e4e7;">Customer <strong>${record.userName}</strong> has completed payment and is waiting on <strong>Step 4 (Coach Assignment Pending)</strong>.</p>
           <div style="background-color: #18181b; border: 1px solid #27272a; padding: 18px; border-radius: 8px; margin: 20px 0; font-size: 13px;">
@@ -1124,7 +1124,7 @@ app.post('/api/admin/journey/confirm-booking', async (req, res) => {
         <div style="font-family: Arial, sans-serif; background-color: #0d0d0f; color: #ffffff; padding: 32px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
           <div style="text-align: center; border-bottom: 2px solid #CCFF00; padding-bottom: 16px; margin-bottom: 24px;">
             <h1 style="color: #CCFF00; margin: 0; font-size: 22px; text-transform: uppercase; font-weight: 900;">OFFICIAL TRAINING SCHEDULE CONFIRMED</h1>
-            <p style="color: #a1a1aa; font-size: 12px; margin-top: 6px;">Booking Ref: <strong style="color: #ffffff;">${record.id}</strong></p>
+            <p style="color: #a1a1aa; font-size: 12px; margin-top: 6px;">ORDER ID : <strong style="color: #ffffff;">${record.id}</strong></p>
           </div>
 
           <p style="font-size: 15px; color: #e4e4e7;">Dear <strong>${record.userName}</strong>,</p>
@@ -3541,6 +3541,7 @@ app.get('/api/consultations', async (req, res) => {
           assignedCoachName: r.assigned_coach_name || null,
           assignedBy: r.assigned_by || null,
           assignedAt: r.assigned_at ? new Date(r.assigned_at).toISOString() : null,
+          scheduledAt: r.scheduled_at ? new Date(r.scheduled_at).toISOString() : null,
           meetingLink: decodeHtmlEntities(r.meeting_link || ''),
           notes: decodeHtmlEntities(r.notes || ''),
           updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : null,
@@ -3566,13 +3567,47 @@ app.get('/api/consultations', async (req, res) => {
 app.patch('/api/consultations/:id/assign', async (req, res) => {
   try {
     const { id } = req.params;
-    const { assignedCoachId, assignedCoachName, assignedBy, meetingLink, notes } = req.body;
+    const { assignedCoachId, assignedCoachName, assignedBy, meetingLink, notes, scheduledAt } = req.body;
 
     if (!assignedCoachName) {
       return res.status(400).json({ error: 'Assigned coach name is required' });
     }
 
+    const formatScheduleDateTime = (dtStr?: string | null) => {
+      if (!dtStr) return 'To be coordinated with your coach';
+      try {
+        const d = new Date(dtStr);
+        if (isNaN(d.getTime())) return dtStr;
+        return d.toLocaleString('en-GB', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZoneName: 'short'
+        });
+      } catch {
+        return dtStr;
+      }
+    };
+
+    const formatMeetingUrlLocal = (url?: string | null) => {
+      if (!url) return '';
+      const trimmed = url.trim();
+      if (!trimmed) return '';
+      return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    };
+
     if (dbPool) {
+      await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMP WITH TIME ZONE').catch(() => {});
+      await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS assigned_coach_id VARCHAR(100)').catch(() => {});
+      await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS assigned_coach_name VARCHAR(255)').catch(() => {});
+      await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS assigned_by VARCHAR(255)').catch(() => {});
+      await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP WITH TIME ZONE').catch(() => {});
+      await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS meeting_link TEXT').catch(() => {});
+      await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS notes TEXT').catch(() => {});
+
       const updateRes = await dbPool.query(
         `UPDATE consultations 
          SET assigned_coach_id = $1,
@@ -3581,11 +3616,20 @@ app.patch('/api/consultations/:id/assign', async (req, res) => {
              assigned_at = CURRENT_TIMESTAMP,
              meeting_link = COALESCE($4, meeting_link),
              notes = COALESCE($5, notes),
+             scheduled_at = COALESCE($6, scheduled_at),
              status = 'Assigned',
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $6
+         WHERE id = $7
          RETURNING *`,
-        [assignedCoachId || null, assignedCoachName, assignedBy || 'Head Coach', meetingLink || null, notes || null, id]
+        [
+          assignedCoachId || null,
+          assignedCoachName,
+          assignedBy || 'Head Coach',
+          meetingLink || null,
+          notes || null,
+          scheduledAt || null,
+          id
+        ]
       );
 
       if (updateRes.rows.length === 0) {
@@ -3593,11 +3637,206 @@ app.patch('/api/consultations/:id/assign', async (req, res) => {
       }
 
       const r = updateRes.rows[0];
+      const clientName = decodeHtmlEntities(r.client_name || '').replace(/<[^>]*>/g, '').trim() || (r.client_email ? r.client_email.split('@')[0] : 'Athlete');
+      const cleanMeetingLink = formatMeetingUrlLocal(meetingLink || r.meeting_link);
+      const cleanNotes = (notes || r.notes || '').trim();
+      const scheduledFormatted = formatScheduleDateTime(scheduledAt || r.scheduled_at);
+      const sessionGoal = r.goal && r.goal !== 'Fitness Boxing' ? r.goal : '15-Min Free Strategy Demo';
+
+      // 1. Dispatch rich session confirmation email to the client
+      if (r.client_email) {
+        sendServerEmail({
+          toEmail: r.client_email,
+          toName: clientName,
+          subject: `[FREE DEMO CONFIRMED] Your BxStrength Free 15-Min Strategy Session (ORDER ID: ${r.id})`,
+          senderName: 'BxStrength Coaching Team',
+          htmlContent: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0c0c0e; color: #ffffff; padding: 32px 16px; border-radius: 12px; max-width: 580px; margin: 0 auto; border: 1px solid #27272a;">
+              <div style="text-align: center; margin-bottom: 24px;">
+                <h1 style="color: #ffffff; font-size: 20px; font-weight: 900; letter-spacing: -0.5px; margin: 0; text-transform: uppercase;">
+                  BX<span style="color: #CCFF00;">STRENGTH</span>
+                </h1>
+                <p style="color: #a1a1aa; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; margin: 4px 0 0 0;">
+                  Free 1-on-1 Strategy Session
+                </p>
+              </div>
+
+              <div style="background-color: #141417; border: 1px solid #27272a; border-radius: 10px; padding: 24px; margin-bottom: 20px;">
+                <span style="background-color: rgba(204,255,0,0.12); color: #CCFF00; border: 1px solid rgba(204,255,0,0.3); font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 12px;">
+                  ✓ Coach Assigned & Demo Session Scheduled
+                </span>
+                
+                <h2 style="color: #ffffff; font-size: 18px; font-weight: 800; margin: 0 0 8px 0;">
+                  Hi ${clientName}, your strategy session is confirmed!
+                </h2>
+                <p style="font-size: 13px; color: #a1a1aa; line-height: 1.5; margin: 0 0 20px 0;">
+                  Your specialist coach <strong>${assignedCoachName}</strong> has been assigned to conduct your 1-on-1 strategy session. Review your session schedule and meeting link below:
+                </p>
+
+                <!-- Session Details Card -->
+                <div style="background-color: #1a1a1e; border: 1px solid #2e2e34; border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+                  <div style="font-size: 10px; font-weight: 800; color: #71717a; text-transform: uppercase; margin-bottom: 4px;">Session Type</div>
+                  <div style="font-size: 14px; font-weight: 900; color: #CCFF00;">${sessionGoal} (${r.duration || '15 Min'})</div>
+                  <div style="font-size: 11px; color: #a1a1aa; margin-top: 4px;">
+                    ORDER ID : <span style="font-family: monospace; color: #ffffff; font-weight: bold;">${r.id}</span>
+                  </div>
+                </div>
+
+                <!-- Schedule & Coach Card -->
+                <div style="background-color: #1a1a1e; border: 1px solid #2e2e34; border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+                  <div style="font-size: 10px; font-weight: 800; color: #71717a; text-transform: uppercase; margin-bottom: 4px;">Session Schedule & Coach</div>
+                  <div style="font-size: 13px; color: #ffffff; margin-bottom: 6px;">
+                    <strong>Assigned Coach:</strong> <span style="color: #CCFF00; font-weight: bold;">${assignedCoachName}</span>
+                  </div>
+                  <div style="font-size: 13px; color: #ffffff;">
+                    <strong>Scheduled Date & Time:</strong> <span style="color: #CCFF00; font-weight: bold;">${scheduledFormatted}</span>
+                  </div>
+                </div>
+
+                <!-- Meeting Link Card -->
+                ${cleanMeetingLink ? `
+                  <div style="background-color: #1a1a1e; border: 1px solid rgba(204,255,0,0.3); border-radius: 8px; padding: 16px; margin-bottom: 14px; text-align: center;">
+                    <div style="font-size: 11px; font-weight: 800; color: #a1a1aa; text-transform: uppercase; margin-bottom: 10px;">
+                      Live Virtual Video Room
+                    </div>
+                    <a href="${cleanMeetingLink}" target="_blank" rel="noopener noreferrer" style="background-color: #CCFF00; color: #000000; font-weight: 900; font-size: 13px; text-transform: uppercase; padding: 12px 28px; border-radius: 8px; text-decoration: none; display: inline-block; margin-bottom: 10px; letter-spacing: 0.5px;">
+                      JOIN LIVE VIDEO CALL &rarr;
+                    </a>
+                    <div style="font-size: 11px; color: #71717a; word-break: break-all;">
+                      Direct URL: <a href="${cleanMeetingLink}" style="color: #CCFF00; text-decoration: underline;">${cleanMeetingLink}</a>
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- Instructions / Notes -->
+                ${cleanNotes ? `
+                  <div style="background-color: #1c1c18; border-left: 3px solid #CCFF00; padding: 12px 16px; border-radius: 4px; margin-bottom: 14px;">
+                    <div style="font-size: 10px; font-weight: 800; color: #CCFF00; text-transform: uppercase; margin-bottom: 4px;">
+                      Coach Notes & Preparation Instructions:
+                    </div>
+                    <div style="font-size: 12px; color: #e4e4e7; line-height: 1.5; white-space: pre-wrap;">
+                      "${cleanNotes}"
+                    </div>
+                  </div>
+                ` : ''}
+
+                <div style="background-color: #121214; border-left: 4px solid #CCFF00; padding: 12px 16px; margin-bottom: 14px; border-radius: 4px;">
+                  <h4 style="color: #ffffff; margin: 0 0 6px 0; font-size: 12px; font-weight: bold;">SESSION PREPARATION:</h4>
+                  <ul style="margin: 0; padding-left: 18px; font-size: 12px; color: #a1a1aa; line-height: 1.5;">
+                    <li>Please join 2-3 minutes before the scheduled start time.</li>
+                    <li>Ensure your device camera and microphone are operational.</li>
+                    <li>Have any training goals, injury questions, or nutrition queries ready!</li>
+                  </ul>
+                </div>
+
+                <p style="font-size: 11px; color: #71717a; line-height: 1.5; margin: 16px 0 0 0; text-align: center;">
+                  You can also access your strategy session details anytime from your BxStrength Member Dashboard.
+                </p>
+              </div>
+
+              <div style="text-align: center; font-size: 11px; color: #52525b; border-top: 1px solid #27272a; padding-top: 16px;">
+                BXSTRENGTH Performance Coaching • Questions? Contact support@bxstrength.com
+              </div>
+            </div>
+          `
+        }).catch(err => console.error('[DEMO CLIENT EMAIL ERROR]:', err?.message));
+      }
+
+      // 2. Dispatch notification email to the assigned coach (or Head Coach)
+      let coachEmail = '';
+      if (assignedCoachId) {
+        try {
+          const u = await dbPool.query('SELECT email FROM users WHERE id = $1', [assignedCoachId]);
+          if (u.rows.length > 0) coachEmail = u.rows[0].email;
+        } catch {}
+      }
+      if (!coachEmail && assignedCoachName) {
+        try {
+          const u = await dbPool.query('SELECT email FROM users WHERE LOWER(name) = LOWER($1)', [assignedCoachName]);
+          if (u.rows.length > 0) coachEmail = u.rows[0].email;
+        } catch {}
+      }
+
+      if (coachEmail) {
+        sendServerEmail({
+          toEmail: coachEmail,
+          toName: assignedCoachName,
+          subject: `[ACTION REQUIRED] New Free Demo Assigned: ${clientName} (ORDER ID: ${r.id})`,
+          senderName: 'BxStrength Dispatch Desk',
+          htmlContent: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0c0c0e; color: #ffffff; padding: 32px 16px; border-radius: 12px; max-width: 580px; margin: 0 auto; border: 1px solid #27272a;">
+              <div style="text-align: center; margin-bottom: 24px;">
+                <h1 style="color: #ffffff; font-size: 20px; font-weight: 900; letter-spacing: -0.5px; margin: 0; text-transform: uppercase;">
+                  BX<span style="color: #CCFF00;">STRENGTH</span>
+                </h1>
+                <p style="color: #a1a1aa; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; margin: 4px 0 0 0;">
+                  Coach Roster & Dispatch
+                </p>
+              </div>
+
+              <div style="background-color: #141417; border: 1px solid #27272a; border-radius: 10px; padding: 24px; margin-bottom: 20px;">
+                <span style="background-color: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 12px;">
+                  👤 New Free Demo Lead Assigned To You
+                </span>
+                
+                <h2 style="color: #ffffff; font-size: 18px; font-weight: 800; margin: 0 0 8px 0;">
+                  Hi Coach ${assignedCoachName}, you have a new demo lead!
+                </h2>
+                <p style="font-size: 13px; color: #a1a1aa; line-height: 1.5; margin: 0 0 20px 0;">
+                  A Free 15-Minute Strategy Consultation has been assigned to you by <strong>${assignedBy || 'Dispatch Desk'}</strong>. Here are the athlete's details:
+                </p>
+
+                <!-- Client Info Card -->
+                <div style="background-color: #1a1a1e; border: 1px solid #2e2e34; border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+                  <div style="font-size: 10px; font-weight: 800; color: #71717a; text-transform: uppercase; margin-bottom: 6px;">Athlete Details</div>
+                  <div style="font-size: 13px; color: #ffffff; margin-bottom: 4px;"><strong>Athlete Name:</strong> ${clientName}</div>
+                  <div style="font-size: 13px; color: #ffffff; margin-bottom: 4px;"><strong>Email:</strong> <a href="mailto:${r.client_email}" style="color: #CCFF00;">${r.client_email}</a></div>
+                  <div style="font-size: 13px; color: #ffffff; margin-bottom: 4px;"><strong>Phone / WhatsApp:</strong> ${r.client_phone || 'Not provided'}</div>
+                  <div style="font-size: 13px; color: #ffffff;"><strong>Goal / Focus:</strong> ${sessionGoal}</div>
+                </div>
+
+                <!-- Schedule & Meeting Card -->
+                <div style="background-color: #1a1a1e; border: 1px solid #2e2e34; border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+                  <div style="font-size: 10px; font-weight: 800; color: #71717a; text-transform: uppercase; margin-bottom: 6px;">Session Schedule & Meeting Link</div>
+                  <div style="font-size: 13px; color: #ffffff; margin-bottom: 6px;">
+                    <strong>Scheduled Date & Time:</strong> <span style="color: #CCFF00; font-weight: bold;">${scheduledFormatted}</span>
+                  </div>
+                  <div style="font-size: 13px; color: #ffffff;">
+                    <strong>Meeting Room:</strong> ${cleanMeetingLink ? `<a href="${cleanMeetingLink}" style="color: #CCFF00; font-weight: bold;">${cleanMeetingLink}</a>` : '<span style="color: #a1a1aa;">Link to be added</span>'}
+                  </div>
+                </div>
+
+                ${cleanNotes ? `
+                  <div style="background-color: #1c1c18; border-left: 3px solid #CCFF00; padding: 12px 16px; border-radius: 4px; margin-bottom: 14px;">
+                    <div style="font-size: 10px; font-weight: 800; color: #CCFF00; text-transform: uppercase; margin-bottom: 4px;">
+                      Dispatch Instructions / Athlete Notes:
+                    </div>
+                    <div style="font-size: 12px; color: #e4e4e7; line-height: 1.5; white-space: pre-wrap;">
+                      "${cleanNotes}"
+                    </div>
+                  </div>
+                ` : ''}
+
+                <div style="text-align: center; margin: 20px 0 8px 0;">
+                  <a href="${process.env.APP_URL || 'http://localhost:3000'}/dashboard" style="background-color: #CCFF00; color: #000000; font-weight: 900; font-size: 12px; text-transform: uppercase; padding: 10px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">
+                    OPEN COACH DASHBOARD &rarr;
+                  </a>
+                </div>
+              </div>
+
+              <div style="text-align: center; font-size: 11px; color: #52525b; border-top: 1px solid #27272a; padding-top: 16px;">
+                BXSTRENGTH Internal Coach Dispatch System • ORDER ID: ${r.id}
+              </div>
+            </div>
+          `
+        }).catch(err => console.error('[DEMO COACH EMAIL ERROR]:', err?.message));
+      }
+
       return res.json({
         success: true,
         consultation: {
           id: r.id,
-          clientName: decodeHtmlEntities(r.client_name || '').replace(/<[^>]*>/g, '').trim() || (r.client_email ? r.client_email.split('@')[0] : 'Athlete'),
+          clientName,
           clientEmail: r.client_email,
           clientPhone: r.client_phone,
           goal: r.goal,
@@ -3610,6 +3849,7 @@ app.patch('/api/consultations/:id/assign', async (req, res) => {
           assignedCoachName: r.assigned_coach_name,
           assignedBy: r.assigned_by,
           assignedAt: r.assigned_at,
+          scheduledAt: r.scheduled_at,
           meetingLink: r.meeting_link,
           notes: r.notes,
           createdAt: r.created_at
@@ -3630,22 +3870,44 @@ app.patch('/api/consultations/:id/status', requireCoachOwnsBooking(async (id) =>
 }), async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, meetingLink, notes } = req.body;
+    const { status, meetingLink, notes, scheduledAt } = req.body;
 
     if (!status) {
       return res.status(400).json({ error: 'Status is required' });
     }
 
+    const formatScheduleDateTime = (dtStr?: string | null) => {
+      if (!dtStr) return 'To be coordinated with your coach';
+      try {
+        const d = new Date(dtStr);
+        if (isNaN(d.getTime())) return dtStr;
+        return d.toLocaleString('en-GB', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZoneName: 'short'
+        });
+      } catch {
+        return dtStr;
+      }
+    };
+
     if (dbPool) {
+      await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMP WITH TIME ZONE').catch(() => {});
+
       const updateRes = await dbPool.query(
         `UPDATE consultations 
          SET status = $1,
              meeting_link = COALESCE($2, meeting_link),
              notes = COALESCE($3, notes),
+             scheduled_at = COALESCE($4, scheduled_at),
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $4
+         WHERE id = $5
          RETURNING *`,
-        [status, meetingLink || null, notes || null, id]
+        [status, meetingLink || null, notes || null, scheduledAt || null, id]
       );
 
       if (updateRes.rows.length === 0) {
@@ -3653,27 +3915,29 @@ app.patch('/api/consultations/:id/status', requireCoachOwnsBooking(async (id) =>
       }
 
       const r = updateRes.rows[0];
+      const coachName = r.assigned_coach_name || 'Your Assigned Performance Coach';
+      const cleanMeetingLink = (meetingLink || r.meeting_link || '').trim();
+      const fullMeetingLink = cleanMeetingLink.startsWith('http') ? cleanMeetingLink : `https://${cleanMeetingLink}`;
+      const scheduledFormatted = formatScheduleDateTime(scheduledAt || r.scheduled_at);
+      const cleanNotes = (notes || r.notes || '').trim();
+      const clientName = decodeHtmlEntities(r.client_name || '').replace(/<[^>]*>/g, '').trim() || (r.client_email ? r.client_email.split('@')[0] : 'Athlete');
 
       // Send meeting link invitation email to the client when a meeting link is provided or updated
-      if (meetingLink && meetingLink.trim()) {
+      if (cleanMeetingLink) {
         try {
-          const coachName = r.assigned_coach_name || 'Your Assigned Performance Coach';
-          const cleanMeetingLink = meetingLink.trim();
-          const fullMeetingLink = cleanMeetingLink.startsWith('http') ? cleanMeetingLink : `https://${cleanMeetingLink}`;
-
           sendServerEmail({
             toEmail: r.client_email,
             toName: r.client_name,
-            subject: `[BxStrength] Your Free 15-Min Strategy Session Meeting Link is Ready!`,
+            subject: `[BxStrength] Your Free 15-Min Strategy Session Meeting Link is Ready! (ORDER ID: ${r.id})`,
             senderName: 'BxStrength Coaching Team',
             htmlContent: `
               <div style="font-family: Arial, sans-serif; background-color: #0d0d0f; color: #ffffff; padding: 32px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
                 <div style="text-align: center; border-bottom: 2px solid #CCFF00; padding-bottom: 16px; margin-bottom: 24px;">
                   <h1 style="color: #CCFF00; margin: 0; font-size: 22px; text-transform: uppercase; font-weight: 900;">FREE 15-MIN STRATEGY SESSION</h1>
-                  <p style="color: #a1a1aa; font-size: 12px; margin-top: 6px;">Booking Ref: <strong style="color: #ffffff;">${r.id}</strong></p>
+                  <p style="color: #a1a1aa; font-size: 12px; margin-top: 6px;">ORDER ID : <strong style="color: #ffffff;">${r.id}</strong></p>
                 </div>
 
-                <p style="font-size: 15px; color: #e4e4e7;">Hi <strong>${r.client_name}</strong>,</p>
+                <p style="font-size: 15px; color: #e4e4e7;">Hi <strong>${clientName}</strong>,</p>
                 <p style="font-size: 14px; color: #a1a1aa; line-height: 1.6;">
                   Your live 1-on-1 Free Strategy Session has been scheduled with <strong>${coachName}</strong>. Your video meeting room is now ready!
                 </p>
@@ -3684,7 +3948,8 @@ app.patch('/api/consultations/:id/status', requireCoachOwnsBooking(async (id) =>
                     <tr><td style="padding: 6px 0; color: #a1a1aa;">Assigned Coach:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${coachName}</td></tr>
                     <tr><td style="padding: 6px 0; color: #a1a1aa;">Session Type:</td><td style="padding: 6px 0; font-weight: bold; color: #CCFF00;">${r.goal && r.goal !== 'Fitness Boxing' ? r.goal : '15-Min Free Strategy Demo'}</td></tr>
                     <tr><td style="padding: 6px 0; color: #a1a1aa;">Session Duration:</td><td style="padding: 6px 0; font-weight: bold; color: #ffffff;">${r.duration || '15-20 Mins'}</td></tr>
-                    ${notes ? `<tr><td style="padding: 6px 0; color: #a1a1aa;">Coach Notes:</td><td style="padding: 6px 0; color: #e4e4e7;">${notes}</td></tr>` : ''}
+                    <tr><td style="padding: 6px 0; color: #a1a1aa;">Scheduled Time:</td><td style="padding: 6px 0; font-weight: bold; color: #CCFF00;">${scheduledFormatted}</td></tr>
+                    ${cleanNotes ? `<tr><td style="padding: 6px 0; color: #a1a1aa;">Coach Notes:</td><td style="padding: 6px 0; color: #e4e4e7;">${cleanNotes}</td></tr>` : ''}
                   </table>
                 </div>
 
@@ -3713,12 +3978,69 @@ app.patch('/api/consultations/:id/status', requireCoachOwnsBooking(async (id) =>
               </div>
             `
           }).catch(err => console.error('[MEETING LINK EMAIL ERROR]:', err?.message));
+
+          // Also notify assigned coach of updated meeting link & schedule
+          let coachEmail = '';
+          if (r.assigned_coach_id) {
+            try {
+              const u = await dbPool.query('SELECT email FROM users WHERE id = $1', [r.assigned_coach_id]);
+              if (u.rows.length > 0) coachEmail = u.rows[0].email;
+            } catch {}
+          }
+          if (!coachEmail && r.assigned_coach_name) {
+            try {
+              const u = await dbPool.query('SELECT email FROM users WHERE LOWER(name) = LOWER($1)', [r.assigned_coach_name]);
+              if (u.rows.length > 0) coachEmail = u.rows[0].email;
+            } catch {}
+          }
+
+          if (coachEmail) {
+            sendServerEmail({
+              toEmail: coachEmail,
+              toName: coachName,
+              subject: `[UPDATED] Free Demo Meeting Link & Schedule: ${clientName} (ORDER ID: ${r.id})`,
+              senderName: 'BxStrength Dispatch Desk',
+              htmlContent: `
+                <div style="font-family: Arial, sans-serif; background-color: #0d0d0f; color: #ffffff; padding: 32px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #27272a;">
+                  <h2 style="color: #CCFF00; margin-top: 0;">Session Meeting Link & Schedule Updated</h2>
+                  <p>Coach <strong>${coachName}</strong>, the live video link or schedule for athlete <strong>${clientName}</strong> has been updated:</p>
+                  <div style="background-color: #18181b; padding: 16px; border-radius: 8px; margin: 16px 0;">
+                    <p><strong>Scheduled Date & Time:</strong> ${scheduledFormatted}</p>
+                    <p><strong>Meeting Link:</strong> <a href="${fullMeetingLink}" style="color: #CCFF00;">${fullMeetingLink}</a></p>
+                    ${cleanNotes ? `<p><strong>Notes:</strong> ${cleanNotes}</p>` : ''}
+                  </div>
+                </div>
+              `
+            }).catch(e => console.error('[COACH MEETING UPDATE EMAIL ERROR]:', e?.message));
+          }
         } catch (e: any) {
           console.warn('Failed to dispatch meeting link email:', e.message);
         }
       }
 
-      return res.json({ success: true, consultation: r });
+      return res.json({
+        success: true,
+        consultation: {
+          id: r.id,
+          clientName,
+          clientEmail: r.client_email,
+          clientPhone: r.client_phone,
+          goal: r.goal,
+          duration: r.duration,
+          preferredDate: r.preferred_date,
+          preferredTime: r.preferred_time,
+          additionalNotes: r.additional_notes || r.message,
+          status: r.status,
+          assignedCoachId: r.assigned_coach_id,
+          assignedCoachName: r.assigned_coach_name,
+          assignedBy: r.assigned_by,
+          assignedAt: r.assigned_at,
+          scheduledAt: r.scheduled_at,
+          meetingLink: r.meeting_link,
+          notes: r.notes,
+          createdAt: r.created_at
+        }
+      });
     }
 
     res.json({ success: true });
@@ -4149,7 +4471,7 @@ app.patch('/api/paid-bookings/:id/assign', coachOwnsPaidBooking, async (req, res
                     <div style="font-size: 10px; font-weight: 800; color: #71717a; text-transform: uppercase; margin-bottom: 4px;">Training Programme</div>
                     <div style="font-size: 14px; font-weight: 900; color: #ffffff;">${cleanPkgName}</div>
                     <div style="font-size: 11px; color: #a1a1aa; margin-top: 4px;">
-                      Package Ref: <span style="font-family: monospace; color: #e4e4e7;">${updated.id}</span> • Total Sessions: <strong style="color: #ffffff;">${updated.totalSessions}</strong> (${updated.durationMinutes || 45} mins each)
+                      ORDER ID : <span style="font-family: monospace; color: #e4e4e7;">${updated.id}</span> • Total Sessions: <strong style="color: #ffffff;">${updated.totalSessions}</strong> (${updated.durationMinutes || 45} mins each)
                     </div>
                   </div>
 
@@ -4261,7 +4583,7 @@ app.patch('/api/paid-bookings/:id/assign', coachOwnsPaidBooking, async (req, res
                     <div style="font-size: 10px; font-weight: 800; color: #71717a; text-transform: uppercase; margin-bottom: 4px;">Programme Information</div>
                     <div style="font-size: 14px; font-weight: 900; color: #ffffff;">${cleanPkgName}</div>
                     <div style="font-size: 11px; color: #a1a1aa; margin-top: 4px;">
-                      Booking Ref: <span style="font-family: monospace; color: #e4e4e7;">${updated.id}</span> • Total Sessions: <strong style="color: #ffffff;">${updated.totalSessions}</strong> (${updated.durationMinutes || 45} mins each)
+                      ORDER ID : <span style="font-family: monospace; color: #e4e4e7;">${updated.id}</span> • Total Sessions: <strong style="color: #ffffff;">${updated.totalSessions}</strong> (${updated.durationMinutes || 45} mins each)
                     </div>
                   </div>
 

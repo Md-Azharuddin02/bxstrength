@@ -131,7 +131,7 @@ export const FreeDemoView: React.FC<FreeDemoViewProps> = ({
                       : '● PENDING HEAD COACH REVIEW'}
                   </span>
                   <span className="text-[11px] font-mono font-bold text-zinc-400">
-                    REF: {consultation.id}
+                    ORDER ID : {consultation.id}
                   </span>
                 </div>
                 <h3 className="text-lg sm:text-xl font-black uppercase text-white tracking-tight mt-1">
@@ -269,7 +269,7 @@ export const FreeDemoView: React.FC<FreeDemoViewProps> = ({
                     DEMO SESSION COMPLETED
                   </span>
                   <span className="text-[11px] font-mono font-bold text-zinc-400">
-                    REF: {consultation.id}
+                    ORDER ID : {consultation.id}
                   </span>
                 </div>
                 <h3 className="text-lg sm:text-xl font-black uppercase text-white tracking-tight mt-1">

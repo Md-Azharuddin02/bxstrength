@@ -144,7 +144,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[10px] font-mono font-bold text-zinc-400">
-                    REF: {activeConsultation.id}
+                    ORDER ID : {activeConsultation.id}
                   </span>
                   <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
                     activeConsultation.status === 'Confirmed'
@@ -217,7 +217,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded font-mono">
                   DEMO SESSION COMPLETED
                 </span>
-                <span className="text-xs font-mono text-zinc-400">REF: {activeConsultation.id}</span>
+                <span className="text-xs font-mono text-zinc-400">ORDER ID : {activeConsultation.id}</span>
               </div>
               <h3 className="text-sm font-bold text-white uppercase mt-0.5">
                 Complimentary 15-Min Strategy Session Completed

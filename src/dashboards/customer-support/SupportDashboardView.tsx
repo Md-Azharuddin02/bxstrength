@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { SupportTicket, TicketStatus, TicketPriority, TicketCategory, TicketSource, User, Booking, Subscription, PaidPackageBooking } from '../../types';
+import { SupportTicket, TicketStatus, TicketPriority, TicketCategory, TicketSource, User, PaidPackageBooking, ConsultationBooking, AthleteAssessment, Enquiry, InAppNotification } from '../../types';
 import { PaidBookingsView } from '../head-coach/PaidBookingsView';
 import { CoachAvailabilityRoster } from './CoachAvailabilityRoster';
 import { normalizeRole } from '../../utils/auth';
@@ -10,25 +10,30 @@ import { PhoneInput } from '../../components/PhoneInput';
 import { ProfileManagement } from '../client/ProfileManagement';
 import { FreeAssessmentsView } from '../head-coach/FreeAssessmentsView';
 import { FreeConsultationsView } from '../head-coach/FreeConsultationsView';
+import { EnquiriesManager } from './EnquiriesManager';
+import { SupportSidebar, SUPPORT_NAV, type SupportTab } from './SupportSidebar';
+import { SupportOverview } from './SupportOverview';
+import { NotificationBell } from './NotificationBell';
+import { useStaffNotifications, parseLink } from '../../hooks/useStaffNotifications';
 import { 
   LifeBuoy, CheckCircle2, Clock, AlertCircle, MessageSquare, Search, Filter, ShieldAlert, 
   Send, Trash2, UserCheck, ArrowUpRight, Phone, Mail, Globe, Tag, ChevronRight, RefreshCw, 
   BarChart2, Lock, AlertTriangle, Plus, FileText, Check, ShieldCheck, X, Zap, CornerUpRight,
-  User as UserIcon, Settings, LogOut, Home, ClipboardCheck, Package, Users, Video
+  User as UserIcon, Menu
 } from 'lucide-react';
 
 interface SupportDashboardViewProps {
   onShowToast?: (msg: string) => void;
   onNavigateHome?: () => void;
   onLogout?: () => void;
-  initialTab?: 'inbox' | 'analytics' | 'audit_logs' | 'account_settings' | 'assessments' | 'paid_bookings' | 'coaches_workload' | 'free_consultations';
+  initialTab?: SupportTab;
 }
 
 export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({ 
   onShowToast = () => {},
   onNavigateHome,
   onLogout,
-  initialTab = 'paid_bookings'
+  initialTab = 'dashboard'
 }) => {
   const { user } = useAuth();
 
@@ -37,7 +42,10 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     user?.role === 'admin' ? 'admin' : ((user?.role === 'headcoach' || user?.role === 'coach') ? user.role : 'customer_support')
   );
 
-  const [activeTab, setActiveTab] = useState<'inbox' | 'analytics' | 'audit_logs' | 'account_settings' | 'assessments' | 'paid_bookings' | 'coaches_workload' | 'free_consultations'>(initialTab);
+  const [activeTab, setActiveTab] = useState<SupportTab>(initialTab);
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -114,8 +122,10 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
 
   // Live Coaches & Paid Bookings state for Customer Support Oversight
   const [coaches, setCoaches] = useState<User[]>([]);
-  const [consultationsCount, setConsultationsCount] = useState<number>(0);
-  const [assessmentsCount, setAssessmentsCount] = useState<number>(0);
+  const [consultations, setConsultations] = useState<ConsultationBooking[]>([]);
+  const [assessments, setAssessments] = useState<AthleteAssessment[]>([]);
+  const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
+  const [loadError, setLoadError] = useState(false);
   const [paidBookings, setPaidBookings] = useState<PaidPackageBooking[]>(() => {
     try {
       const raw = localStorage.getItem('bxstrength_paid_bookings');
@@ -124,46 +134,68 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     return [];
   });
 
-  const loadCoachesAndBookings = async () => {
+  const loadData = async () => {
     try {
-      const [uList, bookings, consultations, assessments] = await Promise.all([
+      const [uList, bookings, cons, assess, enqs] = await Promise.all([
         VelocityAPI.fetchUsers(),
         VelocityAPI.fetchPaidBookings(),
-        VelocityAPI.fetchConsultations().catch(() => []),
-        VelocityAPI.fetchAssessments().catch(() => [])
+        VelocityAPI.fetchConsultations(),
+        VelocityAPI.fetchAssessments(),
+        VelocityAPI.fetchEnquiries(),
       ]);
-      const staff = uList.filter(u => {
+      setCoaches(uList.filter(u => {
         const r = normalizeRole(u.role);
         return r === 'coach' || r === 'headcoach';
-      });
-      setCoaches(staff);
+      }));
       setPaidBookings(bookings);
-      setConsultationsCount(Array.isArray(consultations) ? consultations.length : 0);
-      setAssessmentsCount(Array.isArray(assessments) ? assessments.length : 0);
+      setConsultations(Array.isArray(cons) ? cons : []);
+      setAssessments(Array.isArray(assess) ? assess : []);
+      setEnquiries(Array.isArray(enqs) ? enqs : []);
+      setLoadError(false);
       try { localStorage.setItem('bxstrength_paid_bookings', JSON.stringify(bookings)); } catch {}
     } catch (e) {
-      console.warn('Failed to load coaches/bookings in CS:', e);
+      console.warn('Failed to load support dashboard data:', e);
+      setLoadError(true);
     }
   };
 
-  const unassignedCount = useMemo(() => {
-    return paidBookings.filter(b => 
-      !b.assignedCoachName || 
-      b.assignedCoachName.toLowerCase() === 'unassigned' ||
-      !b.assignedCoachId
-    ).length;
-  }, [paidBookings]);
+  const { items: notifications, loading: notifLoading, error: notifError, unreadByTab, unreadTotal, markRead, refresh: refreshNotifications } = useStaffNotifications();
 
   useEffect(() => {
-    loadCoachesAndBookings();
-    const handleBookingsUpdate = () => loadCoachesAndBookings();
-    window.addEventListener('bxstrength_paid_bookings_updated', handleBookingsUpdate);
-    return () => window.removeEventListener('bxstrength_paid_bookings_updated', handleBookingsUpdate);
+    loadData();
+    window.addEventListener('bxstrength_paid_bookings_updated', loadData);
+    return () => window.removeEventListener('bxstrength_paid_bookings_updated', loadData);
   }, []);
+
+  // A new notification means a new record: reload the lists so the dashboard and sections show it right away.
+  const newestNotifId = notifications[0]?.id;
+  useEffect(() => {
+    if (!newestNotifId) return;
+    loadData();
+    fetchTickets(false);
+  }, [newestNotifId]);
+
+  const selectTab = (tab: SupportTab, resetFilters = true) => {
+    setActiveTab(tab);
+    if (tab === 'inbox' && resetFilters) { setStatusFilter('all'); setPriorityFilter('all'); }
+    markRead(notifications.filter(n => !n.isRead && parseLink(n).tab === tab).map(n => n.id));
+  };
+
+  const openNotification = (n: InAppNotification) => {
+    const { tab, recordId } = parseLink(n);
+    markRead([n.id]);
+    if (!SUPPORT_NAV.some(i => i.id === tab)) return;
+    setActiveTab(tab as SupportTab);
+    if (tab === 'inbox') {
+      setStatusFilter('all'); setPriorityFilter('all'); setSourceFilter('all'); setSearchTerm('');
+      const t = tickets.find(x => x.id === recordId);
+      if (t) setSelectedTicket(t);
+    }
+  };
 
   useEffect(() => {
     fetchTickets(true);
-    const interval = setInterval(() => fetchTickets(false), 5000); // 5 sec real-time sync
+    const interval = setInterval(() => { if (document.visibilityState === 'visible') fetchTickets(false); }, 60_000); // 60s sync, paused while the tab is hidden; new tickets also arrive via notifications
 
     const handleTicketsUpdated = () => {
       fetchTickets(false);
@@ -244,14 +276,29 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     }
   };
 
-  const handleAssignAgent = (agentName: string, agentRole: 'customer_support' | 'headcoach' | 'coach' | 'admin') => {
+  // Assign/escalate must be saved on the server: tickets fetched from the API are not in local storage,
+  // and the server copy overwrites local edits on the next refresh. Returns false (and toasts) if the save fails.
+  const saveTicketChange = async (patch: Record<string, unknown>): Promise<boolean> => {
+    if (!selectedTicket) return false;
+    try {
+      const res = await apiFetch(`/api/tickets/${encodeURIComponent(selectedTicket.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (res.ok) return true;
+    } catch {}
+    onShowToast('Could not save the change. Please try again.');
+    return false;
+  };
+
+  const handleAssignAgent = async (agentName: string, agentRole: 'customer_support' | 'headcoach' | 'coach' | 'admin') => {
     if (!selectedTicket) return;
-    const updated = VelocityAPI.assignTicket(selectedTicket.id, agentName, agentRole);
-    if (updated) {
-      setSelectedTicket(updated);
-      fetchTickets();
-      onShowToast(`Ticket #${selectedTicket.id} assigned to ${agentName}.`);
-    }
+    if (!(await saveTicketChange({ assignedAgent: agentName, assignedAgentRole: agentRole, status: selectedTicket.status === 'new' ? 'assigned' : undefined }))) return;
+    VelocityAPI.assignTicket(selectedTicket.id, agentName, agentRole); // keeps the local copy and audit log in step
+    setSelectedTicket({ ...selectedTicket, assignedAgent: agentName, assignedAgentRole: agentRole, status: selectedTicket.status === 'new' ? 'assigned' : selectedTicket.status });
+    fetchTickets();
+    onShowToast(`Ticket #${selectedTicket.id} assigned to ${agentName}.`);
   };
 
   const handleSendResponse = async () => {
@@ -312,16 +359,29 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     }
   };
 
-  const handleConfirmEscalation = () => {
+  const handleConfirmEscalation = async () => {
     if (!selectedTicket || !escalationReason.trim()) return;
-    const updated = VelocityAPI.escalateTicket(selectedTicket.id, escalationTarget, escalationReason.trim());
-    if (updated) {
-      setSelectedTicket(updated);
-      setEscalateModalOpen(false);
-      setEscalationReason('');
-      fetchTickets();
-      onShowToast(`🚨 Ticket #${selectedTicket.id} escalated to ${escalationTarget} with URGENT priority.`);
-    }
+    const reason = escalationReason.trim();
+    const saved = await saveTicketChange({
+      priority: 'urgent',
+      assignedAgent: escalationTarget,
+      escalation: { escalatedTo: escalationTarget, reason, priorityAtEscalation: selectedTicket.priority },
+    });
+    if (!saved) return;
+    VelocityAPI.escalateTicket(selectedTicket.id, escalationTarget, reason); // local copy + audit log
+    setSelectedTicket({
+      ...selectedTicket,
+      priority: 'urgent',
+      assignedAgent: escalationTarget,
+      escalationHistory: [
+        { id: `esc-${Date.now()}`, escalatedBy: `${user?.name || 'CS Agent'} (${(user?.role || '').toUpperCase()})`, escalatedTo: escalationTarget, reason, priorityAtEscalation: selectedTicket.priority, createdAt: new Date().toISOString() },
+        ...(selectedTicket.escalationHistory || []),
+      ],
+    });
+    setEscalateModalOpen(false);
+    setEscalationReason('');
+    fetchTickets();
+    onShowToast(`Ticket #${selectedTicket.id} escalated to ${escalationTarget} with urgent priority.`);
   };
 
   const handleCreateNewTicketSubmit = (e: React.FormEvent) => {
@@ -401,453 +461,87 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
   };
 
   return (
-    <div className="bg-[#0a0a0c] min-h-screen text-white font-sans border-b border-zinc-800">
+    <div className="h-screen h-[100dvh] flex bg-[#0a0a0c] text-white font-sans overflow-hidden">
+      <SupportSidebar
+        active={activeTab}
+        onSelect={selectTab}
+        unread={{ ...unreadByTab, inbox: unreadByTab.inbox || 0 }}
+        collapsed={collapsed}
+        onToggleCollapse={() => setCollapsed(c => !c)}
+        mobileOpen={mobileOpen}
+        onCloseMobile={() => setMobileOpen(false)}
+        onLogout={onLogout}
+        user={user}
+        onEditProfile={() => setProfileOpen(true)}
+      />
 
-      {/* TOP WORKSPACE HEADER & NAVIGATION */}
-      <header className="bg-[#121214] border-b border-zinc-800 sticky top-0 z-40 backdrop-blur-md bg-opacity-95">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-3 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800/60">
-            {/* User Info */}
-            <div className="flex items-center gap-3">
-              {user && (
-                <img
-                  src={user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.name)}`}
-                  alt={user.name}
-                  className="w-10 h-10 rounded-full object-cover border-2 border-[#CCFF00]"
-                />
-              )}
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-sm font-black uppercase text-white tracking-wide">
-                    {user?.name || 'CUSTOMER SUPPORT AGENT'}
-                  </h1>
-                  <span className="bg-[#CCFF00]/10 text-[#CCFF00] border border-[#CCFF00]/30 text-[9px] font-black uppercase px-2 py-0.5 rounded-full">
-                    CS WORKSPACE
-                  </span>
-                </div>
-                <p className="text-[11px] text-zinc-400 font-medium">
-                  Logged in as <span className="text-zinc-200 font-bold">{user?.email}</span>
-                </p>
-              </div>
-            </div>
-
-            {/* Header Actions */}
-            <div className="flex items-center gap-2.5">
-              <button
-                onClick={() => setCreateTicketModalOpen(true)}
-                className="bg-[#CCFF00] hover:bg-[#b8e600] text-black text-xs font-black uppercase px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
-              >
-                <Plus className="w-4 h-4 text-black stroke-[3]" />
-                <span>Log New Inquiry</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  fetchTickets(false);
-                  loadCoachesAndBookings();
-                  onShowToast('Dashboard refreshed');
-                }}
-                className="text-xs font-bold text-zinc-300 hover:text-white flex items-center gap-1.5 bg-[#18181b] hover:bg-zinc-800 px-3 py-2 rounded-xl border border-zinc-800 cursor-pointer transition-all active:scale-95"
-                title="Refresh Live Data Feed"
-              >
-                <RefreshCw className="w-3.5 h-3.5 text-[#CCFF00]" />
-                <span className="hidden sm:inline">Refresh</span>
-              </button>
-
-              <a
-                href="/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-bold text-zinc-300 hover:text-white flex items-center gap-1.5 bg-[#18181b] hover:bg-zinc-800 px-3 py-2 rounded-xl border border-zinc-800 cursor-pointer transition-all active:scale-95"
-                title="Open BxStrength Website in a new tab"
-              >
-                <Globe className="w-3.5 h-3.5 text-[#CCFF00]" />
-                <span className="hidden sm:inline">View Website</span>
-                <ArrowUpRight className="w-3.5 h-3.5 text-zinc-500" />
-              </a>
-
-              {onLogout && (
-                <button
-                  onClick={onLogout}
-                  className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 hover:border-red-500/50 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
-                  title="Sign Out"
-                >
-                  <LogOut className="w-3.5 h-3.5 text-red-400" />
-                  <span className="hidden sm:inline">Logout</span>
-                </button>
-              )}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Fixed top bar: only the content below it scrolls */}
+        <header className="shrink-0 h-14 bg-[#121214] border-b border-zinc-800 px-3 sm:px-5 flex items-center justify-between gap-3 z-30">
+          <div className="flex items-center gap-3 min-w-0">
+            <button onClick={() => setMobileOpen(true)} className="lg:hidden p-2 rounded-xl bg-[#18181b] border border-zinc-800 text-zinc-300 cursor-pointer" aria-label="Open menu">
+              <Menu className="w-4 h-4" />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-base font-bold truncate">{SUPPORT_NAV.find(n => n.id === activeTab)?.label}</h1>
+              <p className="hidden sm:block text-[11px] text-zinc-500 truncate">{user?.name} · {user?.email}</p>
             </div>
           </div>
 
-          {/* Clean Top Navigation Bar */}
-          <nav className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto py-2.5">
-            {/* 1. Paid Bookings */}
+          <div className="flex items-center gap-2 shrink-0">
             <button
-              onClick={() => setActiveTab('paid_bookings')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-                activeTab === 'paid_bookings'
-                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
-                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
-              }`}
+              onClick={() => setCreateTicketModalOpen(true)}
+              className="bg-[#CCFF00] hover:bg-[#b8e600] text-black text-xs font-black uppercase px-3 py-2 rounded-xl flex items-center gap-1.5 cursor-pointer active:scale-95"
             >
-              <Package className="w-3.5 h-3.5" />
-              <span>Paid Bookings</span>
-              {unassignedCount > 0 ? (
-                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full font-black ${
-                  activeTab === 'paid_bookings' ? 'bg-black text-[#CCFF00]' : 'bg-amber-500 text-black'
-                }`}>
-                  {unassignedCount} New
-                </span>
-              ) : (
-                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
-                  activeTab === 'paid_bookings' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
-                }`}>
-                  {paidBookings.length}
-                </span>
-              )}
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span className="hidden sm:inline">Log New Inquiry</span>
             </button>
-
-            {/* 2. Free Demo Sessions */}
             <button
-              onClick={() => setActiveTab('free_consultations')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-                activeTab === 'free_consultations'
-                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
-                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
-              }`}
+              onClick={() => { fetchTickets(false); loadData(); refreshNotifications(); onShowToast('Dashboard refreshed'); }}
+              className="p-2 rounded-xl bg-[#18181b] border border-zinc-800 hover:bg-zinc-800 cursor-pointer"
+              title="Refresh live data"
+              aria-label="Refresh"
             >
-              <Video className="w-3.5 h-3.5" />
-              <span>Free Demo Sessions</span>
-              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
-                activeTab === 'free_consultations' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
-              }`}>
-                {consultationsCount} Leads
-              </span>
+              <RefreshCw className="w-4 h-4 text-[#CCFF00]" />
             </button>
-
-            {/* 3. Athlete Assessments */}
-            <button
-              onClick={() => setActiveTab('assessments')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-                activeTab === 'assessments'
-                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
-                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
-              }`}
-            >
-              <ClipboardCheck className="w-3.5 h-3.5" />
-              <span>Athlete Assessments</span>
-              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
-                activeTab === 'assessments' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
-              }`}>
-                {assessmentsCount} Tests
-              </span>
-            </button>
-
-            {/* 4. Coach Availability & Workload */}
-            <button
-              onClick={() => setActiveTab('coaches_workload')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-                activeTab === 'coaches_workload'
-                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
-                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>Coach Workload</span>
-              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
-                activeTab === 'coaches_workload' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
-              }`}>
-                {coaches.length} Staff
-              </span>
-            </button>
-
-            {/* 5. Support Enquiries & Tickets */}
-            <button
-              onClick={() => {
-                setActiveTab('inbox');
-                setStatusFilter('all');
-                setPriorityFilter('all');
-              }}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-                activeTab === 'inbox'
-                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
-                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
-              }`}
-            >
-              <Mail className="w-3.5 h-3.5" />
-              <span>Support Tickets</span>
-              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
-                activeTab === 'inbox' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
-              }`}>
-                {tickets.length}
-              </span>
-            </button>
-
-            {/* 6. Performance Analytics */}
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-                activeTab === 'analytics'
-                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
-                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
-              }`}
-            >
-              <BarChart2 className="w-3.5 h-3.5" />
-              <span>Analytics</span>
-            </button>
-          </nav>
-        </div>
-      </header>
-
-      {/* WORKSPACE CONTENT AREA */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-6">
-
-        {/* SECTION 1: INTERACTIVE WORKLOAD & METRICS DESK (12 CLEAN CLICKABLE CARDS) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-2.5">
-          {/* 1. Unassigned Bookings */}
-          <div
-            onClick={() => setActiveTab('paid_bookings')}
-            className={`p-3 rounded-xl border transition-all cursor-pointer select-none text-left relative overflow-hidden group hover:-translate-y-0.5 ${
-              unassignedCount > 0
-                ? 'bg-amber-950/60 border-amber-500 hover:border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
-                : 'bg-[#18181b] border-zinc-800 hover:border-zinc-700'
-            } ${activeTab === 'paid_bookings' ? 'ring-1 ring-amber-500/50' : ''}`}
-            title="Click to view unassigned bookings requiring coach dispatch"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider truncate block">
-                UNASSIGNED
-              </span>
-              {unassignedCount > 0 && <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>}
-            </div>
-            <span className="text-xl font-black text-amber-400 mt-1 block font-mono">{unassignedCount}</span>
-            <span className="text-[9px] text-zinc-400 group-hover:text-amber-300 font-semibold block mt-0.5">
-              Bookings &rarr;
-            </span>
+            <a href="/" target="_blank" rel="noopener noreferrer" className="hidden md:flex p-2 rounded-xl bg-[#18181b] border border-zinc-800 hover:bg-zinc-800" title="Open BxStrength website" aria-label="View website">
+              <Globe className="w-4 h-4 text-[#CCFF00]" />
+            </a>
+            <NotificationBell
+              items={notifications}
+              unread={unreadTotal}
+              loading={notifLoading}
+              error={notifError}
+              onOpen={openNotification}
+              onMarkAllRead={() => markRead(notifications.filter(n => !n.isRead).map(n => n.id))}
+            />
           </div>
+        </header>
 
-          {/* 2. Total Paid Bookings */}
-          <div
-            onClick={() => setActiveTab('paid_bookings')}
-            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
-              activeTab === 'paid_bookings' ? 'border-[#CCFF00] bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
-            }`}
-            title="Click to view all paid bookings"
-          >
-            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
-              PAID BOOKINGS
-            </span>
-            <span className="text-xl font-black text-purple-400 mt-1 block font-mono">{paidBookings.length}</span>
-            <span className="text-[9px] text-zinc-500 group-hover:text-zinc-300 font-semibold block mt-0.5">
-              Total active &rarr;
-            </span>
-          </div>
+        <main className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3 sm:p-5 space-y-6">
 
-          {/* 3. Free Demo Leads */}
-          <div
-            onClick={() => setActiveTab('free_consultations')}
-            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
-              activeTab === 'free_consultations' ? 'border-[#CCFF00] bg-zinc-900/80 shadow-[0_0_15px_rgba(204,255,0,0.15)]' : 'border-zinc-800 hover:border-zinc-700'
-            }`}
-            title="Click to view Free Demo 15-min consultation enquiries"
-          >
-            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-[#CCFF00] uppercase tracking-wider truncate block">
-              FREE DEMO
-            </span>
-            <span className="text-xl font-black text-[#CCFF00] mt-1 block font-mono">{consultationsCount}</span>
-            <span className="text-[9px] text-zinc-500 group-hover:text-[#CCFF00] font-semibold block mt-0.5">
-              Strategy Leads &rarr;
-            </span>
-          </div>
-
-          {/* 4. Athlete Assessments */}
-          <div
-            onClick={() => setActiveTab('assessments')}
-            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
-              activeTab === 'assessments' ? 'border-[#CCFF00] bg-zinc-900/80 shadow-[0_0_15px_rgba(204,255,0,0.15)]' : 'border-zinc-800 hover:border-zinc-700'
-            }`}
-            title="Click to view Diagnostic Athlete Self-Assessments"
-          >
-            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-amber-300 uppercase tracking-wider truncate block">
-              ASSESSMENTS
-            </span>
-            <span className="text-xl font-black text-amber-400 mt-1 block font-mono">{assessmentsCount}</span>
-            <span className="text-[9px] text-zinc-500 group-hover:text-amber-300 font-semibold block mt-0.5">
-              Diagnostic tests &rarr;
-            </span>
-          </div>
-
-          {/* 5. Coaches Roster */}
-          <div
-            onClick={() => setActiveTab('coaches_workload')}
-            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
-              activeTab === 'coaches_workload' ? 'border-[#CCFF00] bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
-            }`}
-            title="Click to view coach availability and workloads"
-          >
-            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
-              COACH ROSTER
-            </span>
-            <span className="text-xl font-black text-sky-400 mt-1 block font-mono">{coaches.length}</span>
-            <span className="text-[9px] text-zinc-500 group-hover:text-sky-300 font-semibold block mt-0.5">
-              Available &rarr;
-            </span>
-          </div>
-
-          {/* 4. New Enquiries */}
-          <div
-            onClick={() => {
-              setActiveTab('inbox');
-              setStatusFilter('new');
-              setPriorityFilter('all');
-              setSearchTerm('');
+        {activeTab === 'dashboard' && (
+          <SupportOverview
+            tickets={tickets}
+            paidBookings={paidBookings}
+            consultations={consultations}
+            assessments={assessments}
+            enquiries={enquiries}
+            notifications={notifications}
+            loading={isLoading}
+            error={loadError}
+            onRetry={() => { fetchTickets(false); loadData(); }}
+            onNavigate={(tab, opts) => {
+              if (opts?.priority) setPriorityFilter(opts.priority);
+              if (opts?.recordId) setSelectedTicket(tickets.find(t => t.id === opts.recordId) ?? null);
+              selectTab(tab, !opts?.priority);
             }}
-            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
-              activeTab === 'inbox' && statusFilter === 'new' ? 'border-emerald-500 bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
-            }`}
-            title="Click to filter new inquiries"
-          >
-            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
-              NEW ENQUIRIES
-            </span>
-            <span className="text-xl font-black text-emerald-400 mt-1 block">{analytics.newEnquiries}</span>
-            <span className="text-[9px] text-zinc-500 group-hover:text-emerald-300 font-semibold block mt-0.5">
-              Filter inbox &rarr;
-            </span>
-          </div>
-
-          {/* 5. Open Tickets */}
-          <div
-            onClick={() => {
-              setActiveTab('inbox');
-              setStatusFilter('open');
-              setPriorityFilter('all');
-              setSearchTerm('');
-            }}
-            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
-              activeTab === 'inbox' && statusFilter === 'open' ? 'border-white bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
-            }`}
-            title="Click to filter open tickets"
-          >
-            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
-              OPEN TICKETS
-            </span>
-            <span className="text-xl font-black text-white mt-1 block">{analytics.openTickets}</span>
-            <span className="text-[9px] text-zinc-500 group-hover:text-zinc-300 font-semibold block mt-0.5">
-              Filter inbox &rarr;
-            </span>
-          </div>
-
-          {/* 6. In Progress */}
-          <div
-            onClick={() => {
-              setActiveTab('inbox');
-              setStatusFilter('in_progress');
-              setPriorityFilter('all');
-              setSearchTerm('');
-            }}
-            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
-              activeTab === 'inbox' && statusFilter === 'in_progress' ? 'border-yellow-500 bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
-            }`}
-            title="Click to filter in-progress tickets"
-          >
-            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
-              IN PROGRESS
-            </span>
-            <span className="text-xl font-black text-yellow-400 mt-1 block">{analytics.inProgress}</span>
-            <span className="text-[9px] text-zinc-500 group-hover:text-yellow-300 font-semibold block mt-0.5">
-              Filter inbox &rarr;
-            </span>
-          </div>
-
-          {/* 7. Awaiting Client */}
-          <div
-            onClick={() => {
-              setActiveTab('inbox');
-              setStatusFilter('waiting_customer');
-              setPriorityFilter('all');
-              setSearchTerm('');
-            }}
-            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
-              activeTab === 'inbox' && statusFilter === 'waiting_customer' ? 'border-orange-500 bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
-            }`}
-            title="Click to filter tickets awaiting client response"
-          >
-            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
-              AWAITING CLIENT
-            </span>
-            <span className="text-xl font-black text-orange-400 mt-1 block">{analytics.waitingCustomer}</span>
-            <span className="text-[9px] text-zinc-500 group-hover:text-orange-300 font-semibold block mt-0.5">
-              Filter inbox &rarr;
-            </span>
-          </div>
-
-          {/* 8. Resolved */}
-          <div
-            onClick={() => {
-              setActiveTab('inbox');
-              setStatusFilter('resolved');
-              setPriorityFilter('all');
-              setSearchTerm('');
-            }}
-            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
-              activeTab === 'inbox' && statusFilter === 'resolved' ? 'border-cyan-500 bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
-            }`}
-            title="Click to filter resolved tickets"
-          >
-            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
-              RESOLVED
-            </span>
-            <span className="text-xl font-black text-cyan-400 mt-1 block">{analytics.resolved}</span>
-            <span className="text-[9px] text-zinc-500 group-hover:text-cyan-300 font-semibold block mt-0.5">
-              Filter inbox &rarr;
-            </span>
-          </div>
-
-          {/* 9. Urgent / Escalated */}
-          <div
-            onClick={() => {
-              setActiveTab('inbox');
-              setPriorityFilter('urgent');
-              setStatusFilter('all');
-              setSearchTerm('');
-            }}
-            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
-              activeTab === 'inbox' && priorityFilter === 'urgent' ? 'border-red-500 bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
-            }`}
-            title="Click to filter urgent and escalated tickets"
-          >
-            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
-              URGENT / ESCALATED
-            </span>
-            <span className="text-xl font-black text-red-400 mt-1 block">{analytics.urgentEscalated}</span>
-            <span className="text-[9px] text-zinc-500 group-hover:text-red-300 font-semibold block mt-0.5">
-              Filter inbox &rarr;
-            </span>
-          </div>
-
-          {/* 10. Today's Inquiries */}
-          <div
-            onClick={() => {
-              setActiveTab('inbox');
-              setStatusFilter('all');
-              setPriorityFilter('all');
-              setSearchTerm('');
-            }}
-            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
-              activeTab === 'inbox' && statusFilter === 'all' && priorityFilter === 'all' ? 'border-[#CCFF00] bg-zinc-900/80' : 'border-zinc-800 hover:border-zinc-700'
-            }`}
-            title="Click to view all inquiries logged today"
-          >
-            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-zinc-200 uppercase tracking-wider truncate block">
-              TODAY'S INQUIRIES
-            </span>
-            <span className="text-xl font-black text-[#CCFF00] mt-1 block">{analytics.todaysEnquiries}</span>
-            <span className="text-[9px] text-zinc-500 group-hover:text-[#CCFF00] font-semibold block mt-0.5">
-              Show all &rarr;
-            </span>
-          </div>
-        </div>
+            onOpenNotification={openNotification}
+            user={user}
+            analytics={analytics}
+            onMarkAllRead={() => markRead(notifications.filter(n => !n.isRead).map(n => n.id))}
+          />
+        )}
 
         {/* TAB 0A: LIVE PAID BOOKINGS & DISPATCH DESK */}
         {activeTab === 'paid_bookings' && user && (
@@ -866,7 +560,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
             <CoachAvailabilityRoster
               coaches={coaches}
               paidBookings={paidBookings}
-              onBookingsUpdated={loadCoachesAndBookings}
+              onBookingsUpdated={loadData}
               onShowToast={onShowToast}
             />
           </div>
@@ -876,144 +570,73 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
         {activeTab === 'inbox' && (
           <div className="space-y-4">
             
-            {/* QUICK SOURCE CATEGORY FILTER PILLS */}
-            <div className="flex flex-wrap items-center gap-2 bg-[#121214] p-3 rounded-2xl border border-zinc-800">
-              <span className="text-[11px] font-black uppercase text-zinc-400 tracking-wider mr-1">QUICK CHANNELS:</span>
-              <button
-                onClick={() => setSourceFilter('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  sourceFilter === 'all'
-                    ? 'bg-[#CCFF00] text-black font-black'
-                    : 'bg-[#18181b] text-zinc-400 hover:text-white border border-zinc-800'
-                }`}
-              >
-                All Channels ({tickets.length})
-              </button>
-              <button
-                onClick={() => setSourceFilter('Website Contact Form')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  sourceFilter === 'Website Contact Form'
-                    ? 'bg-[#CCFF00] text-black font-black'
-                    : 'bg-[#18181b] text-zinc-400 hover:text-white border border-zinc-800'
-                }`}
-              >
-                💬 Website Enquiries ({tickets.filter(t => t.source?.toLowerCase().includes('contact') || t.source?.toLowerCase().includes('form')).length})
-              </button>
-              <button
-                onClick={() => setSourceFilter('Chatbot')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  sourceFilter === 'Chatbot'
-                    ? 'bg-[#CCFF00] text-black font-black'
-                    : 'bg-[#18181b] text-zinc-400 hover:text-white border border-zinc-800'
-                }`}
-              >
-                🤖 Chatbot AI ({tickets.filter(t => t.source?.toLowerCase().includes('chat') || t.source?.toLowerCase().includes('bot')).length})
-              </button>
-              <button
-                onClick={() => setSourceFilter('Booking')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  sourceFilter === 'Booking'
-                    ? 'bg-[#CCFF00] text-black font-black'
-                    : 'bg-[#18181b] text-zinc-400 hover:text-white border border-zinc-800'
-                }`}
-              >
-                📅 Consultations & Bookings ({tickets.filter(t => t.source?.toLowerCase().includes('book') || t.source?.toLowerCase().includes('assessment')).length})
-              </button>
-              <button
-                onClick={() => setPriorityFilter(priorityFilter === 'urgent' ? 'all' : 'urgent')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ml-auto ${
-                  priorityFilter === 'urgent'
-                    ? 'bg-red-500 text-white font-black'
-                    : 'bg-red-950/40 text-red-400 hover:bg-red-950/80 border border-red-900/60'
-                }`}
-              >
-                🚨 Urgent Priority ({tickets.filter(t => t.priority === 'urgent' || t.priority === 'high').length})
-              </button>
-            </div>
-
-            {/* SEARCH & FILTERS BAR */}
-            <div className="bg-[#121214] p-4 rounded-2xl border border-zinc-800 space-y-3">
-              <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
-                <div className="relative flex-1">
-                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search by Name, Email, Phone, Ticket ID, Booking ID, Txn ID..."
-                    className="w-full bg-[#18181b] border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#CCFF00]"
-                  />
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  {/* STATUS FILTER */}
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="bg-[#18181b] border border-zinc-800 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-[#CCFF00] cursor-pointer"
+            {/* One toolbar: search + filters (source select replaces the old channel pills) */}
+            <div className="flex flex-col xl:flex-row gap-2 bg-[#121214] p-2 rounded-xl border border-zinc-800">
+              <div className="relative flex-1 min-w-0">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" aria-hidden />
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search name, email, phone, ticket or booking ID"
+                  aria-label="Search tickets"
+                  className="w-full bg-[#18181b] border border-zinc-800 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#CCFF00]"
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <select aria-label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-[#18181b] border border-zinc-800 rounded-lg px-2.5 py-2 text-sm text-zinc-300 focus:outline-none focus:border-[#CCFF00] cursor-pointer">
+                  <option value="all">All statuses</option>
+                  <option value="new">New / open</option>
+                  <option value="assigned">Assigned</option>
+                  <option value="in_progress">In progress</option>
+                  <option value="waiting_customer">Awaiting client</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="closed">Closed</option>
+                </select>
+                <select aria-label="Priority" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="bg-[#18181b] border border-zinc-800 rounded-lg px-2.5 py-2 text-sm text-zinc-300 focus:outline-none focus:border-[#CCFF00] cursor-pointer">
+                  <option value="all">All priorities</option>
+                  <option value="urgent">Urgent</option>
+                  <option value="high">High</option>
+                  <option value="normal">Normal</option>
+                  <option value="low">Low</option>
+                </select>
+                <select aria-label="Channel" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="bg-[#18181b] border border-zinc-800 rounded-lg px-2.5 py-2 text-sm text-zinc-300 focus:outline-none focus:border-[#CCFF00] cursor-pointer">
+                  <option value="all">All channels</option>
+                  <option value="Website Contact Form">Website form</option>
+                  <option value="Chatbot">Chatbot</option>
+                  <option value="Booking">Consultation / booking</option>
+                  <option value="Payment">Payment & billing</option>
+                  <option value="WhatsApp">WhatsApp</option>
+                  <option value="Callback Request">Phone callback</option>
+                </select>
+                <select aria-label="Sort" value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="bg-[#18181b] border border-zinc-800 rounded-lg px-2.5 py-2 text-sm text-zinc-300 focus:outline-none focus:border-[#CCFF00] cursor-pointer">
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="priority">Highest priority</option>
+                </select>
+                {(statusFilter !== 'all' || priorityFilter !== 'all' || sourceFilter !== 'all' || searchTerm) && (
+                  <button
+                    onClick={() => { setStatusFilter('all'); setPriorityFilter('all'); setSourceFilter('all'); setSearchTerm(''); }}
+                    className="text-sm text-zinc-400 hover:text-white px-2 py-2 cursor-pointer"
                   >
-                    <option value="all">Status: All</option>
-                    <option value="new">Status: New / Open</option>
-                    <option value="assigned">Status: Assigned</option>
-                    <option value="in_progress">Status: In Progress</option>
-                    <option value="waiting_customer">Status: Awaiting Client</option>
-                    <option value="resolved">Status: Resolved</option>
-                    <option value="closed">Status: Closed</option>
-                  </select>
-
-                  {/* PRIORITY FILTER */}
-                  <select
-                    value={priorityFilter}
-                    onChange={(e) => setPriorityFilter(e.target.value)}
-                    className="bg-[#18181b] border border-zinc-800 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-[#CCFF00] cursor-pointer"
-                  >
-                    <option value="all">Priority: All</option>
-                    <option value="urgent">Priority: Urgent</option>
-                    <option value="high">Priority: High</option>
-                    <option value="normal">Priority: Normal</option>
-                    <option value="low">Priority: Low</option>
-                  </select>
-
-                  {/* SOURCE FILTER */}
-                  <select
-                    value={sourceFilter}
-                    onChange={(e) => setSourceFilter(e.target.value)}
-                    className="bg-[#18181b] border border-zinc-800 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-[#CCFF00] cursor-pointer"
-                  >
-                    <option value="all">Source: All Channels</option>
-                    <option value="Website Contact Form">Channel: Website Contact Form</option>
-                    <option value="Chatbot">Channel: Chatbot AI</option>
-                    <option value="Booking">Channel: Consultation / Booking</option>
-                    <option value="Payment">Channel: Payment & Billing</option>
-                    <option value="WhatsApp">Channel: WhatsApp Support</option>
-                    <option value="Callback Request">Channel: Phone Callback</option>
-                  </select>
-
-                  {/* SORT BY */}
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                    className="bg-[#18181b] border border-zinc-800 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-[#CCFF00] cursor-pointer"
-                  >
-                    <option value="newest">Sort: Newest First</option>
-                    <option value="oldest">Sort: Oldest First</option>
-                    <option value="priority">Sort: Highest Priority</option>
-                  </select>
-                </div>
+                    Clear
+                  </button>
+                )}
               </div>
             </div>
-
             {/* SPLIT VIEW WORKSPACE (LEFT: TICKET LIST, RIGHT: DETAILED TICKET & 360 PROFILE) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               
               {/* LEFT INBOX TICKET LIST (4 COLS) */}
-              <div className="lg:col-span-5 bg-[#121214] border border-zinc-800 rounded-2xl p-4 space-y-3 h-[750px] overflow-y-auto custom-scrollbar">
+              <div className="lg:col-span-5 bg-[#121214] border border-zinc-800 rounded-2xl p-4 space-y-3 lg:h-[calc(100dvh-11rem)] h-[70dvh] min-h-[420px] overflow-y-auto custom-scrollbar">
                 <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
-                  <span className="text-xs font-black uppercase text-zinc-400">INBOX TICKETS ({filteredTickets.length})</span>
-                  <span className="text-[10px] text-zinc-500">Live Auto-Sync Active</span>
+                  <span className="text-sm font-bold text-white">Tickets <span className="text-zinc-500 font-normal tabular-nums">{filteredTickets.length}</span></span>
+                  <span className="text-xs text-zinc-500">Updates every minute</span>
                 </div>
 
-                {filteredTickets.length === 0 ? (
+                {isLoading ? (
+                  <div role="status" className="py-24 text-center text-zinc-500 text-xs">Loading tickets…</div>
+                ) : filteredTickets.length === 0 ? (
                   <div className="py-24 text-center text-zinc-500 text-xs px-4 space-y-2">
                     <LifeBuoy className="w-10 h-10 mx-auto text-zinc-600 mb-1" />
                     <p className="font-bold text-zinc-300 uppercase tracking-wide">NO SUPPORT TICKETS OR INQUIRIES YET</p>
@@ -1028,7 +651,11 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
                       <div
                         key={ticket.id}
                         onClick={() => setSelectedTicket(ticket)}
-                        className={`p-3.5 rounded-xl border transition-all cursor-pointer space-y-2 ${
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedTicket(ticket); } }}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={isSelected}
+                        className={`p-3.5 rounded-xl border transition-all cursor-pointer space-y-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CCFF00] ${
                           isSelected
                             ? 'bg-[#18181c] border-[#CCFF00] shadow-md'
                             : 'bg-[#18181b]/50 border-zinc-800/80 hover:border-zinc-700 hover:bg-[#18181b]'
@@ -1066,7 +693,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
               </div>
 
               {/* RIGHT WORKSPACE: SELECTED TICKET DETAIL & 360 PROFILE (7 COLS) */}
-              <div className="lg:col-span-7 bg-[#121214] border border-zinc-800 rounded-2xl p-5 h-[750px] overflow-y-auto custom-scrollbar flex flex-col justify-between">
+              <div className="lg:col-span-7 bg-[#121214] border border-zinc-800 rounded-2xl p-5 lg:h-[calc(100dvh-11rem)] h-[70dvh] min-h-[420px] overflow-y-auto custom-scrollbar flex flex-col justify-between">
                 
                 {selectedTicket ? (
                   <div className="space-y-6">
@@ -1278,68 +905,6 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
           </div>
         )}
 
-        {/* TAB 2: SUPPORT ANALYTICS */}
-        {activeTab === 'analytics' && (
-          <div className="space-y-6">
-            <div className="bg-[#121214] border border-zinc-800 p-6 rounded-2xl space-y-6">
-              <div>
-                <h2 className="text-lg font-black uppercase text-white">SUPPORT SYSTEM PERFORMANCE ANALYTICS</h2>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Metrics dynamically computed from authentic database ticket & booking logs.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-[#18181b] p-4 rounded-xl border border-zinc-800">
-                  <span className="text-[11px] font-bold text-zinc-400 uppercase">AVG FIRST RESPONSE</span>
-                  <span className="text-2xl font-black text-[#CCFF00] mt-1 block">{analytics.avgResponseTime}</span>
-                </div>
-                <div className="bg-[#18181b] p-4 rounded-xl border border-zinc-800">
-                  <span className="text-[11px] font-bold text-zinc-400 uppercase">AVG RESOLUTION TIME</span>
-                  <span className="text-2xl font-black text-cyan-400 mt-1 block">{analytics.avgResolutionTime}</span>
-                </div>
-                <div className="bg-[#18181b] p-4 rounded-xl border border-zinc-800">
-                  <span className="text-[11px] font-bold text-zinc-400 uppercase">TOTAL INQUIRIES LOGGED</span>
-                  <span className="text-2xl font-black text-white mt-1 block">{analytics.totalEnquiries}</span>
-                </div>
-                <div className="bg-[#18181b] p-4 rounded-xl border border-zinc-800">
-                  <span className="text-[11px] font-bold text-zinc-400 uppercase">RESOLVED RATE</span>
-                  <span className="text-2xl font-black text-emerald-400 mt-1 block">
-                    {analytics.totalEnquiries > 0 ? `${Math.round((analytics.resolved / analytics.totalEnquiries) * 100)}%` : '100%'}
-                  </span>
-                </div>
-              </div>
-
-              {/* BREAKDOWN BY SOURCE */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-[#18181b] p-5 rounded-xl border border-zinc-800 space-y-3">
-                  <h3 className="text-xs font-black uppercase text-[#CCFF00]">INQUIRY VOLUME BY SOURCE</h3>
-                  <div className="space-y-2">
-                    {Object.entries(analytics.breakdownBySource).map(([src, count]) => (
-                      <div key={src} className="flex items-center justify-between text-xs">
-                        <span className="text-zinc-300 font-medium">{src}</span>
-                        <span className="font-mono font-bold text-[#CCFF00] bg-black px-2.5 py-0.5 rounded border border-zinc-800">{count}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-[#18181b] p-5 rounded-xl border border-zinc-800 space-y-3">
-                  <h3 className="text-xs font-black uppercase text-[#CCFF00]">VOLUME BY CATEGORY</h3>
-                  <div className="space-y-2">
-                    {Object.entries(analytics.breakdownByCategory).map(([cat, count]) => (
-                      <div key={cat} className="flex items-center justify-between text-xs">
-                        <span className="text-zinc-300 font-medium">{cat}</span>
-                        <span className="font-mono font-bold text-cyan-400 bg-black px-2.5 py-0.5 rounded border border-zinc-800">{count}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* TAB 3: AUDIT LOGS & SECURITY */}
         {activeTab === 'audit_logs' && (
           <div className="bg-[#121214] border border-zinc-800 p-6 rounded-2xl space-y-4">
@@ -1369,42 +934,14 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
           </div>
         )}
 
-        {/* TAB 4: MY ACCOUNT & PASSWORD SETTINGS */}
-        {activeTab === 'account_settings' && user && (
-          <div className="bg-[#121214] border border-zinc-800 p-6 rounded-2xl space-y-4">
-            <div className="border-b border-zinc-800 pb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-black uppercase text-white flex items-center gap-2">
-                  <UserCheck className="w-5 h-5 text-[#CCFF00]" /> ACCOUNT & PASSWORD SETTINGS
-                </h2>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Manage your customer support employee profile, avatar image, phone number, security credentials, and password.
-                </p>
-              </div>
-              <div className="bg-[#18181b] px-3.5 py-2 rounded-xl border border-zinc-800 text-xs font-bold text-zinc-300 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>ROLE: <strong className="text-white uppercase">CUSTOMER SUPPORT EMPLOYEE</strong></span>
-              </div>
-            </div>
-
-            <ProfileManagement user={user} onShowToast={onShowToast} />
-
-            {onLogout && (
-              <div className="pt-4 border-t border-zinc-800 flex items-center justify-between">
-                <div>
-                  <h3 className="text-xs font-black uppercase text-red-400">SESSION LOGOUT CONTROL</h3>
-                  <p className="text-[11px] text-zinc-400">End active Customer Support session securely on this device.</p>
-                </div>
-                <button
-                  onClick={onLogout}
-                  className="bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase px-5 py-2.5 rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer active:scale-95"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>LOGOUT NOW</span>
-                </button>
-              </div>
-            )}
-          </div>
+        {activeTab === 'enquiries' && (
+          <EnquiriesManager
+            enquiries={enquiries}
+            user={user ?? undefined}
+            coaches={coaches}
+            onEnquiriesUpdated={loadData}
+            onShowToast={onShowToast}
+          />
         )}
 
         {/* TAB 5: ATHLETE ASSESSMENTS DESK */}
@@ -1424,7 +961,17 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
           />
         )}
 
+        </main>
       </div>
+
+      {profileOpen && user && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-start justify-center p-0 sm:p-6 overflow-y-auto" role="dialog" aria-modal="true" aria-label="Edit profile">
+          <div className="relative w-full max-w-3xl bg-[#121214] border border-zinc-800 sm:rounded-2xl p-4 sm:p-6 min-h-full sm:min-h-0">
+            <button onClick={() => setProfileOpen(false)} className="absolute top-3 right-3 text-zinc-400 hover:text-white cursor-pointer" aria-label="Close profile"><X className="w-5 h-5" /></button>
+            <ProfileManagement user={user} onShowToast={onShowToast} />
+          </div>
+        </div>
+      )}
 
       {/* ESCALATION MODAL */}
       {escalateModalOpen && (

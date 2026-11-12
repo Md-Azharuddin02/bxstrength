@@ -99,12 +99,11 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
       });
       const loaded = Array.from(mapById.values());
       setTickets(loaded);
-      if (loaded.length > 0 && !selectedTicket) {
-        setSelectedTicket(loaded[0]);
-      } else if (selectedTicket) {
-        const updated = loaded.find(t => t.id === selectedTicket.id);
-        if (updated) setSelectedTicket(updated);
-      }
+      // Functional update: this runs from a stale-closure interval, so don't read `selectedTicket` directly.
+      setSelectedTicket(prev => {
+        if (!prev) return loaded[0] ?? null;
+        return loaded.find(t => t.id === prev.id) ?? prev;
+      });
     } catch {
       const loaded = VelocityAPI.getTickets().filter(t => t.id !== 'TICKET-849201' && t.id !== 'TICKET-739104');
       setTickets(loaded);

@@ -6,12 +6,11 @@ import { normalizeRole } from '../../utils/auth';
 import {
   Calendar, Clock, UserCheck, CheckCircle2, Phone, Mail, Award,
   Search, RefreshCw, X, ExternalLink, Video, Lock,
-  Trash2, AlertCircle, Plus, Minus, Layers, DollarSign, RotateCcw, Zap,
+  Trash2, AlertCircle, Plus, Minus, Layers, DollarSign, RotateCcw,
   ChevronDown, ChevronUp, MessageCircle
 } from 'lucide-react';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { PlanCustomizationBreakdown } from '../../components/bookings/PlanCustomizationBreakdown';
-import { sendBrevoCoachAssignmentAlertToAdmin } from '../../services/emailService';
 
 interface PaidBookingsViewProps {
   user: User;
@@ -34,55 +33,6 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
   ));
   const isCoach = normRole === 'coach' && !isHeadCoach;
   const isCustomerSupport = normRole === 'customer_support' || normRole === 'support' || normRole === 'customersupport';
-
-  const handleOpenAlertModal = (b: PaidPackageBooking) => {
-    setAlertTarget(b);
-    setAlertCustomNote('');
-  };
-
-  const handleConfirmAlertHeadCoach = async () => {
-    if (!alertTarget) return;
-    setIsSendingAlert(true);
-    try {
-      await sendBrevoCoachAssignmentAlertToAdmin({
-        bookingId: alertTarget.id,
-        clientName: alertTarget.clientName,
-        clientEmail: alertTarget.clientEmail,
-        clientPhone: alertTarget.clientPhone || '',
-        serviceTitle: alertTarget.packageName,
-        serviceType: alertTarget.packageType,
-        amountPaid: alertTarget.totalPrice,
-        customExercises: alertTarget.sessionFocusList
-      }).catch(() => {});
-
-      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const customMsg = alertCustomNote.trim()
-        ? `Note from Customer Support: "${alertCustomNote.trim()}". Client: ${alertTarget.clientName} (${alertTarget.clientEmail}).`
-        : `Customer Support flagged booking ${alertTarget.id} (${alertTarget.packageName}, £${alertTarget.totalPrice}). Client: ${alertTarget.clientName} (${alertTarget.clientEmail}). Please assign a coach or confirm schedule.`;
-
-      VelocityAPI.createInAppNotification({
-        userId: 'admin-head-coach',
-        userEmail: 'headcoach@bxstrength.com',
-        title: `⚡ Urgent: Assign Coach for ${alertTarget.clientName}`,
-        message: customMsg,
-        contentType: 'consultation',
-        coachName: 'Customer Support',
-        linkTab: 'paid-bookings',
-        isRead: false
-      });
-
-      const updatedMap = { ...alertedBookings, [alertTarget.id]: timeStr };
-      setAlertedBookings(updatedMap);
-      try { localStorage.setItem('bxstrength_alerted_bookings', JSON.stringify(updatedMap)); } catch {}
-
-      onShowToast(`Priority email & in-app alert sent to Head Coach and Admin for ${alertTarget.clientName}!`);
-      setAlertTarget(null);
-    } catch (err: any) {
-      onShowToast(err?.message || 'Failed to dispatch alert to Head Coach');
-    } finally {
-      setIsSendingAlert(false);
-    }
-  };
 
   const [bookings, setBookings] = useState<PaidPackageBooking[]>(() => {
     try {
@@ -126,21 +76,11 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [dbCoaches, setDbCoaches] = useState<User[]>([]);
-
-  // Alert Head Coach Modal State
-  const [alertTarget, setAlertTarget] = useState<PaidPackageBooking | null>(null);
-  const [alertCustomNote, setAlertCustomNote] = useState<string>('');
-  const [isSendingAlert, setIsSendingAlert] = useState<boolean>(false);
-  const [alertedBookings, setAlertedBookings] = useState<Record<string, string>>(() => {
-    try {
-      const raw = localStorage.getItem('bxstrength_alerted_bookings');
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return {};
-  });
+  const [allUsers, setAllUsers] = useState<User[]>([]);
 
   useEffect(() => {
     VelocityAPI.fetchUsers().then(uList => {
+      setAllUsers(uList);
       const staff = uList.filter(u => {
         const r = normalizeRole(u.role);
         return r === 'coach' || r === 'headcoach';
@@ -148,6 +88,16 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
       if (staff.length > 0) setDbCoaches(staff);
     }).catch(() => {});
   }, []);
+
+  const userMaps = useMemo(() => {
+    const byId = new Map<string, User>();
+    const byEmail = new Map<string, User>();
+    allUsers.forEach(u => {
+      if (u.id) byId.set(u.id, u);
+      if (u.email) byEmail.set(u.email.toLowerCase().trim(), u);
+    });
+    return { byId, byEmail };
+  }, [allUsers]);
 
   const availableCoaches = useMemo(() => {
     const combined = [...coaches, ...dbCoaches];
@@ -478,6 +428,27 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
               b.assignedCoachName.toLowerCase() !== 'unassigned'
             );
 
+            const clientUser = (b.userId ? userMaps.byId.get(b.userId) : null) || userMaps.byEmail.get((b.clientEmail || '').toLowerCase().trim());
+
+            const rawContactMethods: string[] = (
+              Array.isArray(b.customizedDetails?.contactMethods) && b.customizedDetails.contactMethods.length > 0
+                ? b.customizedDetails.contactMethods
+                : clientUser?.contactMethods && clientUser.contactMethods.length > 0
+                ? clientUser.contactMethods
+                : b.customizedDetails?.preferredContactMethod
+                ? (b.customizedDetails.preferredContactMethod === 'all' ? ['whatsapp', 'call', 'email'] : [b.customizedDetails.preferredContactMethod])
+                : clientUser?.preferredContactMethod
+                ? (clientUser.preferredContactMethod === 'all' ? ['whatsapp', 'call', 'email'] : [clientUser.preferredContactMethod])
+                : []
+            ).map((m: any) => String(m).toLowerCase().trim()).filter(Boolean);
+
+            const allowsWhatsApp = rawContactMethods.includes('whatsapp') || rawContactMethods.includes('all');
+            const allowsCall = rawContactMethods.includes('call') || rawContactMethods.includes('all');
+            const allowsEmail = rawContactMethods.includes('email') || rawContactMethods.includes('all');
+            const hasModeOfContact = allowsWhatsApp || allowsCall || allowsEmail;
+
+            const effectivePhone = b.clientPhone || clientUser?.whatsappNumber || clientUser?.phone || '';
+
             return (
               <div
                 key={b.id}
@@ -504,11 +475,6 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                       <span className="text-[10px] text-gray-500">
                         • {new Date(b.createdAt).toLocaleDateString()}
                       </span>
-                      {alertedBookings[b.id] && (
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold flex items-center gap-1">
-                          <Zap className="w-3 h-3 fill-amber-300" /> Head Coach Alerted ({alertedBookings[b.id]})
-                        </span>
-                      )}
                     </div>
 
                     <h3 className="text-lg font-black uppercase text-white mt-1">
@@ -543,7 +509,27 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                     <p className="text-gray-400 font-bold uppercase text-[10px]">Client</p>
                     <p className="text-white font-bold text-sm">{b.clientName}</p>
                     <p className="text-gray-400 text-[11px]">{b.clientEmail}</p>
-                    {b.clientPhone && <p className="text-zinc-500 text-[11px]">{b.clientPhone}</p>}
+                    {effectivePhone && <p className="text-zinc-500 text-[11px]">{effectivePhone}</p>}
+                    {hasModeOfContact && (
+                      <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] text-zinc-400 font-bold uppercase">Contact Mode:</span>
+                        {allowsWhatsApp && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-800 flex items-center gap-1">
+                            <MessageCircle className="w-2.5 h-2.5" /> WhatsApp
+                          </span>
+                        )}
+                        {allowsCall && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-950/80 text-blue-300 border border-blue-800 flex items-center gap-1">
+                            <Phone className="w-2.5 h-2.5" /> Call
+                          </span>
+                        )}
+                        {allowsEmail && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-zinc-800 text-zinc-200 border border-zinc-700 flex items-center gap-1">
+                            <Mail className="w-2.5 h-2.5" /> Email
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -707,17 +693,7 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                   <div className="flex items-center gap-2 flex-wrap">
                     {!b.assignedCoachId ? (
                       <>
-                        {isCustomerSupport ? (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenAlertModal(b)}
-                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 cursor-pointer shadow-[0_0_12px_rgba(245,158,11,0.3)] transition-all"
-                            title="Alert Head Coach and Admin about this unassigned booking"
-                          >
-                            <Zap className="w-3.5 h-3.5 fill-black" />
-                            Alert Head Coach
-                          </button>
-                        ) : (
+                        {!isCustomerSupport && (
                           <button
                             type="button"
                             onClick={() => handleTakeMyself(b)}
@@ -793,36 +769,42 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {/* Direct Contact Buttons */}
-                    {b.clientPhone && (
-                      <a
-                        href={`https://wa.me/${b.clientPhone.replace(/[^0-9]/g, '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-2.5 py-1.5 bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-800 text-xs font-bold rounded flex items-center gap-1"
-                        title="Chat on WhatsApp"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
-                      </a>
-                    )}
+                    {/* Direct Contact Buttons - ONLY shown if athlete selected that mode of contact during booking */}
+                    {hasModeOfContact && (
+                      <>
+                        {allowsWhatsApp && effectivePhone && (
+                          <a
+                            href={`https://wa.me/${effectivePhone.replace(/[^0-9]/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2.5 py-1.5 bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-800 text-xs font-bold rounded flex items-center gap-1"
+                            title="Chat on WhatsApp"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+                          </a>
+                        )}
 
-                    {b.clientPhone && (
-                      <a
-                        href={`tel:${b.clientPhone}`}
-                        className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-bold rounded flex items-center gap-1"
-                        title="Call Athlete"
-                      >
-                        <Phone className="w-3.5 h-3.5" /> Call
-                      </a>
-                    )}
+                        {allowsCall && effectivePhone && (
+                          <a
+                            href={`tel:${effectivePhone}`}
+                            className="px-2.5 py-1.5 bg-blue-950/60 hover:bg-blue-900/80 text-blue-300 border border-blue-800 text-xs font-bold rounded flex items-center gap-1"
+                            title="Call Athlete"
+                          >
+                            <Phone className="w-3.5 h-3.5" /> Call
+                          </a>
+                        )}
 
-                    <a
-                      href={`mailto:${b.clientEmail}?subject=BxStrength%20Training%20Session%20(${b.id})`}
-                      className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-bold rounded flex items-center gap-1"
-                      title="Email Athlete"
-                    >
-                      <Mail className="w-3.5 h-3.5" /> Email
-                    </a>
+                        {allowsEmail && b.clientEmail && (
+                          <a
+                            href={`mailto:${b.clientEmail}?subject=BxStrength%20Training%20Session%20(${b.id})`}
+                            className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-bold rounded flex items-center gap-1"
+                            title="Email Athlete"
+                          >
+                            <Mail className="w-3.5 h-3.5" /> Email
+                          </a>
+                        )}
+                      </>
+                    )}
 
                     {/* Delete for Admin / Head Coach */}
                     {(isAdmin || isHeadCoach) && (
@@ -840,85 +822,6 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
               </div>
             );
           })}
-        </div>
-      )}
-
-      {/* ALERT HEAD COACH MODAL */}
-      {alertTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#111111] border border-amber-500/80 rounded-2xl w-full max-w-lg p-6 space-y-5 shadow-2xl relative">
-            <button
-              onClick={() => setAlertTarget(null)}
-              className="absolute top-4 right-4 text-zinc-400 hover:text-white"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-3">
-              <span className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40">
-                <Zap className="w-6 h-6 fill-amber-400" />
-              </span>
-              <div>
-                <h3 className="text-base font-black uppercase text-white tracking-wider">
-                  Alert Head Coach & Admin
-                </h3>
-                <p className="text-xs text-zinc-400">
-                  Send immediate priority email and in-app notification to Head Coach & Admin.
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-black/60 border border-zinc-800 p-4 rounded-xl space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Athlete:</span>
-                <span className="font-bold text-white">{alertTarget.clientName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Service:</span>
-                <span className="font-bold text-[#CCFF00]">{alertTarget.packageName} (£{alertTarget.totalPrice})</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Status:</span>
-                <span className="font-bold text-amber-400">Awaiting Coach Assignment</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Email Recipients:</span>
-                <span className="text-zinc-300 font-mono">Head Coach (mdazharuddin1502@gmail.com), Admin</span>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold uppercase text-zinc-300">
-                Add Coordination Note for Head Coach (Optional)
-              </label>
-              <textarea
-                value={alertCustomNote}
-                onChange={(e) => setAlertCustomNote(e.target.value)}
-                placeholder="e.g. Client requested evening training slots or needs custom diet review..."
-                rows={3}
-                className="w-full bg-[#18181b] border border-zinc-700 rounded-xl p-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
-              <button
-                type="button"
-                onClick={() => setAlertTarget(null)}
-                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={isSendingAlert}
-                onClick={handleConfirmAlertHeadCoach}
-                className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-black text-xs font-black uppercase tracking-wider rounded-xl shadow-lg flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-              >
-                <Zap className="w-4 h-4 fill-black" />
-                {isSendingAlert ? 'Dispatching Alert...' : 'Dispatch Priority Alert'}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 

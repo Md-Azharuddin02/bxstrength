@@ -1037,7 +1037,14 @@ export const ServiceCustomizationModal: React.FC<
               marketingConsent: Boolean(marketingConsent)
             };
 
-            const customizedDetailsObj = isCustomPlan
+            const chosenContactMethods = selectedMethods.length > 0
+              ? selectedMethods
+              : (user?.contactMethods || (user?.preferredContactMethod ? [user.preferredContactMethod] : []));
+            const chosenPreferredContactMethod = chosenContactMethods.length >= 3
+              ? 'all'
+              : (chosenContactMethods[0] || user?.preferredContactMethod || '');
+
+            const customizedDetailsObj: Record<string, any> = isCustomPlan
               ? {
                   elements: CUSTOM_ELEMENTS.filter(e => (elementQuantities[e.id] || 0) > 0).map(e => ({
                     id: e.id,
@@ -1047,24 +1054,32 @@ export const ServiceCustomizationModal: React.FC<
                   })),
                   totalMinutes: customPlanTotalMinutes,
                   elementQuantities,
-                  disclosures: disclosuresObj
+                  disclosures: disclosuresObj,
+                  contactMethods: chosenContactMethods,
+                  preferredContactMethod: chosenPreferredContactMethod
                 }
               : isWeeklyPlan
               ? {
                   structure: 'Guided Warm-Up + 1 Focus per session',
                   sessions: weeklySessions.map((s, idx) => ({ sessionNumber: idx + 1, warmUp: 'Guided Warm-Up', focus: s })),
-                  disclosures: disclosuresObj
+                  disclosures: disclosuresObj,
+                  contactMethods: chosenContactMethods,
+                  preferredContactMethod: chosenPreferredContactMethod
                 }
               : isMonthlyPlan
               ? {
                   structure: '12 Warm-Ups + 12 Core Services + 12 Cool-Downs',
                   sessions: monthlySessions.map((s, idx) => ({ sessionNumber: idx + 1, warmUp: 'Guided Warm-Up', core: s, coolDown: 'Cool-Down & Recovery' })),
-                  disclosures: disclosuresObj
+                  disclosures: disclosuresObj,
+                  contactMethods: chosenContactMethods,
+                  preferredContactMethod: chosenPreferredContactMethod
                 }
               : {
                   structure: packageDetails.totalDurationLabel,
                   items: packageDetails.items.map(item => ({ name: item.name, duration: item.duration, price: item.price })),
-                  disclosures: disclosuresObj
+                  disclosures: disclosuresObj,
+                  contactMethods: chosenContactMethods,
+                  preferredContactMethod: chosenPreferredContactMethod
                 };
 
             const focusList = isCustomPlan

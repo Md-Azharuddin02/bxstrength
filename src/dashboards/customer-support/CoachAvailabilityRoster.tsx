@@ -29,6 +29,7 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
   const [assigningCoach, setAssigningCoach] = useState<User | null>(null);
   const [selectedBookingId, setSelectedBookingId] = useState<string>('');
   const [meetingLinkInput, setMeetingLinkInput] = useState<string>('');
+  const [scheduledAtInput, setScheduledAtInput] = useState<string>('');
   const [coordinationNotes, setCoordinationNotes] = useState<string>('');
   const [isSubmittingAssign, setIsSubmittingAssign] = useState<boolean>(false);
 
@@ -120,6 +121,7 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
         assignedCoachName: assigningCoach.name,
         assignedBy: 'Customer Support Desk',
         meetingLink: meetingLinkInput.trim() || undefined,
+        scheduledAt: scheduledAtInput ? new Date(scheduledAtInput).toISOString() : undefined,
         coachNotes: coordinationNotes.trim() || undefined
       });
 
@@ -128,6 +130,7 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
         setAssigningCoach(null);
         setSelectedBookingId('');
         setMeetingLinkInput('');
+        setScheduledAtInput('');
         setCoordinationNotes('');
         onBookingsUpdated();
       } else {
@@ -493,6 +496,25 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Scheduled Session Date & Time */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-zinc-400 mb-1.5 flex items-center justify-between">
+                  <span>Scheduled Session Date & Time (UK / GMT)</span>
+                  <Calendar className="w-3.5 h-3.5 text-[#CCFF00]" />
+                </label>
+                <div className="relative">
+                  <input
+                    type="datetime-local"
+                    value={scheduledAtInput}
+                    onChange={(e) => setScheduledAtInput(e.target.value)}
+                    className="w-full bg-[#18181b] border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
+                  />
+                </div>
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  Scheduled time will be formatted and emailed directly to both the client and assigned coach.
+                </p>
               </div>
 
               {/* Video Meeting URL */}

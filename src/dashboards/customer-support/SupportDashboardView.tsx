@@ -455,6 +455,18 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
                 <span className="hidden sm:inline">Refresh</span>
               </button>
 
+              <a
+                href="/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-bold text-zinc-300 hover:text-white flex items-center gap-1.5 bg-[#18181b] hover:bg-zinc-800 px-3 py-2 rounded-xl border border-zinc-800 cursor-pointer transition-all active:scale-95"
+                title="Open BxStrength Website in a new tab"
+              >
+                <Globe className="w-3.5 h-3.5 text-[#CCFF00]" />
+                <span className="hidden sm:inline">View Website</span>
+                <ArrowUpRight className="w-3.5 h-3.5 text-zinc-500" />
+              </a>
+
               {onLogout && (
                 <button
                   onClick={onLogout}

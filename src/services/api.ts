@@ -2591,6 +2591,7 @@ export const VelocityAPI = {
     assignedCoachName: string;
     assignedBy?: string;
     meetingLink?: string;
+    scheduledAt?: string;
     coachNotes?: string;
   }): Promise<{ success: boolean; booking?: PaidPackageBooking; error?: string }> {
     try {

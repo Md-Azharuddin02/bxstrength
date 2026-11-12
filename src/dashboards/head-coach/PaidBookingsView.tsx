@@ -112,6 +112,7 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
   const [selectedCoachId, setSelectedCoachId] = useState<string>('');
   const [selectedCoachName, setSelectedCoachName] = useState<string>('');
   const [meetingLink, setMeetingLink] = useState<string>('');
+  const [scheduledAt, setScheduledAt] = useState<string>('');
   const [coachNotes, setCoachNotes] = useState<string>('');
   const [isSubmittingAssign, setIsSubmittingAssign] = useState<boolean>(false);
   const [isReassigning, setIsReassigning] = useState<boolean>(false);
@@ -268,6 +269,7 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
     }
 
     setMeetingLink(b.meetingLink || '');
+    setScheduledAt(b.scheduledAt ? b.scheduledAt.slice(0, 16) : '');
     setCoachNotes(b.coachNotes || '');
   };
 
@@ -290,6 +292,7 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
         assignedCoachName: finalCoachName,
         assignedBy: user.name || (isCustomerSupport ? 'Customer Support' : 'Head Coach'),
         meetingLink: meetingLink.trim() || undefined,
+        scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
         coachNotes: coachNotes.trim() || undefined
       });
 
@@ -1086,6 +1089,22 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
                     )}
                   </div>
                 )}
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 uppercase mb-1 flex items-center justify-between">
+                    <span>Scheduled Session Date & Time (UK / GMT)</span>
+                    <Calendar className="w-3.5 h-3.5 text-[#CCFF00]" />
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    className="w-full bg-black/80 border border-gray-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
+                  />
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    Scheduled date & time will be included in the confirmation email dispatched to both client and coach.
+                  </p>
+                </div>
 
                 <div>
                   <label className="block text-xs font-bold text-gray-300 uppercase mb-1 flex items-center justify-between">

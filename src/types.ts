@@ -616,6 +616,7 @@ export interface PaidPackageBooking {
   assignedBy?: string | null;
   assignedAt?: string | null;
   meetingLink?: string | null;
+  scheduledAt?: string | null;
   coachNotes?: string | null;
   createdAt: string;
   updatedAt?: string;

@@ -28,7 +28,7 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
       user.coachPosition.toLowerCase().includes('chief')
     )
   ));
-  const isCustomerSupport = normRole === 'customer_support' || normRole === 'support';
+  const isCustomerSupport = normRole === 'customersupport' || normRole === 'customer_support' || normRole === 'support';
   const isHeadCoachOrAdmin = isAdmin || isHeadCoach || isCustomerSupport;
 
   const [consultations, setConsultations] = useState<ConsultationBooking[]>([]);
@@ -64,7 +64,7 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
     }).catch(() => {});
   }, []);
 
-  // Available Specialist Coaches for delegation (ONLY real coaches from DB with role === 'coach', excluding Head Coach and Admins)
+  // Available Specialist Coaches for delegation (Coaches and Head Coach if customer support)
   const availableSpecialistCoaches = useMemo(() => {
     const combined = [...coaches, ...dbCoaches];
     const uniqueMap = new Map<string, { id: string; name: string; position: string; email: string }>();
@@ -75,25 +75,31 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
       const isHeadCoachRole = r === 'headcoach' || (c.name && c.name.toLowerCase().includes('head coach'));
       const isAdminRole = r === 'admin';
 
-      // STRICT FILTER: Only real database users with role 'coach' (not admin, not head coach, not self)
-      if (r === 'coach' && !isSelf && !isHeadCoachRole && !isAdminRole) {
+      // Customer Support can delegate to any coach including Head Coach
+      // Head Coach delegates only to Specialist Coaches (excluding self, admin, and head coach)
+      const isEligible = isCustomerSupport
+        ? (r === 'coach' || r === 'headcoach')
+        : (r === 'coach' && !isSelf && !isHeadCoachRole && !isAdminRole);
+
+      if (isEligible) {
         uniqueMap.set(c.id, {
           id: c.id,
           name: c.name,
-          position: c.coachPosition || 'Specialist Coach',
+          position: c.coachPosition || (r === 'headcoach' ? 'Head Coach' : 'Specialist Coach'),
           email: c.email
         });
       }
     });
 
     return Array.from(uniqueMap.values());
-  }, [coaches, dbCoaches, user]);
+  }, [coaches, dbCoaches, user, isCustomerSupport]);
 
   const loadConsultations = async () => {
     setIsLoading(true);
     try {
       // The server only gives a coach the demos assigned to them
-      const data = await VelocityAPI.fetchConsultations(undefined, normRole === 'coach' ? user.id : undefined);
+      const coachFilter = (normRole === 'coach' && !isHeadCoach) ? user.id : undefined;
+      const data = await VelocityAPI.fetchConsultations(undefined, coachFilter);
       setConsultations(data);
     } catch (e: any) {
       console.error('Error fetching consultations:', e);
@@ -224,7 +230,7 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
         assignedCoachId: coachId || null,
         assignedCoachName: coachName,
         assignedBy: user.name,
-        notes: assignNotes || `Delegated to Coach ${coachName} by Head Coach`
+        notes: assignNotes || `Delegated to Coach ${coachName} by ${isCustomerSupport ? 'Customer Support' : 'Head Coach'}`
       });
       onShowToast(`✓ Successfully delegated #${assignTarget.id} to Coach ${coachName}. Moved to "COACH DELEGATED" tab.`);
       setAssignTarget(null);
@@ -303,7 +309,11 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 bg-[#CCFF00]/10 text-[#CCFF00] rounded border border-[#CCFF00]/30">
-              {isHeadCoachOrAdmin ? 'HEAD COACH PIPELINE • SEPARATE DEMO ENQUIRIES' : 'COACH WORKSPACE • MY ASSIGNED DEMOS'}
+              {isCustomerSupport
+                ? 'CUSTOMER SUPPORT • FREE DEMO ENQUIRIES'
+                : isHeadCoachOrAdmin
+                ? 'HEAD COACH PIPELINE • SEPARATE DEMO ENQUIRIES'
+                : 'COACH WORKSPACE • MY ASSIGNED DEMOS'}
             </span>
             <span className="text-[10px] font-mono text-zinc-400">
               {filteredList.length} Leads in this view
@@ -314,7 +324,9 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
             {isHeadCoachOrAdmin ? 'FREE DEMO & 15-MIN CONSULTATION ENQUIRIES' : 'MY ASSIGNED FREE DEMO CALLS'}
           </h2>
           <p className="text-xs text-zinc-400 mt-1 max-w-2xl">
-            {isHeadCoachOrAdmin
+            {isCustomerSupport
+              ? 'Real-time pipeline for "Request My Free 15-Min Demo" submissions. Review lead details and click "ASSIGN TO COACH" to delegate.'
+              : isHeadCoachOrAdmin
               ? 'Real-time pipeline for "Request My Free 15-Min Demo" submissions. Click "TAKE MYSELF" to conduct the session yourself, or "ASSIGN TO COACH" to delegate.'
               : 'Free strategy calls and demo sessions delegated to you by the Head Coach. Provide your video call link and mark as completed.'}
           </p>
@@ -614,14 +626,16 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
                     {/* CASE 1: UNASSIGNED LEAD -> EXACTLY 2 BUTTONS (TAKE MYSELF & ASSIGN TO COACH) */}
                     {!isAssigned && isHeadCoachOrAdmin && !isCompleted && (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => handleTakeMyself(item)}
-                          className="bg-[#CCFF00] hover:bg-[#b8e600] text-black text-xs font-black px-4 py-2 uppercase rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-1.5"
-                        >
-                          <Check className="w-3.5 h-3.5 text-black" />
-                          <span>TAKE MYSELF</span>
-                        </button>
+                        {!isCustomerSupport && (
+                          <button
+                            type="button"
+                            onClick={() => handleTakeMyself(item)}
+                            className="bg-[#CCFF00] hover:bg-[#b8e600] text-black text-xs font-black px-4 py-2 uppercase rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+                          >
+                            <Check className="w-3.5 h-3.5 text-black" />
+                            <span>TAKE MYSELF</span>
+                          </button>
+                        )}
 
                         <button
                           type="button"
@@ -637,23 +651,27 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
                     {/* CASE 2: CLAIMED BY HEAD COACH -> HEAD COACH CAN ADD MEETING LINK, MARK COMPLETED, OR REASSIGN */}
                     {isAssigned && isTakenByHeadCoach && isHeadCoachOrAdmin && !isCompleted && (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenStatusModal(item)}
-                          className="bg-[#CCFF00] hover:bg-[#b8e600] text-black text-xs font-black px-4 py-2 uppercase rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-1.5"
-                        >
-                          <Video className="w-3.5 h-3.5 text-black" />
-                          <span>{item.meetingLink ? 'EDIT MEETING LINK' : 'ADD MEETING LINK'}</span>
-                        </button>
+                        {!isCustomerSupport && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenStatusModal(item)}
+                              className="bg-[#CCFF00] hover:bg-[#b8e600] text-black text-xs font-black px-4 py-2 uppercase rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+                            >
+                              <Video className="w-3.5 h-3.5 text-black" />
+                              <span>{item.meetingLink ? 'EDIT MEETING LINK' : 'ADD MEETING LINK'}</span>
+                            </button>
 
-                        <button
-                          type="button"
-                          onClick={() => handleMarkCompleted(item)}
-                          className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold px-3.5 py-2 uppercase rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>MARK COMPLETED</span>
-                        </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMarkCompleted(item)}
+                              className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold px-3.5 py-2 uppercase rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>MARK COMPLETED</span>
+                            </button>
+                          </>
+                        )}
 
                         <button
                           type="button"
@@ -678,14 +696,16 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
                           <span>REASSIGN COACH</span>
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => handleOpenStatusModal(item)}
-                          className="bg-zinc-900 hover:bg-zinc-800 text-zinc-400 text-xs font-bold px-3 py-2 uppercase rounded-xl border border-zinc-800 transition-colors cursor-pointer flex items-center gap-1.5"
-                        >
-                          <Video className="w-3.5 h-3.5" />
-                          <span>{item.meetingLink ? 'VIEW / EDIT LINK' : 'ADD LINK'}</span>
-                        </button>
+                        {!isCustomerSupport && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenStatusModal(item)}
+                            className="bg-zinc-900 hover:bg-zinc-800 text-zinc-400 text-xs font-bold px-3 py-2 uppercase rounded-xl border border-zinc-800 transition-colors cursor-pointer flex items-center gap-1.5"
+                          >
+                            <Video className="w-3.5 h-3.5" />
+                            <span>{item.meetingLink ? 'VIEW / EDIT LINK' : 'ADD LINK'}</span>
+                          </button>
+                        )}
                       </>
                     )}
 

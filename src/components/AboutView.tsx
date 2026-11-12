@@ -489,10 +489,10 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate, onOpenBooking 
               OUR VISION
             </h2>
             <p className="text-zinc-300 text-sm sm:text-base leading-relaxed font-normal">
-              Our long-term vision is to build BXStrength into a trusted virtual coaching platform that connects clients with quality fitness support regardless of geography. We want to make live coaching more accessible to people who value professional structure but need the convenience of training from home or another suitable location.
+              Our long-term vision is to build BXStrength into a trusted virtual sessions platform that connects clients with quality fitness support regardless of geography. We want to make live sessions more accessible to people who value professional structure but need the convenience of training from home or another suitable location.
             </p>
             <p className="text-zinc-300 text-sm sm:text-base leading-relaxed font-normal">
-              As BXStrength grows, we intend to expand the depth of our coaching, strengthen our customer-support systems and continue improving the way clients discover, book and experience virtual fitness services.
+              As BXStrength grows, we intend to expand the depth of our sessions, strengthen our customer-support systems and continue improving the way clients discover, book and experience virtual fitness services.
             </p>
           </div>
         </div>
@@ -510,7 +510,7 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate, onOpenBooking 
               BUSINESS INFORMATION
             </h2>
             <p className="text-zinc-400 text-xs sm:text-sm">
-              BXStrength is an international digital performance &amp; fitness coaching platform engineered by our Head Coach &amp; Team.
+              BXStrength is an international digital performance &amp; fitness sessions platform engineered by our Head Coach &amp; Team.
             </p>
           </div>
 

@@ -481,7 +481,8 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
           </div>
 
           {/* Clean Top Navigation Bar */}
-          <nav className="flex items-center gap-1 sm:gap-2 overflow-x-auto py-2.5 scrollbar-none">
+          <nav className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto py-2.5">
+            {/* 1. Paid Bookings */}
             <button
               onClick={() => setActiveTab('paid_bookings')}
               className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
@@ -491,7 +492,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
               }`}
             >
               <Package className="w-3.5 h-3.5" />
-              <span>Paid Bookings & Dispatch</span>
+              <span>Paid Bookings</span>
               {unassignedCount > 0 ? (
                 <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full font-black ${
                   activeTab === 'paid_bookings' ? 'bg-black text-[#CCFF00]' : 'bg-amber-500 text-black'
@@ -507,44 +508,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
               )}
             </button>
 
-            <button
-              onClick={() => setActiveTab('coaches_workload')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-                activeTab === 'coaches_workload'
-                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
-                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>Coach Availability & Workload</span>
-              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
-                activeTab === 'coaches_workload' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
-              }`}>
-                {coaches.length} Staff
-              </span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab('inbox');
-                setStatusFilter('all');
-                setPriorityFilter('all');
-              }}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
-                activeTab === 'inbox'
-                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
-                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
-              }`}
-            >
-              <Mail className="w-3.5 h-3.5" />
-              <span>Support Enquiries & Tickets</span>
-              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
-                activeTab === 'inbox' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
-              }`}>
-                {tickets.length}
-              </span>
-            </button>
-
+            {/* 2. Free Demo Sessions */}
             <button
               onClick={() => setActiveTab('free_consultations')}
               className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
@@ -562,6 +526,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
               </span>
             </button>
 
+            {/* 3. Athlete Assessments */}
             <button
               onClick={() => setActiveTab('assessments')}
               className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
@@ -579,6 +544,47 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
               </span>
             </button>
 
+            {/* 4. Coach Availability & Workload */}
+            <button
+              onClick={() => setActiveTab('coaches_workload')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                activeTab === 'coaches_workload'
+                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
+                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Coach Workload</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                activeTab === 'coaches_workload' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
+              }`}>
+                {coaches.length} Staff
+              </span>
+            </button>
+
+            {/* 5. Support Enquiries & Tickets */}
+            <button
+              onClick={() => {
+                setActiveTab('inbox');
+                setStatusFilter('all');
+                setPriorityFilter('all');
+              }}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                activeTab === 'inbox'
+                  ? 'bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)]'
+                  : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60'
+              }`}
+            >
+              <Mail className="w-3.5 h-3.5" />
+              <span>Support Tickets</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                activeTab === 'inbox' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
+              }`}>
+                {tickets.length}
+              </span>
+            </button>
+
+            {/* 6. Performance Analytics */}
             <button
               onClick={() => setActiveTab('analytics')}
               className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
@@ -588,7 +594,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
               }`}
             >
               <BarChart2 className="w-3.5 h-3.5" />
-              <span>Performance Analytics</span>
+              <span>Analytics</span>
             </button>
           </nav>
         </div>
@@ -597,8 +603,8 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
       {/* WORKSPACE CONTENT AREA */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-6">
 
-        {/* SECTION 1: INTERACTIVE WORKLOAD & METRICS DESK (10 CLEAN CLICKABLE CARDS) */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-2.5">
+        {/* SECTION 1: INTERACTIVE WORKLOAD & METRICS DESK (12 CLEAN CLICKABLE CARDS) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-2.5">
           {/* 1. Unassigned Bookings */}
           <div
             onClick={() => setActiveTab('paid_bookings')}
@@ -638,7 +644,41 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
             </span>
           </div>
 
-          {/* 3. Coaches Roster */}
+          {/* 3. Free Demo Leads */}
+          <div
+            onClick={() => setActiveTab('free_consultations')}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'free_consultations' ? 'border-[#CCFF00] bg-zinc-900/80 shadow-[0_0_15px_rgba(204,255,0,0.15)]' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to view Free Demo 15-min consultation enquiries"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-[#CCFF00] uppercase tracking-wider truncate block">
+              FREE DEMO
+            </span>
+            <span className="text-xl font-black text-[#CCFF00] mt-1 block font-mono">{consultationsCount}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-[#CCFF00] font-semibold block mt-0.5">
+              Strategy Leads &rarr;
+            </span>
+          </div>
+
+          {/* 4. Athlete Assessments */}
+          <div
+            onClick={() => setActiveTab('assessments')}
+            className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${
+              activeTab === 'assessments' ? 'border-[#CCFF00] bg-zinc-900/80 shadow-[0_0_15px_rgba(204,255,0,0.15)]' : 'border-zinc-800 hover:border-zinc-700'
+            }`}
+            title="Click to view Diagnostic Athlete Self-Assessments"
+          >
+            <span className="text-[10px] font-bold text-zinc-400 group-hover:text-amber-300 uppercase tracking-wider truncate block">
+              ASSESSMENTS
+            </span>
+            <span className="text-xl font-black text-amber-400 mt-1 block font-mono">{assessmentsCount}</span>
+            <span className="text-[9px] text-zinc-500 group-hover:text-amber-300 font-semibold block mt-0.5">
+              Diagnostic tests &rarr;
+            </span>
+          </div>
+
+          {/* 5. Coaches Roster */}
           <div
             onClick={() => setActiveTab('coaches_workload')}
             className={`bg-[#18181b] border p-3 rounded-xl cursor-pointer select-none transition-all group hover:-translate-y-0.5 ${

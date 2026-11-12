@@ -115,6 +115,8 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
 
   // Live Coaches & Paid Bookings state for Customer Support Oversight
   const [coaches, setCoaches] = useState<User[]>([]);
+  const [consultationsCount, setConsultationsCount] = useState<number>(0);
+  const [assessmentsCount, setAssessmentsCount] = useState<number>(0);
   const [paidBookings, setPaidBookings] = useState<PaidPackageBooking[]>(() => {
     try {
       const raw = localStorage.getItem('bxstrength_paid_bookings');
@@ -125,9 +127,11 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
 
   const loadCoachesAndBookings = async () => {
     try {
-      const [uList, bookings] = await Promise.all([
+      const [uList, bookings, consultations, assessments] = await Promise.all([
         VelocityAPI.fetchUsers(),
-        VelocityAPI.fetchPaidBookings()
+        VelocityAPI.fetchPaidBookings(),
+        VelocityAPI.fetchConsultations().catch(() => []),
+        VelocityAPI.fetchAssessments().catch(() => [])
       ]);
       const staff = uList.filter(u => {
         const r = normalizeRole(u.role);
@@ -135,6 +139,8 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
       });
       setCoaches(staff);
       setPaidBookings(bookings);
+      setConsultationsCount(Array.isArray(consultations) ? consultations.length : 0);
+      setAssessmentsCount(Array.isArray(assessments) ? assessments.length : 0);
       try { localStorage.setItem('bxstrength_paid_bookings', JSON.stringify(bookings)); } catch {}
     } catch (e) {
       console.warn('Failed to load coaches/bookings in CS:', e);
@@ -174,7 +180,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     };
   }, []);
 
-  const analytics = VelocityAPI.getSupportAnalytics();
+  const analytics = useMemo(() => VelocityAPI.getSupportAnalytics(tickets), [tickets]);
 
   // Filtered & Sorted Tickets
   const filteredTickets = tickets.filter(t => {
@@ -196,8 +202,16 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
       (t.relatedBookingId && t.relatedBookingId.toLowerCase().includes(cleanTerm)) ||
       (t.relatedTransactionId && t.relatedTransactionId.toLowerCase().includes(cleanTerm));
 
-    const matchesStatus = statusFilter === 'all' || t.status === statusFilter;
-    const matchesPriority = priorityFilter === 'all' || t.priority === priorityFilter;
+    const matchesStatus = statusFilter === 'all' || 
+      (statusFilter === 'new' ? (t.status === 'new' || t.status === 'open') :
+       statusFilter === 'open' ? (t.status !== 'resolved' && t.status !== 'closed') :
+       statusFilter === 'in_progress' ? (t.status === 'in_progress' || t.status === 'assigned') :
+       t.status === statusFilter);
+
+    const matchesPriority = priorityFilter === 'all' || 
+      (priorityFilter === 'urgent' 
+        ? (t.priority === 'urgent' || Boolean(t.escalationHistory && t.escalationHistory.length > 0)) 
+        : t.priority === priorityFilter);
     const matchesSource = sourceFilter === 'all' || t.source === sourceFilter;
     const matchesCategory = categoryFilter === 'all' || t.category === categoryFilter;
     const matchesAgent = agentFilter === 'all' || 
@@ -515,7 +529,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
               <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
                 activeTab === 'inbox' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
               }`}>
-                {filteredTickets.length}
+                {tickets.length}
               </span>
             </button>
 
@@ -529,6 +543,11 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
             >
               <Video className="w-3.5 h-3.5" />
               <span>Free Demo Sessions</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                activeTab === 'free_consultations' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
+              }`}>
+                {consultationsCount} Leads
+              </span>
             </button>
 
             <button
@@ -541,6 +560,11 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
             >
               <ClipboardCheck className="w-3.5 h-3.5" />
               <span>Athlete Assessments</span>
+              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                activeTab === 'assessments' ? 'bg-black/20 text-black' : 'bg-zinc-800 text-zinc-400'
+              }`}>
+                {assessmentsCount} Tests
+              </span>
             </button>
 
             <button

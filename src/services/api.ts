@@ -3596,8 +3596,8 @@ export const VelocityAPI = {
     return null;
   },
 
-  getSupportAnalytics() {
-    const tickets = this.getTickets();
+  getSupportAnalytics(customTickets?: SupportTicket[]) {
+    const tickets = customTickets || this.getTickets();
     const bookings = this.getBookings();
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];

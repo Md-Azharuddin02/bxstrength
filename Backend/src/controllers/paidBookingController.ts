@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { dbPool } from '../config/db.ts';
+import { notifyStaff } from '../services/staffNotifications.ts';
 import { formatScheduleDateTime } from '../utils/format.ts';
 import { findCoachEmail } from '../services/coachLookup.ts';
 import { formatPaidBookingRow, paidBookingsStore } from '../models/paidBooking.ts';
@@ -109,6 +110,7 @@ export const createPaidBooking = async (req: Request, res: Response) => {
         );
 
         const savedBooking = formatPaidBookingRow(insertRes.rows[0]);
+        void notifyStaff('paid_booking', bookingId, `New paid booking: ${cleanName}`, `${cleanPkgName} - ${curr} ${price}`);
 
         const senderEmail = process.env.VITE_SENDER_EMAIL || process.env.BREVO_SENDER_EMAIL || 'support@bxstrength.com';
         const adminEmail = process.env.VITE_ADMIN_EMAIL || 'support@bxstrength.com';

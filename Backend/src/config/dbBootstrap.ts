@@ -48,6 +48,10 @@ export const initDatabase = () => {
               updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
 
+            ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS assigned_agent VARCHAR(255);
+            ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS assigned_agent_role VARCHAR(50);
+            ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS escalation_history JSONB DEFAULT '[]'::jsonb;
+
             CREATE TABLE IF NOT EXISTS reviews (
               id VARCHAR(64) PRIMARY KEY,
               name VARCHAR(255) NOT NULL,

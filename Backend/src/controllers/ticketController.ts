@@ -4,6 +4,7 @@ import { mapRowToTicket, ticketsStore } from '../models/ticket.ts';
 import type { ServerTicket } from '../models/ticket.ts';
 import { sendServerEmail } from '../services/emailService.ts';
 import { sanitizeInput } from '../utils/sanitize.ts';
+import { notifyStaff } from '../services/staffNotifications.ts';
 
 export const listTickets = async (req: Request, res: Response) => {
   try {
@@ -81,6 +82,7 @@ export const createTicket = async (req: Request, res: Response) => {
     }
 
     ticketsStore.unshift(newTicket);
+    void notifyStaff('ticket', ticketId, `New ticket: ${cleanSubject}`, `${cleanName} (${cleanPriority}) - ${cleanCategory}`);
 
     const adminEmail = process.env.VITE_ADMIN_EMAIL || 'support@bxstrength.com';
     sendServerEmail({
@@ -117,29 +119,50 @@ export const createTicket = async (req: Request, res: Response) => {
 export const updateTicket = async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    const { status, adminResponse } = req.body;
+    const { status, adminResponse, priority, assignedAgent, assignedAgentRole, escalation } = req.body;
+    const cleanPriority = typeof priority === 'string' && ['low', 'normal', 'medium', 'high', 'urgent'].includes(priority) ? priority : null;
+    const cleanAgent = typeof assignedAgent === 'string' ? sanitizeInput(assignedAgent).slice(0, 255) : null;
+    const cleanRole = typeof assignedAgentRole === 'string' ? sanitizeInput(assignedAgentRole).slice(0, 50) : null;
+    // Escalation is appended to the ticket's history; the server stamps who/when so the client cannot forge them.
+    const escRecord = escalation && typeof escalation.reason === 'string' && escalation.reason.trim()
+      ? {
+          id: `esc-${Date.now()}`,
+          escalatedBy: `${req.user?.name || req.user?.email || 'Support'} (${String(req.user?.role || '').toUpperCase()})`,
+          escalatedTo: sanitizeInput(String(escalation.escalatedTo || cleanAgent || '')).slice(0, 255),
+          reason: sanitizeInput(escalation.reason).slice(0, 2000),
+          priorityAtEscalation: String(escalation.priorityAtEscalation || ''),
+          createdAt: new Date().toISOString(),
+        }
+      : null;
 
     if (dbPool) {
       try {
-        if (adminResponse !== undefined) {
-          await dbPool.query(
-            `UPDATE support_tickets SET status = COALESCE($1, status), admin_response = $2, updated_at = NOW() WHERE id = $3`,
-            [status || null, adminResponse, id]
-          );
-        } else {
-          await dbPool.query(
-            `UPDATE support_tickets SET status = COALESCE($1, status), updated_at = NOW() WHERE id = $2`,
-            [status || null, id]
-          );
-        }
-      } catch {
-        // Fallback silently
+        await dbPool.query(
+          `UPDATE support_tickets SET
+             status = COALESCE($1, status),
+             admin_response = CASE WHEN $2::boolean THEN $3 ELSE admin_response END,
+             priority = COALESCE($4, priority),
+             assigned_agent = COALESCE($5, assigned_agent),
+             assigned_agent_role = COALESCE($6, assigned_agent_role),
+             escalation_history = CASE WHEN $7::jsonb IS NULL THEN escalation_history
+               ELSE $7::jsonb || COALESCE(escalation_history, '[]'::jsonb) END,
+             updated_at = NOW()
+           WHERE id = $8`,
+          [status || null, adminResponse !== undefined, adminResponse ?? null, cleanPriority, cleanAgent, cleanRole, escRecord ? JSON.stringify([escRecord]) : null, id]
+        );
+      } catch (err: any) {
+        console.error('Update ticket DB error:', err.message);
+        return res.status(500).json({ error: 'Failed to update ticket' });
       }
     }
     const idx = ticketsStore.findIndex(t => t.id === id);
     if (idx !== -1) {
       if (status) ticketsStore[idx].status = status;
       if (adminResponse !== undefined) ticketsStore[idx].adminResponse = adminResponse;
+      if (cleanPriority) ticketsStore[idx].priority = cleanPriority;
+      if (cleanAgent) ticketsStore[idx].assignedAgent = cleanAgent;
+      if (cleanRole) ticketsStore[idx].assignedAgentRole = cleanRole;
+      if (escRecord) ticketsStore[idx].escalationHistory = [escRecord, ...(ticketsStore[idx].escalationHistory || [])];
       ticketsStore[idx].updatedAt = new Date().toISOString();
     } else {
       ticketsStore.unshift({

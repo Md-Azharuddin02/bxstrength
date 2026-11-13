@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { dbPool } from '../config/db.ts';
+import { notifyStaff } from '../services/staffNotifications.ts';
 import { enquiriesStore } from '../models/enquiry.ts';
 import type { ServerEnquiry, ServerEnquiryStatus } from '../models/enquiry.ts';
 import { sanitizeInput } from '../utils/sanitize.ts';
@@ -64,6 +65,7 @@ export const createEnquiry = async (req: Request, res: Response) => {
     };
 
     enquiriesStore.unshift(newEnquiry);
+    void notifyStaff('enquiry', enqId, `New enquiry: ${cleanSubject}`, `${cleanName} - ${cleanCategory}`);
 
     if (dbPool) {
       try {

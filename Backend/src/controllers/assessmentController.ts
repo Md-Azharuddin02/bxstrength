@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { dbPool } from '../config/db.ts';
+import { notifyStaff } from '../services/staffNotifications.ts';
 import { sendServerEmail } from '../services/emailService.ts';
 import { decodeHtmlEntities, sanitizeInput } from '../utils/sanitize.ts';
 
@@ -119,6 +120,8 @@ export const createAssessment = async (req: Request, res: Response) => {
     }
 
 // Self assessment stored in assessments table
+
+    void notifyStaff('assessment', assessmentId, `New assessment: ${leadName}`, `Goal: ${goal}`);
 
     // Send email alert to head coach
     sendServerEmail({

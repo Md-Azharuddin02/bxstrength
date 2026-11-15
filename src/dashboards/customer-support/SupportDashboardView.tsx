@@ -261,19 +261,25 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
 
   const handleUpdateStatus = async (status: TicketStatus) => {
     if (!selectedTicket) return;
-    const updated = VelocityAPI.updateTicketStatus(selectedTicket.id, status);
+    const id = selectedTicket.id;
+    // Server first: tickets fetched from the API are not in local storage, so the local update can return null.
     try {
-      await apiFetch(`/api/tickets/${encodeURIComponent(selectedTicket.id)}`, {
+      const res = await apiFetch(`/api/tickets/${encodeURIComponent(id)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
       });
-    } catch {}
-    if (updated) {
-      setSelectedTicket(updated);
-      fetchTickets();
-      onShowToast(`Ticket #${selectedTicket.id} status set to "${status.toUpperCase().replace('_', ' ')}".`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch {
+      onShowToast('Could not save the status change. Please try again.');
+      return;
     }
+    const updated = VelocityAPI.updateTicketStatus(id, status) ?? { ...selectedTicket, status, updatedAt: new Date().toISOString() };
+    setSelectedTicket(updated);
+    setTickets(prev => prev.map(t => t.id === id ? { ...t, status: updated.status, updatedAt: updated.updatedAt } : t));
+    fetchTickets();
+    window.dispatchEvent(new CustomEvent('bxstrength_tickets_updated'));
+    onShowToast(`Ticket #${id} status set to "${status.toUpperCase().replace('_', ' ')}".`);
   };
 
   // Assign/escalate must be saved on the server: tickets fetched from the API are not in local storage,
@@ -315,11 +321,12 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
       await apiFetch(`/api/tickets/${encodeURIComponent(selectedTicket.id)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminResponse: text, status: 'resolved' })
+        body: JSON.stringify({ adminResponse: text, ...(['new', 'open', 'assigned'].includes(selectedTicket.status) && { status: 'in_progress' }) }) // a reply must not silently resolve/close the ticket
       });
     } catch {}
-    if (updated) {
-      setSelectedTicket(updated);
+    const shown = updated ?? selectedTicket; // server-only tickets have no local copy
+    if (shown) {
+      setSelectedTicket(shown);
       setResponseInput('');
       fetchTickets();
       onShowToast(`Response sent to customer ${selectedTicket.userName} via ${communicationTab.toUpperCase()}!`);
@@ -800,7 +807,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
                           <p className="text-zinc-400 text-[11px]">Phone: <strong className="text-white">{selectedTicket.userPhone || '+44 (UK) / +91 (IN)'}</strong></p>
                         </div>
                         <div>
-                          <p className="text-zinc-400 text-[11px]">Linked Service: <strong className="text-white">{selectedTicket.serviceOrProduct || '1-to-1 Digital Coaching'}</strong></p>
+                          <p className="text-zinc-400 text-[11px]">Linked Service: <strong className="text-white">{selectedTicket.serviceOrProduct || '1-to-1 Digital Session'}</strong></p>
                           {selectedTicket.relatedBookingId && (
                             <p className="text-zinc-400 text-[11px]">Booking Code: <span className="text-[#CCFF00] font-mono font-bold">{selectedTicket.relatedBookingId}</span></p>
                           )}

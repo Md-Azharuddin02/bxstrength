@@ -71,7 +71,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
       const mapById = new Map<string, SupportTicket>();
       const mapByContent = new Map<string, SupportTicket>();
 
-      [...localTickets, ...serverTickets].forEach(t => {
+      [...serverTickets, ...localTickets].forEach(t => {
         if (t && t.id && t.id !== 'TICKET-849201' && t.id !== 'TICKET-739104') {
           const email = (t.userEmail || '').toLowerCase().trim();
           const descSnippet = (t.description || t.subject || '').toLowerCase().trim().slice(0, 40);
@@ -182,7 +182,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
 
       // 2. Update via server API endpoint
       try {
-        await apiFetch(`/api/tickets/${ticketId}`, {
+        const res = await apiFetch(`/api/tickets/${ticketId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -190,8 +190,12 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
             adminResponse: resMsg
           })
         });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
       } catch (err) {
         console.error('Failed to update ticket on server:', err);
+        onShowToast('Could not save the status change. Please try again.');
+        fetchAllTickets();
+        return;
       }
 
       onShowToast(`Ticket #${ticketId} status updated to "${newStatus.toUpperCase().replace('_', ' ')}"!`);
@@ -302,6 +306,12 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
         return (
           <span className="bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1">
             <AlertCircle className="w-3 h-3" /> IN PROGRESS
+          </span>
+        );
+      case 'waiting_customer':
+        return (
+          <span className="bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1">
+            <Clock className="w-3 h-3" /> AWAITING CLIENT
           </span>
         );
       case 'resolved':

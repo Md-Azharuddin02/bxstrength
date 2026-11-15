@@ -63,7 +63,14 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
     fetchUserTickets(true);
     // Every client runs this, so keep it gentle and pause it in background tabs
     const interval = setInterval(() => { if (!document.hidden) fetchUserTickets(false); }, 30000);
-    return () => clearInterval(interval);
+    const onVisible = () => { if (!document.hidden) fetchUserTickets(false); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('bxstrength_tickets_updated', onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('bxstrength_tickets_updated', onVisible);
+    };
   }, [user.id, user.email]);
 
   const handleCreateTicket = async (e: React.FormEvent) => {
@@ -136,15 +143,23 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'open':
+      case 'new':
         return (
           <span className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1">
             <Clock className="w-3 h-3" /> OPEN
           </span>
         );
+      case 'assigned':
       case 'in_progress':
         return (
           <span className="bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1">
             <AlertCircle className="w-3 h-3" /> IN PROGRESS
+          </span>
+        );
+      case 'waiting_customer':
+        return (
+          <span className="bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1">
+            <Clock className="w-3 h-3" /> AWAITING YOUR REPLY
           </span>
         );
       case 'resolved':

@@ -10,6 +10,23 @@ import type { UkBookingJourneyRecord } from '../models/journey.ts';
 import { sendServerEmail } from '../services/emailService.ts';
 import { decodeHtmlEntities, sanitizeInput } from '../utils/sanitize.ts';
 
+// Column migrations run once per process: ALTER TABLE locks the table even when every column already exists.
+// On failure (e.g. the table is not created yet) the next request tries again.
+let consultationColumns: Promise<void> | null = null;
+const ensureConsultationColumns = () => {
+  consultationColumns ??= dbPool!.query(`ALTER TABLE consultations
+      ADD COLUMN IF NOT EXISTS additional_notes TEXT,
+      ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMP WITH TIME ZONE,
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS assigned_coach_id VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS assigned_coach_name VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS assigned_by VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP WITH TIME ZONE,
+      ADD COLUMN IF NOT EXISTS meeting_link TEXT,
+      ADD COLUMN IF NOT EXISTS notes TEXT`).then(() => {}, () => { consultationColumns = null; });
+  return consultationColumns;
+};
+
 export const createConsultation = async (req: Request, res: Response) => {
   try {
     const { name, email, phone, goal, duration, coachPreference, preferredDate, preferredTime } = req.body;
@@ -118,7 +135,7 @@ export const createConsultation = async (req: Request, res: Response) => {
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           )`
         );
-        await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS additional_notes TEXT');
+        await ensureConsultationColumns();
         await dbPool.query(
           `INSERT INTO consultations (id, client_name, client_email, client_phone, goal, duration, additional_notes, preferred_date, preferred_time, status)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Pending')`,
@@ -262,13 +279,7 @@ export const assignConsultation = async (req: Request, res: Response) => {
     };
 
     if (dbPool) {
-      await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMP WITH TIME ZONE').catch(() => {});
-      await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS assigned_coach_id VARCHAR(100)').catch(() => {});
-      await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS assigned_coach_name VARCHAR(255)').catch(() => {});
-      await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS assigned_by VARCHAR(255)').catch(() => {});
-      await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP WITH TIME ZONE').catch(() => {});
-      await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS meeting_link TEXT').catch(() => {});
-      await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS notes TEXT').catch(() => {});
+      await ensureConsultationColumns();
 
       const updateRes = await dbPool.query(
         `UPDATE consultations 
@@ -505,7 +516,7 @@ export const updateConsultationStatus = async (req: Request, res: Response) => {
     }
 
     if (dbPool) {
-      await dbPool.query('ALTER TABLE consultations ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMP WITH TIME ZONE').catch(() => {});
+      await ensureConsultationColumns();
 
       const updateRes = await dbPool.query(
         `UPDATE consultations 

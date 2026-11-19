@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { User, SupportTicket, TicketCategory, TicketPriority } from '../../types';
 import { VelocityAPI, getApiUrl, apiFetch } from '../../services/api';
 import { sendBrevoTicketEmail } from '../../services/emailService';
-import { LifeBuoy, Plus, CheckCircle2, Clock, AlertCircle, MessageSquare, Tag, X, ShieldAlert, Send, UserCheck } from 'lucide-react';
+import { ArrowLeft, LifeBuoy, Plus, CheckCircle2, Clock, AlertCircle, MessageSquare, Tag, X, ShieldAlert, Send, UserCheck } from 'lucide-react';
 
+import { TicketChat } from '../../components/TicketChat/TicketChat';
 import { Skeleton } from '../../components/ui/Skeleton';
 
 interface SupportTicketsViewProps {
@@ -16,6 +17,10 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  // Desktop always shows a ticket (the chosen one, else the newest); on phones null means "show the list".
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // While the ticket chat is open it takes over the detail panel.
+  const [chatOpen, setChatOpen] = useState(false);
 
   // Form states initialized from draft storage if present
   const [subject, setSubject] = useState(() => sessionStorage.getItem('bxstrength_ticket_draft_subj') || '');
@@ -190,6 +195,8 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
     }
   };
 
+  const activeTicket = tickets.find(t => t.id === selectedId) ?? tickets[0];
+
   return (
     <div className="space-y-6">
       
@@ -224,59 +231,93 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {tickets.map((t) => (
-            <div key={t.id} className="bg-[#121214] border border-zinc-800 p-6 rounded-2xl space-y-4 transition-all hover:border-zinc-700">
-              
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800/80 pb-3">
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-xs font-bold text-emerald-400 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded">
-                    #{t.id}
-                  </span>
-                  <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
-                    {t.category}
-                  </span>
-                  {getPriorityBadge(t.priority)}
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,360px)_1fr] gap-4 items-start">
+          {/* LEFT: ticket list */}
+          <nav
+            aria-label="Your support tickets"
+            className={`${selectedId ? 'hidden lg:block' : ''} bg-[#121214] border border-zinc-800 rounded-2xl overflow-hidden lg:sticky lg:top-4`}
+          >
+            <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-wider text-white">Your tickets</span>
+              <span className="text-[10px] text-zinc-500">{tickets.length}</span>
+            </div>
+            <ul className="divide-y divide-zinc-800/80 lg:max-h-[calc(100vh-12rem)] overflow-y-auto">
+              {tickets.map((t) => {
+                const active = t.id === activeTicket?.id;
+                return (
+                  <li key={t.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(t.id)}
+                      aria-current={active ? 'true' : undefined}
+                      className={`w-full text-left px-4 py-3.5 space-y-1.5 border-l-2 transition-colors cursor-pointer ${active ? 'bg-zinc-900 border-[#CCFF00]' : 'border-transparent hover:bg-zinc-900/60'}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-[11px] font-bold text-emerald-400">#{t.id}</span>
+                        {getStatusBadge(t.status)}
+                      </div>
+                      <p className="text-sm font-bold text-white truncate">{t.subject}</p>
+                      <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+                        <span className="uppercase font-bold tracking-wider">{t.category}</span>
+                        <span aria-hidden="true">·</span>
+                        <time dateTime={t.updatedAt || t.createdAt}>{new Date(t.updatedAt || t.createdAt).toLocaleDateString()} {new Date(t.updatedAt || t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
 
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] font-mono text-zinc-500">
-                    {new Date(t.createdAt).toLocaleDateString()} {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {/* RIGHT: selected ticket details + chat */}
+          {activeTicket && (
+            <section
+              aria-label={`Ticket ${activeTicket.id}`}
+              className={`${chatOpen ? `${selectedId ? 'flex' : 'hidden lg:flex'} flex-col h-[75dvh] lg:h-[calc(100vh-12rem)] min-h-[480px]` : `${selectedId ? '' : 'hidden lg:block'} space-y-5`} bg-[#121214] border border-zinc-800 p-5 sm:p-6 rounded-2xl min-w-0`}
+            >
+              <button
+                type="button"
+                onClick={() => setSelectedId(null)}
+                hidden={chatOpen}
+                className="lg:hidden flex items-center gap-1.5 text-xs font-bold uppercase text-zinc-400 hover:text-white cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" /> All tickets
+              </button>
+
+              <div hidden={chatOpen} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800/80 pb-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="font-mono text-xs font-bold text-emerald-400 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded">
+                    #{activeTicket.id}
                   </span>
-                  {getStatusBadge(t.status)}
+                  <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">{activeTicket.category}</span>
+                  {getPriorityBadge(activeTicket.priority)}
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] font-mono text-zinc-500">{new Date(activeTicket.createdAt).toLocaleDateString()} {new Date(activeTicket.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  {getStatusBadge(activeTicket.status)}
                 </div>
               </div>
 
-              <div>
-                <h3 className="text-base font-bold text-white mb-2">{t.subject}</h3>
-                <p className="text-xs text-zinc-300 bg-[#18181b] p-3.5 rounded-xl border border-zinc-800/80 font-normal leading-relaxed">
-                  "{t.description}"
+              <div hidden={chatOpen}>
+                <h3 className="text-base font-bold text-white mb-2 break-words">{activeTicket.subject}</h3>
+                <p className="text-xs text-zinc-300 bg-[#18181b] p-3.5 rounded-xl border border-zinc-800/80 leading-relaxed whitespace-pre-wrap break-words">
+                  {activeTicket.description}
                 </p>
               </div>
 
-              {/* Admin Response Note */}
-              {t.adminResponse ? (
-                <div className="bg-emerald-950/30 border border-emerald-500/30 p-4 rounded-xl space-y-1">
+              {activeTicket.adminResponse && (
+                <div hidden={chatOpen} className="bg-emerald-950/30 border border-emerald-500/30 p-4 rounded-xl space-y-1">
                   <div className="flex items-center gap-2 text-emerald-400 text-xs font-black uppercase tracking-wider">
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>ADMIN RESOLUTION & COACH RESPONSE:</span>
+                    <span>Admin resolution & coach response</span>
                   </div>
-                  <p className="text-xs text-zinc-200 font-medium pl-6 leading-relaxed">
-                    {t.adminResponse}
-                  </p>
-                  <div className="text-[10px] font-mono text-zinc-500 pl-6 pt-1">
-                    Updated: {new Date(t.updatedAt).toLocaleDateString()} at {new Date(t.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-zinc-500 text-xs italic">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Awaiting coach/admin resolution response. You will be notified live once updated.</span>
+                  <p className="text-xs text-zinc-200 font-medium pl-6 leading-relaxed">{activeTicket.adminResponse}</p>
                 </div>
               )}
 
-            </div>
-          ))}
+              <TicketChat ticketId={activeTicket.id} currentUserId={user.id} subtitle={`#${activeTicket.id} · ${activeTicket.subject}`} onOpenChange={setChatOpen} />
+            </section>
+          )}
         </div>
       )}
 

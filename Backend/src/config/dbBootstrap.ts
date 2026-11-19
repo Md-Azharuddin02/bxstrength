@@ -52,6 +52,17 @@ export const initDatabase = () => {
             ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS assigned_agent_role VARCHAR(50);
             ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS escalation_history JSONB DEFAULT '[]'::jsonb;
 
+            CREATE TABLE IF NOT EXISTS ticket_messages (
+              id VARCHAR(64) PRIMARY KEY,
+              ticket_id VARCHAR(64) NOT NULL,
+              sender_id VARCHAR(64) NOT NULL,
+              sender_name VARCHAR(255) NOT NULL,
+              sender_role VARCHAR(20) NOT NULL,
+              text TEXT NOT NULL,
+              created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON ticket_messages (ticket_id, created_at);
+
             CREATE TABLE IF NOT EXISTS reviews (
               id VARCHAR(64) PRIMARY KEY,
               name VARCHAR(255) NOT NULL,

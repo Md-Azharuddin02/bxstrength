@@ -36,8 +36,8 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 export const authorizeRoles = (...allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const rawRole = String((req as any).user?.role || '').toLowerCase();
-    const normalizedRole = rawRole.replace(/[_s]/g, '');
-    const normalizedAllowed = allowedRoles.map(r => r.toLowerCase().replace(/[_s]/g, ''));
+    const normalizedRole = rawRole.replace(/[_\s]/g, '');
+    const normalizedAllowed = allowedRoles.map(r => r.toLowerCase().replace(/[_\s]/g, ''));
     if (!allowedRoles.includes(rawRole) && !normalizedAllowed.includes(normalizedRole)) {
       return res.status(403).json({ error: 'Forbidden: Insufficient privileges' });
     }

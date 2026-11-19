@@ -38,7 +38,7 @@ import { VelocityAPI } from '../services/api';
 import { openRazorpayCheckout } from '../services/razorpayService';
 import { sendBrevoPaymentReceiptEmail, sendBrevoCoachAssignmentAlertToAdmin } from '../services/emailService';
 import { canUseMockPayments } from '../services/mockPayment';
-import { calculateCustomPlanTotals, CUSTOM_SERVICE_PRICING, getCustomExerciseNames, getServicePlanType, SERVICE_PLAN_PRICES } from '../services/servicePricing';
+import { calculateCustomPlanTotals, CUSTOM_SERVICE_PRICING, getCustomExerciseNames, getServicePlanType, getConfiguredServicePlanDuration, SERVICE_PLAN_PRICES } from '../services/servicePricing';
 import type { User } from '../types';
 
 // Available Training Elements for Custom Plan
@@ -1010,23 +1010,7 @@ export const ServiceCustomizationModal: React.FC<
           try {
             const pkgType = isCustomPlan ? 'custom' : isWeeklyPlan ? 'weekly' : isMonthlyPlan ? 'monthly' : 'standard';
             const totalSess = isWeeklyPlan ? 3 : isMonthlyPlan ? 12 : isCustomPlan ? 1 : 1;
-            const durationMin = isCustomPlan
-              ? customPlanTotalMinutes
-              : isBasic
-              ? 15
-              : isFocus
-              ? 30
-              : isPerformance
-              ? 45
-              : isComplete
-              ? 60
-              : isWellness
-              ? 30
-              : isWeeklyPlan
-              ? 30
-              : isMonthlyPlan
-              ? 45
-              : parseInt(String(service.duration || '')) || 30;
+            const durationMin = isCustomPlan ? customPlanTotalMinutes : getConfiguredServicePlanDuration(service.title) ?? (parseInt(String(service.duration || '')) || 30);
 
             const disclosuresObj = {
               ageConfirmed: Boolean(ageConfirmed),

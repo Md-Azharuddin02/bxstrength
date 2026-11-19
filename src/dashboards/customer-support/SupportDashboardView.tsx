@@ -23,6 +23,7 @@ import { EscalateTicketModal } from './support-dashboard/EscalateTicketModal';
 import { CreateTicketModal } from './support-dashboard/CreateTicketModal';
 import { useCreateTicketForm } from './support-dashboard/useCreateTicketForm';
 import { ProfileModal } from './support-dashboard/ProfileModal';
+import { isValidUkMobile, UK_PHONE_ERROR_MSG } from '../../utils/phoneValidation';
 import { AuditLogsPanel } from './support-dashboard/AuditLogsPanel';
 
 interface SupportDashboardViewProps {
@@ -242,6 +243,27 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     onShowToast(`Ticket #${selectedTicket.id} escalated to ${escalationTarget} with urgent priority.`);
   };
 
+  // Saves a contact number on the client's profile; resolves true on success.
+  const handleSaveContactNumber = async (phone: string): Promise<boolean> => {
+    if (!selectedTicket) return false;
+    if (!isValidUkMobile(phone)) { onShowToast(UK_PHONE_ERROR_MSG); return false; }
+    try {
+      const res = await apiFetch(`/api/users/${encodeURIComponent(selectedTicket.userId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch {
+      onShowToast('Could not save the contact number. Please try again.');
+      return false;
+    }
+    setSelectedTicket({ ...selectedTicket, userPhone: phone });
+    setTickets(prev => prev.map(t => t.id === selectedTicket.id ? { ...t, userPhone: phone } : t));
+    onShowToast('Contact number saved.');
+    return true;
+  };
+
   const handleTransferToHeadCoach = () => {
     if (!selectedTicket) return;
     try {
@@ -382,6 +404,8 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
               <TicketDetail
                 ticket={selectedTicket}
                 activeRoleView={activeRoleView}
+                currentUserId={user?.id}
+                onSaveContactNumber={handleSaveContactNumber}
                 onEscalate={() => setEscalateModalOpen(true)}
                 onDelete={setDeletingTicket}
                 onUpdateStatus={handleUpdateStatus}

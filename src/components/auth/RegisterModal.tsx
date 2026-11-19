@@ -31,7 +31,7 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [agreeTerms, setAgreeTerms] = useState(true);
+  const [agreeTerms, setAgreeTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -307,6 +307,21 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
                 </div>
               </div>
             </div>
+
+            <label className="flex items-start gap-2.5 cursor-pointer text-[11px] text-zinc-400 leading-snug">
+              <input
+                type="checkbox"
+                checked={agreeTerms}
+                onChange={(e) => setAgreeTerms(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-[#CCFF00] cursor-pointer shrink-0"
+              />
+              <span>
+                I agree to the{' '}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-white underline">Terms &amp; Conditions</a>
+                {' '}and{' '}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-white underline">Privacy Policy</a>.
+              </span>
+            </label>
 
             <button
               type="submit"

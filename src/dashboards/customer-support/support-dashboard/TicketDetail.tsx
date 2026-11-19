@@ -1,15 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   AlertTriangle, CornerUpRight, Globe, Lock, ShieldCheck, Tag, Trash2,
   User as UserIcon, UserCheck
 } from 'lucide-react';
 import { SupportTicket, TicketStatus } from '../../../types';
+import { TicketChat } from '../../../components/TicketChat/TicketChat';
 import { getPriorityBadge, getStatusBadge } from './TicketBadges';
 import { RoleView } from './types';
+import { ContactPhoneField } from './ContactPhoneField';
 
 interface TicketDetailProps {
   ticket: SupportTicket | null;
   activeRoleView: RoleView;
+  /** Signed-in user; the live chat is hidden until it is known. */
+  currentUserId?: string;
+  onSaveContactNumber: (phone: string) => Promise<boolean>;
   onEscalate: () => void;
   onDelete: (ticket: SupportTicket) => void;
   onUpdateStatus: (status: TicketStatus) => void;
@@ -20,19 +25,24 @@ interface TicketDetailProps {
 export const TicketDetail: React.FC<TicketDetailProps> = ({
   ticket: selectedTicket,
   activeRoleView,
+  currentUserId,
+  onSaveContactNumber,
   onEscalate,
   onDelete,
   onUpdateStatus,
   onTransferToHeadCoach
 }) => {
+  // While the chat is open it takes over the panel; the other sections are hidden (not unmounted) so drafts survive.
+  const [chatOpen, setChatOpen] = useState(false);
+
   return (
     <div className="lg:col-span-7 bg-[#121214] border border-zinc-800 rounded-2xl p-5 lg:h-[calc(100dvh-11rem)] h-[70dvh] min-h-[420px] overflow-y-auto custom-scrollbar flex flex-col justify-between">
 
       {selectedTicket ? (
-        <div className="space-y-6">
+        <div className={chatOpen ? 'flex-1 min-h-0 flex flex-col' : 'space-y-6'}>
 
           {/* TICKET TOP HEADER & QUICK STATUS ACTIONS */}
-          <div className="bg-[#18181b] border border-zinc-800 p-4 rounded-xl space-y-3">
+          <div hidden={chatOpen} className="bg-[#18181b] border border-zinc-800 p-4 rounded-xl space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/80 pb-3">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-mono font-black text-[#CCFF00] bg-black px-3 py-1 rounded-md border border-zinc-800">
@@ -103,7 +113,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
           </div>
 
           {/* 360° CUSTOMER PROFILE & SAFE DATA INTEGRATION SUMMARY */}
-          <div className="bg-[#18181b]/70 border border-zinc-800 p-4 rounded-xl space-y-3">
+          <div hidden={chatOpen} className="bg-[#18181b]/70 border border-zinc-800 p-4 rounded-xl space-y-3">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
               <span className="text-xs font-black uppercase tracking-wider text-[#CCFF00] flex items-center gap-1.5">
                 <UserCheck className="w-4 h-4 text-[#CCFF00]" />
@@ -115,7 +125,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
               <div>
                 <p className="text-zinc-400 text-[11px]">Client Name: <strong className="text-white">{selectedTicket.userName}</strong></p>
                 <p className="text-zinc-400 text-[11px]">Email: <a href={`mailto:${selectedTicket.userEmail}`} className="text-white underline">{selectedTicket.userEmail}</a></p>
-                <p className="text-zinc-400 text-[11px]">Phone: <strong className="text-white">{selectedTicket.userPhone || '+44 (UK) / +91 (IN)'}</strong></p>
+                <div className="text-zinc-400 text-[11px]">Phone: <ContactPhoneField key={selectedTicket.id} phone={selectedTicket.userPhone} onSave={onSaveContactNumber} /></div>
               </div>
               <div>
                 <p className="text-zinc-400 text-[11px]">Linked Service: <strong className="text-white">{selectedTicket.serviceOrProduct || '1-to-1 Digital Session'}</strong></p>
@@ -131,7 +141,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
 
           {/* CHATBOT CONTEXT SNIPPET (IF ORIGINATED FROM CHATBOT) */}
           {selectedTicket.chatContext?.botConversationSnippet && (
-            <div className="bg-[#18181c] border-l-4 border-[#CCFF00] p-3.5 rounded-r-xl space-y-1">
+            <div hidden={chatOpen} className="bg-[#18181c] border-l-4 border-[#CCFF00] p-3.5 rounded-r-xl space-y-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#CCFF00] block">
                 🤖 CHATBOT CONVERSATION SNIPPET (ESCALATION CONTEXT)
               </span>
@@ -143,7 +153,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
 
           {/* ESCALATION HISTORY (IF APPLICABLE) */}
           {selectedTicket.escalationHistory && selectedTicket.escalationHistory.length > 0 && (
-            <div className="bg-red-500/10 border border-red-500/30 p-3 rounded-xl space-y-1 text-xs">
+            <div hidden={chatOpen} className="bg-red-500/10 border border-red-500/30 p-3 rounded-xl space-y-1 text-xs">
               <span className="text-[10px] font-black uppercase text-red-400 flex items-center gap-1">
                 <AlertTriangle className="w-3.5 h-3.5 text-red-400" /> ESCALATION RECORD
               </span>
@@ -155,8 +165,18 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
             </div>
           )}
 
+          {/* LIVE TICKET CHAT (stored in database) */}
+          {currentUserId && (
+            <TicketChat
+              ticketId={selectedTicket.id}
+              currentUserId={currentUserId}
+              subtitle={`#${selectedTicket.id} · ${selectedTicket.subject} · ${selectedTicket.userName}`}
+              onOpenChange={setChatOpen}
+            />
+          )}
+
           {/* CONVERSATION HISTORY TIMELINE */}
-          <div className="space-y-3">
+          <div hidden={chatOpen} className="space-y-3">
             <span className="text-xs font-black uppercase tracking-wider text-zinc-400 block">
               COMMUNICATION TIMELINE & LOGS
             </span>

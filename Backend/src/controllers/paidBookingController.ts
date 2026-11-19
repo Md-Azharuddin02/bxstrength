@@ -4,6 +4,7 @@ import { notifyStaff } from '../services/staffNotifications.ts';
 import { formatScheduleDateTime } from '../utils/format.ts';
 import { findCoachEmail } from '../services/coachLookup.ts';
 import { formatPaidBookingRow, paidBookingsStore } from '../models/paidBooking.ts';
+import { getConfiguredServicePlanDuration } from '../../../src/services/servicePricing.ts';
 import type { ServerPaidBooking } from '../models/paidBooking.ts';
 import { sendServerEmail } from '../services/emailService.ts';
 import { decodeHtmlEntities, sanitizeInput } from '../utils/sanitize.ts';
@@ -40,25 +41,9 @@ export const createPaidBooking = async (req: Request, res: Response) => {
     const price = Number(totalPrice) || 0;
     const curr = sanitizeInput(currency || 'GBP');
     const sessions = Math.max(1, Number(totalSessions) || (cleanPkgType === 'weekly' ? 3 : cleanPkgType === 'monthly' ? 12 : 1));
-    const pkgLower = cleanPkgName.toLowerCase();
-    let duration = Number(durationMinutes);
-    if (!duration || isNaN(duration) || (pkgLower.includes('basic') && duration !== 15) || (pkgLower.includes('complete') && duration !== 60)) {
-      if (customizedDetails && typeof customizedDetails === 'object' && customizedDetails.totalMinutes) {
-        duration = Number(customizedDetails.totalMinutes);
-      } else if (pkgLower.includes('basic')) {
-        duration = 15;
-      } else if (pkgLower.includes('complete')) {
-        duration = 60;
-      } else if (pkgLower.includes('performance')) {
-        duration = 45;
-      } else if (pkgLower.includes('monthly')) {
-        duration = 45;
-      } else if (pkgLower.includes('focus') || pkgLower.includes('weekly') || pkgLower.includes('wellness')) {
-        duration = 30;
-      } else if (!duration || isNaN(duration)) {
-        duration = 30;
-      }
-    }
+    // Fixed plans use their configured length; only custom plans take the client's computed total.
+    const duration = getConfiguredServicePlanDuration(cleanPkgName)
+      ?? (Number(customizedDetails?.totalMinutes) || Number(durationMinutes) || 30);
     const validity = Number(validityDays) || 30;
 
     const bookingId = orderId && orderId.length > 5 ? (orderId.startsWith('BX-') ? orderId : `BX-BOOK-${orderId.slice(-8)}`) : `BX-BOOK-${Date.now()}`;

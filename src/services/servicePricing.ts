@@ -8,6 +8,17 @@ export const SERVICE_PLAN_PRICES = {
   monthly: 359,
 } as const;
 
+// Minutes per session for each fixed plan: the one place durations are defined.
+export const SERVICE_PLAN_DURATIONS = {
+  basic: 15,
+  focus: 30,
+  performance: 45,
+  complete: 60,
+  wellness: 30,
+  weekly: 30,
+  monthly: 45,
+} as const;
+
 export const CUSTOM_SERVICE_PRICING = {
   strength: { name: 'Strength Training', price: 25, durationMin: 15 },
   functional: { name: 'Functional Training', price: 25, durationMin: 15 },
@@ -77,4 +88,9 @@ export const calculateCustomExercisePrice = (exerciseNames: string[]): number =>
     if (price === undefined) throw new Error(`Unsupported custom service: ${name}`);
     return total + price;
   }, 0);
+};
+
+export const getConfiguredServicePlanDuration = (planName: string): number | undefined => {
+  const planType = getServicePlanType(planName);
+  return planType && planType !== 'custom' ? SERVICE_PLAN_DURATIONS[planType] : undefined;
 };

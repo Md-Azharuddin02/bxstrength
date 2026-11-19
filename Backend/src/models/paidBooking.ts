@@ -1,4 +1,5 @@
 import { decodeHtmlEntities } from '../utils/sanitize.ts';
+import { getConfiguredServicePlanDuration } from '../../../src/services/servicePricing.ts';
 
 export interface ServerPaidBooking {
   id: string;
@@ -46,7 +47,7 @@ export const formatPaidBookingRow = (r: any): ServerPaidBooking => ({
   currency: r.currency || 'GBP',
   totalSessions: Number(r.total_sessions) || 1,
   completedSessions: Number(r.completed_sessions) || 0,
-  durationMinutes: Number(r.duration_minutes) || 45,
+  durationMinutes: getConfiguredServicePlanDuration(r.package_name) ?? (Number(r.duration_minutes) || 45),
   validityDays: Number(r.validity_days) || 30,
   customizedDetails: typeof r.customized_details === 'string' ? JSON.parse(r.customized_details) : (r.customized_details || {}),
   sessionFocusList: Array.isArray(r.session_focus_list) ? r.session_focus_list : (typeof r.session_focus_list === 'string' ? JSON.parse(r.session_focus_list) : []),

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, SupportTicket, TicketCategory, TicketPriority } from '../../types';
 import { VelocityAPI, getApiUrl, apiFetch } from '../../services/api';
 import { sendBrevoTicketEmail } from '../../services/emailService';
@@ -10,9 +10,11 @@ import { Skeleton } from '../../components/ui/Skeleton';
 interface SupportTicketsViewProps {
   user: User;
   onShowToast: (msg: string) => void;
+  /** Set by a clicked notification: open this ticket's chat. `at` changes on every click. */
+  focus?: { ticketId: string; at: number } | null;
 }
 
-export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, onShowToast }) => {
+export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, onShowToast, focus }) => {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,6 +23,9 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // While the ticket chat is open it takes over the detail panel.
   const [chatOpen, setChatOpen] = useState(false);
+  const [openChatRequest, setOpenChatRequest] = useState(0);
+  const handledFocus = useRef(0);
+  const refetchedFor = useRef(0);
 
   // Form states initialized from draft storage if present
   const [subject, setSubject] = useState(() => sessionStorage.getItem('bxstrength_ticket_draft_subj') || '');
@@ -47,18 +52,11 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
   const fetchUserTickets = async (isInitial = false) => {
     if (isInitial) setIsLoading(true);
     try {
-      const localTickets = VelocityAPI.getTickets(user.id);
+      // Server is the only source of truth; on a failed request keep what is on screen (the local copy is stale).
       const res = await apiFetch(getApiUrl(`/api/tickets?userId=${encodeURIComponent(user.id)}&userEmail=${encodeURIComponent(user.email)}`));
-      if (res.ok) {
-        const serverTickets: SupportTicket[] = await res.json();
-        const map = new Map<string, SupportTicket>();
-        [...localTickets, ...serverTickets].forEach(t => map.set(t.id, t));
-        setTickets(Array.from(map.values()));
-      } else {
-        setTickets(localTickets);
-      }
+      if (res.ok) setTickets(await res.json());
     } catch {
-      setTickets(VelocityAPI.getTickets(user.id));
+      // Network error: keep the current list.
     } finally {
       if (isInitial) setIsLoading(false);
     }
@@ -195,6 +193,22 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
     }
   };
 
+  // A clicked notification: select its ticket and open the chat once the ticket is in the list.
+  useEffect(() => {
+    if (!focus || focus.at === handledFocus.current) return;
+    if (!tickets.some(t => t.id === focus.ticketId)) {
+      // Reload once per click (the ticket may be newer than the list); a deleted ticket just stays unselected.
+      if (!isLoading && refetchedFor.current !== focus.at) {
+        refetchedFor.current = focus.at;
+        fetchUserTickets(false);
+      }
+      return;
+    }
+    handledFocus.current = focus.at;
+    setSelectedId(focus.ticketId);
+    setOpenChatRequest(focus.at);
+  }, [focus, tickets, isLoading]);
+
   const activeTicket = tickets.find(t => t.id === selectedId) ?? tickets[0];
 
   return (
@@ -241,7 +255,7 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
               <span className="text-xs font-black uppercase tracking-wider text-white">Your tickets</span>
               <span className="text-[10px] text-zinc-500">{tickets.length}</span>
             </div>
-            <ul className="divide-y divide-zinc-800/80 lg:max-h-[calc(100vh-12rem)] overflow-y-auto">
+            <ul className="divide-y divide-zinc-800/80 lg:max-h-[calc(100dvh-21rem)] overflow-y-auto">
               {tickets.map((t) => {
                 const active = t.id === activeTicket?.id;
                 return (
@@ -273,7 +287,7 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
           {activeTicket && (
             <section
               aria-label={`Ticket ${activeTicket.id}`}
-              className={`${chatOpen ? `${selectedId ? 'flex' : 'hidden lg:flex'} flex-col h-[75dvh] lg:h-[calc(100vh-12rem)] min-h-[480px]` : `${selectedId ? '' : 'hidden lg:block'} space-y-5`} bg-[#121214] border border-zinc-800 p-5 sm:p-6 rounded-2xl min-w-0`}
+              className={`${chatOpen ? `${selectedId ? 'flex' : 'hidden lg:flex'} flex-col h-[75dvh] lg:h-[calc(100dvh-18rem)] min-h-[420px]` : `${selectedId ? '' : 'hidden lg:block'} space-y-5`} bg-[#121214] border border-zinc-800 p-5 sm:p-6 rounded-2xl min-w-0`}
             >
               <button
                 type="button"
@@ -315,7 +329,7 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
                 </div>
               )}
 
-              <TicketChat ticketId={activeTicket.id} currentUserId={user.id} subtitle={`#${activeTicket.id} · ${activeTicket.subject}`} onOpenChange={setChatOpen} />
+              <TicketChat ticketId={activeTicket.id} currentUserId={user.id} subtitle={`#${activeTicket.id} · ${activeTicket.subject}`} onOpenChange={setChatOpen} openRequest={openChatRequest} />
             </section>
           )}
         </div>

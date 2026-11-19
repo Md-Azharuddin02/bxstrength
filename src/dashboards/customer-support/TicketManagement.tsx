@@ -55,23 +55,16 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
   const fetchAllTickets = async (showSpin = false) => {
     if (showSpin) setIsRefreshing(true);
     try {
-      const localTickets = VelocityAPI.getTickets();
-      let serverTickets: SupportTicket[] = [];
-
-      try {
-        const res = await apiFetch('/api/tickets');
-        if (res.ok) {
-          serverTickets = await res.json();
-        }
-      } catch (e) {
-        console.error('Failed to fetch server tickets:', e);
-      }
+      // Server is the only source of truth; on a failed request keep what is on screen (the local copy is stale).
+      const res = await apiFetch('/api/tickets');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const source: SupportTicket[] = await res.json();
 
       // Deduplicate by both ID and Content (userEmail + description snippet)
       const mapById = new Map<string, SupportTicket>();
       const mapByContent = new Map<string, SupportTicket>();
 
-      [...serverTickets, ...localTickets].forEach(t => {
+      source.forEach(t => {
         if (t && t.id && t.id !== 'TICKET-849201' && t.id !== 'TICKET-739104') {
           const email = (t.userEmail || '').toLowerCase().trim();
           const descSnippet = (t.description || t.subject || '').toLowerCase().trim().slice(0, 40);
@@ -95,7 +88,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
 
       setTickets(Array.from(mapById.values()));
     } catch (e) {
-      setTickets(VelocityAPI.getTickets().filter(t => t.id !== 'TICKET-849201' && t.id !== 'TICKET-739104'));
+      console.error('Failed to fetch server tickets:', e);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);

@@ -36,13 +36,52 @@ const mapRow = (r: any): TicketMessageRow => ({
 const isAllowed = (user: any, ownerId?: string, ownerEmail?: string) =>
   isStaff(user) || user.id === ownerId || (!!user.email && String(ownerEmail || '').toLowerCase() === String(user.email).toLowerCase());
 
+interface TicketOwner { userId?: string; userEmail?: string; subject?: string }
+
 // null = no such ticket.
-async function canAccess(user: any, ticketId: string): Promise<boolean | null> {
+async function findTicket(ticketId: string): Promise<TicketOwner | null> {
   if (dbPool) {
-    const r = await dbPool.query('SELECT user_id, user_email FROM support_tickets WHERE id = $1', [ticketId]);
-    return r.rows.length ? isAllowed(user, r.rows[0].user_id, r.rows[0].user_email) : null;
+    const r = await dbPool.query('SELECT user_id, user_email, subject FROM support_tickets WHERE id = $1', [ticketId]);
+    return r.rows.length ? { userId: r.rows[0].user_id, userEmail: r.rows[0].user_email, subject: r.rows[0].subject } : null;
   }
   const t = ticketsStore.find(x => x.id === ticketId);
+  return t ? { userId: t.userId, userEmail: t.userEmail, subject: t.subject } : null;
+}
+
+// Tell the other side of the conversation: support replies go to the client's bell (by email),
+// client messages go to the shared support inbox (user_email = 'staff').
+// One unread chat notification per ticket and recipient: while it is unread, new messages update it
+// (latest text, moved to the top) instead of adding more; once it is read, the next message starts a new one.
+// Never throws - a failed alert must not fail the send.
+async function notifyOtherSide(msg: TicketMessageRow, ticket: TicketOwner) {
+  if (!dbPool) return;
+  const preview = msg.text.length > 120 ? `${msg.text.slice(0, 117)}...` : msg.text;
+  const toStaff = msg.senderRole === 'customer';
+  if (!toStaff && !ticket.userEmail) return;
+  const recipient = toStaff ? 'staff' : ticket.userEmail!;
+  const title = (toStaff ? `New message on #${msg.ticketId}` : `New reply on ticket #${msg.ticketId}`).slice(0, 255);
+  const text = toStaff ? `${msg.senderName}: ${preview}` : preview;
+  const link = `${toStaff ? 'inbox' : 'tickets'}|${msg.ticketId}`.slice(0, 100);
+  try {
+    await dbPool.query(
+      `WITH bumped AS (
+         UPDATE in_app_notifications
+            SET title = $4, message = $5, coach_name = $6, created_at = NOW()
+          WHERE user_email = $3 AND content_type = 'ticket_message' AND link_tab = $7 AND is_read = FALSE
+         RETURNING id
+       )
+       INSERT INTO in_app_notifications (id, user_id, user_email, title, message, content_type, coach_name, link_tab, is_read, created_at)
+       SELECT $1, $2, $3, $4, $5, 'ticket_message', $6, $7, FALSE, NOW()
+        WHERE NOT EXISTS (SELECT 1 FROM bumped)`,
+      [`notif-${msg.id}`.slice(0, 255), toStaff ? null : ticket.userId || null, recipient, title, text, msg.senderName.slice(0, 255), link],
+    );
+  } catch (err: any) {
+    console.warn('chat notification failed:', err.message);
+  }
+}
+
+async function canAccess(user: any, ticketId: string): Promise<boolean | null> {
+  const t = await findTicket(ticketId);
   return t ? isAllowed(user, t.userId, t.userEmail) : null;
 }
 
@@ -88,9 +127,9 @@ export const createTicketMessage = async (req: any, res: Response) => {
     const text = sanitizeInput(String(req.body?.text || '')).trim().slice(0, 2000);
     if (!text) return res.status(400).json({ error: 'Message cannot be empty' });
 
-    const allowed = await canAccess(req.user, ticketId);
-    if (allowed === null) return res.status(404).json({ error: 'Ticket not found' });
-    if (!allowed) return res.status(403).json({ error: 'Forbidden: You can only message your own tickets.' });
+    const ticket = await findTicket(ticketId);
+    if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+    if (!isAllowed(req.user, ticket.userId, ticket.userEmail)) return res.status(403).json({ error: 'Forbidden: You can only message your own tickets.' });
 
     // Sender identity comes from the token, never from the request body.
     const msg: TicketMessageRow = {
@@ -117,6 +156,7 @@ export const createTicketMessage = async (req: any, res: Response) => {
       memoryMessages.push(msg);
     }
     res.status(201).json(msg);
+    void notifyOtherSide(msg, ticket);
   } catch (err: any) {
     console.error('Create ticket message error:', err.message);
     res.status(500).json({ error: 'Failed to send message' });

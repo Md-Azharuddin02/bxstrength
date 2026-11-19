@@ -1,6 +1,8 @@
 import { leakyBucket } from './rateLimiter.ts';
+import { IS_DEV } from '../config/env.ts';
 
-const isDev = () => process.env.NODE_ENV === 'development';
+// Same rule as the rest of the backend: no NODE_ENV means development.
+const isDev = () => IS_DEV;
 export const globalApiLimiter = leakyBucket({
   keyPrefix: 'global',
   capacity: 200,

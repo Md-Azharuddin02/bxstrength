@@ -11,7 +11,6 @@ export function useTicketMessages(ticketId: string, pollMs: number) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [pending, setPending] = useState<PendingMessage[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [connected, setConnected] = useState(true);
   const activeTicket = useRef(ticketId);
   const newest = useRef<string | undefined>(undefined);
   const url = getApiUrl(`/api/tickets/${encodeURIComponent(ticketId)}/messages`);
@@ -33,10 +32,8 @@ export function useTicketMessages(ticketId: string, pollMs: number) {
         return fresh.length ? [...list, ...fresh] : list;
       });
       setStatus('ready');
-      setConnected(true);
     } catch {
       if (activeTicket.current !== ticketId) return;
-      setConnected(false);
       setStatus(s => (s === 'ready' ? 'ready' : 'error'));
     }
   }, [ticketId, url]);
@@ -93,5 +90,5 @@ export function useTicketMessages(ticketId: string, pollMs: number) {
 
   const discard = (tempId: string) => setPending(list => list.filter(p => p.tempId !== tempId));
 
-  return { messages, pending, status, connected, reload: load, send, retry, discard };
+  return { messages, pending, status, reload: load, send, retry, discard };
 }

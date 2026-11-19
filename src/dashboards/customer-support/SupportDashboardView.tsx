@@ -19,11 +19,9 @@ import { SupportTopBar } from './support-dashboard/SupportTopBar';
 import { TicketFiltersBar } from './support-dashboard/TicketFiltersBar';
 import { TicketList } from './support-dashboard/TicketList';
 import { TicketDetail } from './support-dashboard/TicketDetail';
-import { EscalateTicketModal } from './support-dashboard/EscalateTicketModal';
 import { CreateTicketModal } from './support-dashboard/CreateTicketModal';
 import { useCreateTicketForm } from './support-dashboard/useCreateTicketForm';
 import { ProfileModal } from './support-dashboard/ProfileModal';
-import { isValidUkMobile, UK_PHONE_ERROR_MSG } from '../../utils/phoneValidation';
 import { AuditLogsPanel } from './support-dashboard/AuditLogsPanel';
 
 interface SupportDashboardViewProps {
@@ -70,10 +68,6 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
   const [internalNoteInput, setInternalNoteInput] = useState<string>('');
   const [callbackNotes, setCallbackNotes] = useState<string>('');
 
-  // Escalation Modal State
-  const [escalateModalOpen, setEscalateModalOpen] = useState<boolean>(false);
-  const [escalationTarget, setEscalationTarget] = useState<string>('Company Agent');
-  const [escalationReason, setEscalationReason] = useState<string>('');
 
   // Create Ticket Modal State
   const createForm = useCreateTicketForm({ fetchTickets, setSelectedTicket, onShowToast });
@@ -102,12 +96,24 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     markRead([n.id]);
     if (!SUPPORT_NAV.some(i => i.id === tab)) return;
     setActiveTab(tab as SupportTab);
-    if (tab === 'inbox') {
+    if (tab === 'inbox' && recordId) {
       setStatusFilter('all'); setPriorityFilter('all'); setSourceFilter('all'); setSearchTerm('');
-      const t = tickets.find(x => x.id === recordId);
-      if (t) setSelectedTicket(t);
+      setPendingTicketId(recordId);
+      if (!tickets.some(x => x.id === recordId)) fetchTickets(false); // e.g. a ticket created since the last refresh
     }
   };
+
+  // A clicked notification's ticket: select it and open its chat once it is in the list.
+  const [pendingTicketId, setPendingTicketId] = useState<string | null>(null);
+  const [openChatRequest, setOpenChatRequest] = useState(0);
+  useEffect(() => {
+    if (!pendingTicketId) return;
+    const t = tickets.find(x => x.id === pendingTicketId);
+    if (!t) return;
+    setSelectedTicket(t);
+    setOpenChatRequest(Date.now());
+    setPendingTicketId(null);
+  }, [pendingTicketId, tickets]);
 
   const analytics = useMemo(() => VelocityAPI.getSupportAnalytics(tickets), [tickets]);
 
@@ -218,52 +224,6 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     }
   };
 
-  const handleConfirmEscalation = async () => {
-    if (!selectedTicket || !escalationReason.trim()) return;
-    const reason = escalationReason.trim();
-    const saved = await saveTicketChange({
-      priority: 'urgent',
-      assignedAgent: escalationTarget,
-      escalation: { escalatedTo: escalationTarget, reason, priorityAtEscalation: selectedTicket.priority },
-    });
-    if (!saved) return;
-    VelocityAPI.escalateTicket(selectedTicket.id, escalationTarget, reason); // local copy + audit log
-    setSelectedTicket({
-      ...selectedTicket,
-      priority: 'urgent',
-      assignedAgent: escalationTarget,
-      escalationHistory: [
-        { id: `esc-${Date.now()}`, escalatedBy: `${user?.name || 'CS Agent'} (${(user?.role || '').toUpperCase()})`, escalatedTo: escalationTarget, reason, priorityAtEscalation: selectedTicket.priority, createdAt: new Date().toISOString() },
-        ...(selectedTicket.escalationHistory || []),
-      ],
-    });
-    setEscalateModalOpen(false);
-    setEscalationReason('');
-    fetchTickets();
-    onShowToast(`Ticket #${selectedTicket.id} escalated to ${escalationTarget} with urgent priority.`);
-  };
-
-  // Saves a contact number on the client's profile; resolves true on success.
-  const handleSaveContactNumber = async (phone: string): Promise<boolean> => {
-    if (!selectedTicket) return false;
-    if (!isValidUkMobile(phone)) { onShowToast(UK_PHONE_ERROR_MSG); return false; }
-    try {
-      const res = await apiFetch(`/api/users/${encodeURIComponent(selectedTicket.userId)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone })
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    } catch {
-      onShowToast('Could not save the contact number. Please try again.');
-      return false;
-    }
-    setSelectedTicket({ ...selectedTicket, userPhone: phone });
-    setTickets(prev => prev.map(t => t.id === selectedTicket.id ? { ...t, userPhone: phone } : t));
-    onShowToast('Contact number saved.');
-    return true;
-  };
-
   const handleTransferToHeadCoach = () => {
     if (!selectedTicket) return;
     try {
@@ -296,7 +256,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
   };
 
   return (
-    <div className="h-screen h-[100dvh] flex bg-[#0a0a0c] text-white font-sans overflow-hidden">
+    <div className="h-screen h-[100dvh] flex bg-[#0a0a0c] text-white font-sans overflow-clip">
       <SupportSidebar
         active={activeTab}
         onSelect={selectTab}
@@ -405,11 +365,10 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
                 ticket={selectedTicket}
                 activeRoleView={activeRoleView}
                 currentUserId={user?.id}
-                onSaveContactNumber={handleSaveContactNumber}
-                onEscalate={() => setEscalateModalOpen(true)}
                 onDelete={setDeletingTicket}
                 onUpdateStatus={handleUpdateStatus}
                 onTransferToHeadCoach={handleTransferToHeadCoach}
+                openChatRequest={openChatRequest}
               />
             </div>
           </div>
@@ -450,19 +409,6 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
 
       {profileOpen && user && (
         <ProfileModal user={user} onShowToast={onShowToast} onClose={() => setProfileOpen(false)} />
-      )}
-
-      {/* ESCALATION MODAL */}
-      {escalateModalOpen && (
-        <EscalateTicketModal
-          ticketId={selectedTicket?.id}
-          target={escalationTarget}
-          onTargetChange={setEscalationTarget}
-          reason={escalationReason}
-          onReasonChange={setEscalationReason}
-          onClose={() => setEscalateModalOpen(false)}
-          onConfirm={handleConfirmEscalation}
-        />
       )}
 
       {/* CREATE NEW TICKET MODAL */}

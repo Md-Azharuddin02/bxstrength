@@ -3425,7 +3425,10 @@ export const VelocityAPI = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newTicket)
-    }).catch(() => {});
+    })
+      // Ticket lists read from the server, so tell them to reload once the ticket is saved there.
+      .then(() => window.dispatchEvent(new CustomEvent('bxstrength_tickets_updated')))
+      .catch(() => {});
 
     const current = this.getCurrentUser();
     this.addAuditLog(

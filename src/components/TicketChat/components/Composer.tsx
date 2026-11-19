@@ -17,6 +17,8 @@ export const Composer = React.memo(({ onSend }: { onSend: (text: string) => void
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT_PX)}px`;
+    // Hide the scrollbar until the box hits its cap.
+    el.style.overflowY = el.scrollHeight > MAX_HEIGHT_PX ? 'auto' : 'hidden';
   }, [text]);
 
   const submit = () => {
@@ -28,8 +30,8 @@ export const Composer = React.memo(({ onSend }: { onSend: (text: string) => void
   };
 
   return (
-    <form onSubmit={e => { e.preventDefault(); submit(); }} className="border-t border-zinc-800 bg-[#121214] p-3">
-      <div className="flex items-end gap-2">
+    <form onSubmit={e => { e.preventDefault(); submit(); }} className="border-t border-zinc-800 p-3">
+      <div className="flex items-end gap-1 bg-zinc-900 border border-zinc-800 focus-within:border-zinc-600 rounded-2xl pl-3.5 pr-1.5 py-1.5 transition-colors">
         <label htmlFor={id} className="sr-only">Message</label>
         <textarea
           id={id}
@@ -46,20 +48,16 @@ export const Composer = React.memo(({ onSend }: { onSend: (text: string) => void
             }
           }}
           placeholder="Write a message…"
-          className="flex-1 min-w-0 resize-none bg-[#18181b] border border-zinc-800 focus:border-zinc-600 text-white text-[13px] leading-relaxed px-3.5 py-2.5 rounded-xl outline-none placeholder-zinc-500"
+          className="flex-1 min-w-0 resize-none overflow-hidden bg-transparent text-white text-[13px] leading-relaxed py-[5px] outline-none placeholder-zinc-500"
         />
         <button
           type="submit"
           disabled={!text.trim()}
           aria-label="Send message"
-          className="h-10 w-10 shrink-0 grid place-items-center rounded-xl bg-[#CCFF00] text-black hover:bg-[#d8ff4d] disabled:bg-zinc-800 disabled:text-zinc-500 transition-colors cursor-pointer disabled:cursor-not-allowed"
+          className="h-8 w-8 shrink-0 grid place-items-center rounded-xl bg-[#CCFF00] text-black hover:bg-[#d8ff4d] disabled:bg-zinc-800 disabled:text-zinc-500 transition-colors cursor-pointer disabled:cursor-not-allowed"
         >
           <SendHorizontal className="w-4 h-4" aria-hidden="true" />
         </button>
-      </div>
-      <div className="mt-1.5 flex justify-between text-[10px] text-zinc-500">
-        <span className="hidden sm:inline">Enter to send · Shift + Enter for a new line</span>
-        {remaining <= 200 && <span className={`ml-auto ${remaining <= 50 ? 'text-amber-400' : ''}`}>{remaining} characters left</span>}
       </div>
     </form>
   );

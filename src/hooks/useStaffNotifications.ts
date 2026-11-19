@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../services/core/http';
 import type { InAppNotification } from '../types';
+import { useNotificationSound } from './useNotificationSound';
 
 const POLL_MS = 30_000;
 
@@ -56,6 +57,8 @@ export function useStaffNotifications() {
   }, [items]);
 
   const unreadTotal = useMemo(() => items.filter(n => !n.isRead).length, [items]);
+
+  useNotificationSound(items, !loading);
 
   return { items, loading, error, unreadByTab, unreadTotal, markRead, refresh };
 }

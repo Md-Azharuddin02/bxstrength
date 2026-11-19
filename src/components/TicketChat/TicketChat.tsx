@@ -16,6 +16,8 @@ interface TicketChatProps {
   subtitle?: string;
   /** Lets the page hide the other ticket sections while the full thread is open. */
   onOpenChange?: (open: boolean) => void;
+  /** Change this number (e.g. Date.now()) to open the thread, such as when a notification is clicked. */
+  openRequest?: number;
 }
 
 // Distance from the bottom (px) within which new messages auto-scroll into view.
@@ -23,11 +25,11 @@ const STICKY_THRESHOLD = 80;
 const OPEN_POLL_MS = 4000;
 const CLOSED_POLL_MS = 15000;
 
-const TicketChatView: React.FC<TicketChatProps> = ({ ticketId, currentUserId, subtitle, onOpenChange }) => {
+const TicketChatView: React.FC<TicketChatProps> = ({ ticketId, currentUserId, subtitle, onOpenChange, openRequest }) => {
   // The thread starts collapsed; it opens on request or when this user sends a message.
   const [expanded, setExpanded] = useState(false);
   // Poll fast while someone is reading the thread; the collapsed preview can lag a little.
-  const { messages, pending, status, connected, reload, send, retry, discard } = useTicketMessages(ticketId, expanded ? OPEN_POLL_MS : CLOSED_POLL_MS);
+  const { messages, pending, status, reload, send, retry, discard } = useTicketMessages(ticketId, expanded ? OPEN_POLL_MS : CLOSED_POLL_MS);
   const items = useMemo(() => buildChatItems(messages, currentUserId), [messages, currentUserId]);
   const listId = useId();
   const listRef = useRef<HTMLDivElement>(null);
@@ -53,12 +55,15 @@ const TicketChatView: React.FC<TicketChatProps> = ({ ticketId, currentUserId, su
     setExpanded(false);
   }, [ticketId]);
 
-  // Opening the thread always lands on the latest message.
+  // Declared after the reset above so a request that arrives with a new ticket wins.
+  useEffect(() => { if (openRequest) setExpanded(true); }, [openRequest]);
+
+  // Opening the thread (or a notification asking for it again) always lands on the latest message.
   useLayoutEffect(() => {
     if (!expanded) return;
     atBottom.current = true;
     scrollToBottom();
-  }, [expanded]);
+  }, [expanded, openRequest]);
 
   // Follow new messages only when the reader is already at the bottom or just sent one;
   // otherwise leave their scroll position alone and show a "new messages" pill.
@@ -69,7 +74,13 @@ const TicketChatView: React.FC<TicketChatProps> = ({ ticketId, currentUserId, su
     if (status === 'ready') hydrated.current = true;
     seenCount.current = total;
     // While collapsed the preview row already shows the newest message.
-    if (added <= 0 || firstLoad || !expanded) return;
+    if (!expanded) return;
+    // The thread was opened before its messages arrived: jump straight to the latest one.
+    if (firstLoad) {
+      if (status === 'ready') scrollToBottom();
+      return;
+    }
+    if (added <= 0) return;
     const lastIsMine = pending.length > 0 || messages[messages.length - 1]?.senderId === currentUserId;
     if (atBottom.current || lastIsMine) scrollToBottom(true);
     else setUnseen(n => n + added);
@@ -94,8 +105,8 @@ const TicketChatView: React.FC<TicketChatProps> = ({ ticketId, currentUserId, su
   const showThread = expanded || status === 'error';
 
   return (
-    <section aria-label="Ticket conversation" className={`bg-[#121214] border border-zinc-800 rounded-xl overflow-hidden flex flex-col ${expanded ? 'flex-1 min-h-0' : ''}`}>
-      <header className="flex items-center justify-between gap-3 px-4 py-3 border-b border-zinc-800">
+    <section aria-label="Ticket conversation" className={`bg-[#18181b] border border-zinc-800 rounded-xl overflow-hidden flex flex-col ${expanded ? 'flex-1 min-h-0' : ''}`}>
+      <header className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800">
         <div className="flex items-center gap-2 min-w-0">
           {expanded ? (
             <button
@@ -112,18 +123,9 @@ const TicketChatView: React.FC<TicketChatProps> = ({ ticketId, currentUserId, su
             <MessageSquareText className="w-4 h-4 text-[#CCFF00] shrink-0" aria-hidden="true" />
           )}
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="text-xs font-black uppercase tracking-wider text-white">Conversation</h3>
-              {messages.length > 0 && <span className="text-[10px] text-zinc-500 whitespace-nowrap">{messages.length} {messages.length === 1 ? 'message' : 'messages'}</span>}
-            </div>
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-300">Conversation</h3>
             {expanded && subtitle && <p className="text-[11px] text-zinc-500 truncate">{subtitle}</p>}
           </div>
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <span className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${connected ? 'text-zinc-400' : 'text-amber-400'}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-400' : 'bg-amber-400'}`} aria-hidden="true" />
-            {connected ? 'Live' : 'Reconnecting…'}
-          </span>
         </div>
       </header>
 
@@ -136,7 +138,7 @@ const TicketChatView: React.FC<TicketChatProps> = ({ ticketId, currentUserId, su
             role="log"
             aria-live="polite"
             aria-label="Messages"
-            className="flex-1 min-h-80 overflow-y-auto overscroll-contain px-4 py-4 space-y-4"
+            className="flex-1 min-h-40 overflow-y-auto overscroll-contain custom-scrollbar px-4 py-5 space-y-5"
           >
             {status === 'loading' && <ChatSkeleton />}
             {status === 'error' && <ChatError onRetry={reload} />}

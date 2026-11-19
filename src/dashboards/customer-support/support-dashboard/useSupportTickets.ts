@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { SupportTicket } from '../../../types';
-import { VelocityAPI, apiFetch } from '../../../services/api';
+import { apiFetch } from '../../../services/api';
 
 export const useSupportTickets = () => {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
@@ -10,19 +10,14 @@ export const useSupportTickets = () => {
   const fetchTickets = async (isInitial = false) => {
     if (isInitial) setIsLoading(true);
     try {
-      const localTickets = VelocityAPI.getTickets();
-      let serverTickets: SupportTicket[] = [];
-      try {
-        const res = await apiFetch('/api/tickets');
-        if (res.ok) {
-          serverTickets = await res.json();
-        }
-      } catch (err) {
-        console.warn('Failed to fetch server tickets in CS:', err);
-      }
+      // The server is the only source of truth. On a failed request (offline, 401, 429) keep what is
+      // on screen: the browser's stored copy is stale and would bring back deleted tickets.
+      const res = await apiFetch('/api/tickets');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const source: SupportTicket[] = await res.json();
 
       const mapById = new Map<string, SupportTicket>();
-      [...localTickets, ...serverTickets].forEach(t => {
+      source.forEach(t => {
         if (t && t.id && t.id !== 'TICKET-849201' && t.id !== 'TICKET-739104') {
           mapById.set(t.id, t);
         }
@@ -34,9 +29,8 @@ export const useSupportTickets = () => {
         if (!prev) return loaded[0] ?? null;
         return loaded.find(t => t.id === prev.id) ?? prev;
       });
-    } catch {
-      const loaded = VelocityAPI.getTickets().filter(t => t.id !== 'TICKET-849201' && t.id !== 'TICKET-739104');
-      setTickets(loaded);
+    } catch (err) {
+      console.warn('Failed to fetch server tickets in CS:', err);
     } finally {
       if (isInitial) setIsLoading(false);
     }

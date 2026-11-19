@@ -1,31 +1,35 @@
 import React from 'react';
 import { formatTime, type ChatItem } from '../utils/grouping';
 import { Avatar, RoleTag } from './SenderBadge';
-import { bubbleBase, mineBubble, theirBubble } from './bubbleStyles';
+import { bubbleBase, bubbleCorners, mineBubble, theirBubble } from './bubbleStyles';
 
 type Group = Extract<ChatItem, { kind: 'group' }>;
 
 const MessageGroupView = ({ group }: { group: Group }) => {
-  const name = group.senderName;
-  const first = group.messages[0];
+  const { mine, messages } = group;
+  const last = messages[messages.length - 1];
   return (
-    <div className={`flex gap-2.5 ${group.mine ? 'flex-row-reverse' : ''}`}>
-      {!group.mine && <Avatar name={name} role={group.senderRole} />}
-      <div className={`flex flex-col gap-1 min-w-0 max-w-[78%] ${group.mine ? 'items-end' : 'items-start'}`}>
-        <div className="flex items-center gap-2 text-[10px] text-zinc-500">
-          <span className="font-bold text-zinc-300">{group.mine ? 'You' : name}</span>
-          {!group.mine && <RoleTag role={group.senderRole} />}
-          <time dateTime={first.createdAt}>{formatTime(first.createdAt)}</time>
-        </div>
-        {group.messages.map((m, i) => (
+    <div className={`flex items-end gap-2 ${mine ? 'justify-end' : ''}`}>
+      {!mine && <Avatar name={group.senderName} role={group.senderRole} />}
+      <div className={`flex flex-col gap-0.5 min-w-0 max-w-[75%] ${mine ? 'items-end' : 'items-start'}`}>
+        {!mine && (
+          <div className="flex items-center gap-1.5 mb-0.5 pl-1 text-[11px]">
+            <span className="font-semibold text-zinc-300">{group.senderName}</span>
+            <RoleTag role={group.senderRole} />
+          </div>
+        )}
+        {messages.map((m, i) => (
           <p
             key={m.id}
             title={new Date(m.createdAt).toLocaleString()}
-            className={`${bubbleBase} ${group.mine ? mineBubble : theirBubble} ${i === 0 ? (group.mine ? 'rounded-tr-md' : 'rounded-tl-md') : ''}`}
+            className={`${bubbleBase} ${mine ? mineBubble : theirBubble} ${bubbleCorners(mine, i, messages.length)}`}
           >
             {m.text}
           </p>
         ))}
+        <time dateTime={last.createdAt} className="mt-0.5 px-1 text-[10px] text-zinc-500 tabular-nums">
+          {formatTime(last.createdAt)}
+        </time>
       </div>
     </div>
   );

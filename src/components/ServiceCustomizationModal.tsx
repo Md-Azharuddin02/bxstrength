@@ -1,242 +1,39 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { PhoneInput } from "./PhoneInput";
-import {
-  X,
-  AlertCircle,
-  CheckCircle2,
-  Check,
-  Dumbbell,
-  Target,
-  Flame,
-  ShieldCheck,
-  MessageSquare,
-  Activity,
-  UserCheck,
-  Calendar,
-  Clock,
-  Lock,
-  ArrowRight,
-  ArrowLeft,
-  Pencil,
-  ChevronDown,
-  Info,
-  Coins,
-  Award,
-  User as UserIcon,
-  Flower2,
-  Mail,
-  Plus,
-  Minus,
-  Lightbulb,
-  Video,
-  Phone,
-  Zap
-} from 'lucide-react';
+import { Info } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { VelocityAPI } from '../services/api';
 import { openRazorpayCheckout } from '../services/razorpayService';
-import { sendBrevoPaymentReceiptEmail, sendBrevoCoachAssignmentAlertToAdmin } from '../services/emailService';
 import { canUseMockPayments } from '../services/mockPayment';
-import { calculateCustomPlanTotals, CUSTOM_SERVICE_PRICING, getCustomExerciseNames, getServicePlanType, SERVICE_PLAN_PRICES } from '../services/servicePricing';
-import type { User } from '../types';
+import { calculateCustomPlanTotals, getServicePlanType, SERVICE_PLAN_PRICES } from '../services/servicePricing';
+import type { ServiceInfo } from './service-customization/types';
+import { getPackageLineItems, getStandardServiceDetails } from './service-customization/packageDetails';
+import { buildCheckoutNotes, recordPaidBooking } from './service-customization/paymentHelpers';
+import { getModalMaxWidth } from './service-customization/getModalMaxWidth';
+import { usePlanSelections } from './service-customization/usePlanSelections';
+import { useCheckoutAgreements } from './service-customization/useCheckoutAgreements';
+import { useContactMethods } from './service-customization/useContactMethods';
+import { useDialogBehavior } from './service-customization/useDialogBehavior';
+import { PlanUnavailableDialog } from './service-customization/PlanUnavailableDialog';
+import { CheckoutHeader } from './service-customization/CheckoutHeader';
+import { CheckoutStepper } from './service-customization/CheckoutStepper';
+import { StandardPlanStep } from './service-customization/StandardPlanStep';
+import { CustomPlanStep } from './service-customization/CustomPlanStep';
+import { WeeklyPlanStep } from './service-customization/WeeklyPlanStep';
+import { MonthlyPlanStep } from './service-customization/MonthlyPlanStep';
+import { CheckoutTermsStep } from './service-customization/CheckoutTermsStep';
+import { PaymentStep } from './service-customization/PaymentStep';
+import { BookingConfirmedStep } from './service-customization/BookingConfirmedStep';
 
-// Available Training Elements for Custom Plan
-export interface CustomTrainingElement {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  durationMin: number;
-  durationLabel: string;
-  icon: React.ElementType;
-}
-
-const CUSTOM_ELEMENTS: CustomTrainingElement[] = [
-  {
-    id: "strength",
-    name: "Strength Training",
-    description: "Build strength, improve endurance and move better.",
-    price: CUSTOM_SERVICE_PRICING.strength.price,
-    durationMin: CUSTOM_SERVICE_PRICING.strength.durationMin,
-    durationLabel: "15 min",
-    icon: Dumbbell,
-  },
-  {
-    id: "functional",
-    name: "Functional Training",
-    description: "Improve overall fitness with real-world movements.",
-    price: CUSTOM_SERVICE_PRICING.functional.price,
-    durationMin: CUSTOM_SERVICE_PRICING.functional.durationMin,
-    durationLabel: "15 min",
-    icon: Target,
-  },
-  {
-    id: "boxing",
-    name: "Fitness Boxing",
-    description: "Develop fitness, coordination and boxing skills.",
-    price: CUSTOM_SERVICE_PRICING.boxing.price,
-    durationMin: CUSTOM_SERVICE_PRICING.boxing.durationMin,
-    durationLabel: "15 min",
-    icon: Flame,
-  },
-  {
-    id: "mobility",
-    name: "Mobility",
-    description: "Improve movement, reduce stiffness and prevent injury.",
-    price: CUSTOM_SERVICE_PRICING.mobility.price,
-    durationMin: CUSTOM_SERVICE_PRICING.mobility.durationMin,
-    durationLabel: "15 min",
-    icon: Activity,
-  },
-  {
-    id: "flexibility",
-    name: "Flexibility",
-    description: "Increase flexibility and support better movement.",
-    price: CUSTOM_SERVICE_PRICING.flexibility.price,
-    durationMin: CUSTOM_SERVICE_PRICING.flexibility.durationMin,
-    durationLabel: "15 min",
-    icon: UserCheck,
-  },
-  {
-    id: "guided-warmup",
-    name: "Guided Warm-Up",
-    description: "Get ready for your session with a structured warm-up.",
-    price: CUSTOM_SERVICE_PRICING["guided-warmup"].price,
-    durationMin: CUSTOM_SERVICE_PRICING["guided-warmup"].durationMin,
-    durationLabel: "10 min",
-    icon: Target,
-  },
-  {
-    id: "personalised-warmup",
-    name: "Personalised Warm-Up",
-    description: "A customised warm-up based on your goals and needs.",
-    price: CUSTOM_SERVICE_PRICING["personalised-warmup"].price,
-    durationMin: CUSTOM_SERVICE_PRICING["personalised-warmup"].durationMin,
-    durationLabel: "10 min",
-    icon: Flame,
-  },
-  {
-    id: "cooldown",
-    name: "Dedicated Cool-Down",
-    description: "Guided cool-down and recovery exercises.",
-    price: CUSTOM_SERVICE_PRICING.cooldown.price,
-    durationMin: CUSTOM_SERVICE_PRICING.cooldown.durationMin,
-    durationLabel: "10 min",
-    icon: ShieldCheck,
-  },
-  {
-    id: "yoga",
-    name: "Guided Yoga",
-    description: "Relax, restore and improve mind-body balance.",
-    price: CUSTOM_SERVICE_PRICING.yoga.price,
-    durationMin: CUSTOM_SERVICE_PRICING.yoga.durationMin,
-    durationLabel: "30 min",
-    icon: Flower2,
-  },
-  {
-    id: "wellness",
-    name: "Wellness Support",
-    description: "One-to-one conversation and lifestyle support.",
-    price: CUSTOM_SERVICE_PRICING.wellness.price,
-    durationMin: CUSTOM_SERVICE_PRICING.wellness.durationMin,
-    durationLabel: "30 min",
-    icon: MessageSquare,
-  },
-];
-
-// Duration Options for Custom Plan
-export interface CustomDurationOption {
-  id: string;
-  minutes: number;
-  name: string;
-  subtitle: string;
-  priceDelta: number;
-}
-
-const CUSTOM_DURATIONS: CustomDurationOption[] = [
-  {
-    id: "15",
-    minutes: 15,
-    name: "15 Minutes",
-    subtitle: "Best for 1-2 elements",
-    priceDelta: 0,
-  },
-  {
-    id: "30",
-    minutes: 30,
-    name: "30 Minutes",
-    subtitle: "Ideal for 2-3 elements",
-    priceDelta: 15,
-  },
-  {
-    id: "45",
-    minutes: 45,
-    name: "45 Minutes",
-    subtitle: "Great for a more complete session",
-    priceDelta: 30,
-  },
-  {
-    id: "60",
-    minutes: 60,
-    name: "60 Minutes",
-    subtitle: "Most comprehensive",
-    priceDelta: 45,
-  },
-];
-
-// Options for Weekly 3-session planner extra focus (Guided Warm-Up is pre-selected for all 3 sessions)
-const WEEKLY_EXTRA_OPTIONS = [
-  "Strength Training",
-  "Functional Training",
-  "Fitness Boxing",
-  "Mobility",
-  "Flexibility",
-  "Cool-Down & Recovery",
-  "Mindset & Wellness",
-];
-
-// Options for Monthly 12-session planner dropdowns
-const MONTHLY_OPTIONS = [
-  "Strength Training",
-  "Functional Training",
-  "Fitness Boxing",
-  "Mobility",
-  "Flexibility",
-  "Mindset & Wellness",
-];
-
-type ContactMethod = "whatsapp" | "call" | "email";
-
-const contactModeLabel = (mode?: string) =>
-  (
-    ({
-      whatsapp: "WhatsApp",
-      call: "Phone Call",
-      email: "Email",
-      all: "All (WhatsApp, Call & Email)",
-    }) as Record<string, string>
-  )[mode || ""] ||
-  mode ||
-  "";
+// Other files import these types from here
+export type { CustomTrainingElement, CustomDurationOption } from './service-customization/constants';
 
 interface ServiceCustomizationModalProps {
   isOpen: boolean;
   suspended?: boolean;
   onClose: () => void;
   onRequireLogin: () => void;
-  service: {
-    title: string;
-    category?: string;
-    price?: number | string;
-    priceGbp?: number | string;
-    priceInr?: number | string;
-    discountedPrice?: number;
-    originalPrice?: number;
-    priceUnit?: string;
-    duration?: string;
-    description?: string;
-  } | null;
+  service: ServiceInfo | null;
   onNavigateToDashboard?: () => void;
   initialCustomerEmail?: string;
 }
@@ -263,102 +60,34 @@ export const ServiceCustomizationModal: React.FC<
   const [continueToPaymentAfterLogin, setContinueToPaymentAfterLogin] =
     useState(false);
 
-  // --- Custom Plan State ---
-  const [elementQuantities, setElementQuantities] = useState<
-    Record<string, number>
-  >({});
-
-  const updateElementQuantity = (id: string, delta: number) => {
-    setElementQuantities((prev) => {
-      const current = prev[id] || 0;
-      const next = Math.max(0, current + delta);
-      return { ...prev, [id]: next };
-    });
-  };
-
-  // --- Weekly Plan State (3 sessions) ---
-  // Guided Warm-Up is pre-selected in all 3 sessions; each item represents the 1 extra focus selected
-  const [weeklySessions, setWeeklySessions] = useState<string[]>([
-    "Strength Training",
-    "Fitness Boxing",
-    "Mobility",
-  ]);
-
-  // --- Monthly Plan State (12 sessions) ---
-  // Each of the 12 sessions includes 1 Guided Warm-Up + 1 Chosen Service + 1 Cool-Down & Recovery
-  const [monthlySessions, setMonthlySessions] = useState<string[]>([
-    "Strength Training",
-    "Functional Training",
-    "Fitness Boxing",
-    "Strength Training",
-    "Functional Training",
-    "Mobility",
-    "Strength Training",
-    "Fitness Boxing",
-    "Functional Training",
-    "Strength Training",
-    "Flexibility",
-    "Mobility",
-  ]);
-  const [openMonthlyDropdownIdx, setOpenMonthlyDropdownIdx] = useState<
-    number | null
-  >(null);
+  // What the customer picked in the custom, weekly and monthly planners
+  const {
+    elementQuantities,
+    updateElementQuantity,
+    weeklySessions,
+    setWeeklySessions,
+    monthlySessions,
+    setMonthlySessions,
+    resetSelections,
+  } = usePlanSelections();
 
   // Agreements start unticked: UK consent must be an active choice, never pre-checked
-  const [ageConfirmed, setAgeConfirmed] = useState<boolean>(false);
-  const [virtualCoachingConfirmed, setVirtualCoachingConfirmed] =
-    useState<boolean>(false);
-  const [healthConfirmed, setHealthConfirmed] = useState<boolean>(false);
-  const [spaceConfirmed, setSpaceConfirmed] = useState<boolean>(false);
-  const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
-  // Optional and never required to pay (marketing consent is kept separate from the Terms)
-  const [marketingConsent, setMarketingConsent] = useState<boolean>(false);
+  const { resetAgreements, ...agreementState } = useCheckoutAgreements();
 
   // Mode of Contact state (auto-populated if user already has it on profile). Multi-select.
-  const initialMethods = (): ContactMethod[] =>
-    user?.contactMethods?.length
-      ? user.contactMethods
-      : user?.preferredContactMethod && user.preferredContactMethod !== "all"
-        ? [user.preferredContactMethod]
-        : user?.preferredContactMethod === "all"
-          ? ["whatsapp", "call", "email"]
-          : [];
-  const [selectedMethods, setSelectedMethods] =
-    useState<ContactMethod[]>(initialMethods());
-  const [contactPhoneInput, setContactPhoneInput] = useState<string>(
-    user?.phone || "",
-  );
-  // WhatsApp: is the profile phone also the WhatsApp number? If not, collect a separate one.
-  const [whatsappIsCurrent, setWhatsappIsCurrent] = useState<boolean>(
-    !user?.whatsappNumber || user.whatsappNumber === user.phone,
-  );
-  const [whatsappNumberInput, setWhatsappNumberInput] = useState<string>(
-    user?.whatsappNumber || user?.phone || "",
-  );
-
-  // Keep contact selection synced when user logs in
-  useEffect(() => {
-    setSelectedMethods(initialMethods());
-    if (user?.phone) setContactPhoneInput(user.phone);
-    if (user?.whatsappNumber) setWhatsappNumberInput(user.whatsappNumber);
-    setWhatsappIsCurrent(
-      !user?.whatsappNumber || user.whatsappNumber === user.phone,
-    );
-  }, [user]);
-
-  const toggleMethod = (m: ContactMethod) =>
-    setSelectedMethods((prev) =>
-      prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m],
-    );
-
-  const effectiveWhatsapp = whatsappIsCurrent
-    ? user?.phone || ""
-    : whatsappNumberInput.trim();
-  const contactSelectionValid =
-    selectedMethods.length > 0 &&
-    (!selectedMethods.includes("whatsapp") || effectiveWhatsapp.length > 0) &&
-    (!selectedMethods.includes("call") ||
-      (contactPhoneInput || user?.phone || "").trim().length > 0);
+  const {
+    selectedMethods,
+    toggleMethod,
+    contactPhoneInput,
+    setContactPhoneInput,
+    whatsappIsCurrent,
+    setWhatsappIsCurrent,
+    whatsappNumberInput,
+    setWhatsappNumberInput,
+    effectiveWhatsapp,
+    contactSelectionValid,
+    resetContactState,
+  } = useContactMethods(user);
 
   // Payment states
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -381,17 +110,10 @@ export const ServiceCustomizationModal: React.FC<
       setErrorMessage(null);
       setIsPaymentSuccess(false);
       setIsSuccessAnimationVisible(false);
-      setOpenMonthlyDropdownIdx(null);
-      setElementQuantities({});
-      setWeeklySessions(["Strength Training", "Fitness Boxing", "Mobility"]);
+      resetSelections();
       setConfirmedOrderId("");
       // Agreements must be ticked fresh for every checkout, never carried over from an earlier one
-      setAgeConfirmed(false);
-      setVirtualCoachingConfirmed(false);
-      setHealthConfirmed(false);
-      setSpaceConfirmed(false);
-      setTermsAccepted(false);
-      setMarketingConsent(false);
+      resetAgreements();
       setBookingDate(
         new Date().toLocaleDateString("en-GB", {
           weekday: "short",
@@ -400,12 +122,7 @@ export const ServiceCustomizationModal: React.FC<
           year: "numeric",
         }),
       );
-      setSelectedMethods(initialMethods());
-      if (user?.phone) setContactPhoneInput(user.phone);
-      setWhatsappNumberInput(user?.whatsappNumber || user?.phone || "");
-      setWhatsappIsCurrent(
-        !user?.whatsappNumber || user.whatsappNumber === user.phone,
-      );
+      resetContactState();
     }
     // Not keyed on `user`: saving the contact mode updates the user and would restart checkout at step 1
   }, [isOpen, service?.title]);
@@ -436,55 +153,8 @@ export const ServiceCustomizationModal: React.FC<
     }
   }, [isOpen, mainStage, user]);
 
-  // Dialog behaviour: focus moves in and stays in, Escape closes, the page behind doesn't scroll.
-  // Latest values live in a ref so re-renders don't re-run the effect and steal focus.
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const dialogLatest = useRef({ onClose, isProcessing });
-  dialogLatest.current = { onClose, isProcessing };
-
-  useEffect(() => {
-    if (!isOpen || suspended) return;
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    dialogRef.current?.focus();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const dialog = dialogRef.current;
-      if (!dialog) return;
-      if (e.key === "Escape") {
-        // Never close mid-payment: the Razorpay window is still open
-        if (dialogLatest.current.isProcessing) return;
-        e.preventDefault();
-        dialogLatest.current.onClose();
-        return;
-      }
-      if (e.key !== "Tab") return;
-      const focusable = Array.from(
-        dialog.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      );
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      const outside = !dialog.contains(document.activeElement);
-      if (e.shiftKey && (document.activeElement === first || outside)) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && (document.activeElement === last || outside)) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      previouslyFocused?.focus?.();
-    };
-  }, [isOpen, suspended]);
+  // Focus trap, Escape to close, no page scroll behind the dialog
+  const dialogRef = useDialogBehavior({ isOpen, suspended, onClose, isProcessing });
 
   const continueToPayment = async () => {
     if (user) {
@@ -520,42 +190,11 @@ export const ServiceCustomizationModal: React.FC<
   // Same exact-name lookup the server prices with, so the page and the charge can't disagree
   const planType = getServicePlanType(service.title || "");
   if (!planType) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-        <div
-          role="alertdialog"
-          aria-labelledby="plan-unavailable-title"
-          className="w-full max-w-md bg-[#0c0d12] border border-zinc-800 rounded-2xl p-6 text-center space-y-4"
-        >
-          <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
-          <h2
-            id="plan-unavailable-title"
-            className="text-lg font-black text-white"
-          >
-            This plan isn't available to buy online
-          </h2>
-          <p className="text-sm text-zinc-400">
-            Please contact us and we'll help you get started.
-          </p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs uppercase tracking-wider py-3 px-6 rounded-xl cursor-pointer"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    );
+    return <PlanUnavailableDialog onClose={onClose} />;
   }
   const isCustomPlan = planType === "custom";
   const isWeeklyPlan = planType === "weekly";
   const isMonthlyPlan = planType === "monthly";
-  const isBasic = planType === "basic";
-  const isFocus = planType === "focus";
-  const isPerformance = planType === "performance";
-  const isComplete = planType === "complete";
-  const isWellness = planType === "wellness";
 
   // Custom Plan Selected Elements & Calculation
   const customPlanTotals = calculateCustomPlanTotals(elementQuantities);
@@ -568,365 +207,19 @@ export const ServiceCustomizationModal: React.FC<
     ? customPlanTotalPrice
     : SERVICE_PLAN_PRICES[planType];
 
-  // Determine Service Inclusions & Display items for all 8 packages
-  interface ServiceLineItem {
-    name: string;
-    duration: string;
-    price: string;
-    icon: React.ElementType;
-    isMandatory?: boolean;
-    description?: string;
-  }
+  const packageDetails = getPackageLineItems({
+    planType,
+    weeklySessions,
+    elementQuantities,
+    customPlanTotalMinutes,
+    totalSelectedCount,
+  });
 
-  const getPackageLineItems = (): {
-    items: ServiceLineItem[];
-    totalDurationLabel: string;
-    servicesCount: number;
-  } => {
-    if (isBasic) {
-      return {
-        items: [
-          {
-            name: "Basic Warm-Up",
-            duration: "10-15 minutes",
-            price: "Included",
-            icon: Flame,
-            isMandatory: true,
-            description: "Cardio activation and joint prep",
-          },
-          {
-            name: "Strength Training",
-            duration: "15 minutes",
-            price: `£${SERVICE_PLAN_PRICES.basic}`,
-            icon: Dumbbell,
-            isMandatory: true,
-            description: "Focused progressive resistance training",
-          },
-        ],
-        totalDurationLabel: "15 minutes",
-        servicesCount: 2,
-      };
-    }
-    if (isFocus) {
-      return {
-        items: [
-          {
-            name: "Guided Warm-Up",
-            duration: "10-15 minutes",
-            price: "Included",
-            icon: Target,
-            isMandatory: true,
-            description: "Targeted mobility and neuromuscular prep",
-          },
-          {
-            name: "Strength Training",
-            duration: "15 minutes",
-            price: "Included",
-            icon: Dumbbell,
-            isMandatory: true,
-            description: "Compound strength and core overload",
-          },
-          {
-            name: "Functional Training",
-            duration: "15 minutes",
-            price: `£${SERVICE_PLAN_PRICES.focus}`,
-            icon: Activity,
-            isMandatory: true,
-            description: "Movement patterns and metabolic conditioning",
-          },
-        ],
-        totalDurationLabel: "30 minutes",
-        servicesCount: 3,
-      };
-    }
-    if (isPerformance) {
-      return {
-        items: [
-          {
-            name: "Personalised Warm-Up",
-            duration: "10-15 minutes",
-            price: "Included",
-            icon: Flame,
-            isMandatory: true,
-            description: "Tailored dynamic preparation",
-          },
-          {
-            name: "Strength Training",
-            duration: "15 minutes",
-            price: "Included",
-            icon: Dumbbell,
-            isMandatory: true,
-            description: "Hypertrophy and explosive power",
-          },
-          {
-            name: "Functional Training",
-            duration: "15 minutes",
-            price: "Included",
-            icon: Activity,
-            isMandatory: true,
-            description: "Full-body movement integration",
-          },
-          {
-            name: "Mobility & Flexibility",
-            duration: "15 minutes",
-            price: `£${SERVICE_PLAN_PRICES.performance}`,
-            icon: UserCheck,
-            isMandatory: true,
-            description: "Active range of motion and joint health",
-          },
-        ],
-        totalDurationLabel: "45 minutes",
-        servicesCount: 4,
-      };
-    }
-    if (isComplete) {
-      return {
-        items: [
-          {
-            name: "Personalised Warm-Up",
-            duration: "10-15 minutes",
-            price: "Included",
-            icon: Flame,
-            isMandatory: true,
-            description: "Comprehensive dynamic warm-up",
-          },
-          {
-            name: "Fitness Boxing",
-            duration: "15 minutes",
-            price: "Included",
-            icon: Target,
-            isMandatory: true,
-            description: "High-intensity striking and footwork",
-          },
-          {
-            name: "Strength Training",
-            duration: "15 minutes",
-            price: "Included",
-            icon: Dumbbell,
-            isMandatory: true,
-            description: "Core and full-body resistance",
-          },
-          {
-            name: "Functional Training",
-            duration: "15 minutes",
-            price: "Included",
-            icon: Activity,
-            isMandatory: true,
-            description: "Athletic endurance and conditioning",
-          },
-          {
-            name: "Mobility & Flexibility",
-            duration: "15 minutes",
-            price: "Included",
-            icon: UserCheck,
-            isMandatory: true,
-            description: "Structural alignment and suppleness",
-          },
-          {
-            name: "Cool-Down & Recovery",
-            duration: "10-15 minutes",
-            price: `£${SERVICE_PLAN_PRICES.complete}`,
-            icon: ShieldCheck,
-            isMandatory: true,
-            description: "Dedicated parasympathetic down-regulation",
-          },
-        ],
-        totalDurationLabel: "60 minutes",
-        servicesCount: 6,
-      };
-    }
-    if (isWellness) {
-      return {
-        items: [
-          {
-            name: "Guided Yoga",
-            duration: "15 minutes",
-            price: "Included",
-            icon: Flower2,
-            isMandatory: true,
-            description: "Restorative flow and posture work",
-          },
-          {
-            name: "Breathing & Relaxation",
-            duration: "10 minutes",
-            price: "Included",
-            icon: Target,
-            isMandatory: true,
-            description: "Breathwork for nervous system reset",
-          },
-          {
-            name: "1-to-1 Wellness Conversation",
-            duration: "15 minutes",
-            price: "Included",
-            icon: MessageSquare,
-            isMandatory: true,
-            description: "Lifestyle, stress and sleep guidance",
-          },
-          {
-            name: "Mindset & Lifestyle Support",
-            duration: "15 minutes",
-            price: `£${SERVICE_PLAN_PRICES.wellness}`,
-            icon: Calendar,
-            isMandatory: true,
-            description: "Habit coaching and accountability",
-          },
-        ],
-        totalDurationLabel: "30 minutes",
-        servicesCount: 4,
-      };
-    }
-    if (isWeeklyPlan) {
-      return {
-        items: [
-          {
-            name: `Session 1: Guided Warm-Up + ${weeklySessions[0]}`,
-            duration: "30 minutes",
-            price: "Included",
-            icon: Target,
-            isMandatory: true,
-          },
-          {
-            name: `Session 2: Guided Warm-Up + ${weeklySessions[1]}`,
-            duration: "30 minutes",
-            price: "Included",
-            icon: Dumbbell,
-            isMandatory: true,
-          },
-          {
-            name: `Session 3: Guided Warm-Up + ${weeklySessions[2]}`,
-            duration: "30 minutes",
-            price: `£${SERVICE_PLAN_PRICES.weekly}`,
-            icon: Flame,
-            isMandatory: true,
-          },
-        ],
-        totalDurationLabel: "3 sessions (90 minutes)",
-        servicesCount: 3,
-      };
-    }
-    if (isMonthlyPlan) {
-      return {
-        items: [
-          {
-            name: "12 Guided Warm-Ups",
-            duration: "Pre-session",
-            price: "Included",
-            icon: Target,
-            isMandatory: true,
-          },
-          {
-            name: "12 Chosen Core Coaching Services",
-            duration: "30 min each",
-            price: "Included",
-            icon: Dumbbell,
-            isMandatory: true,
-          },
-          {
-            name: "12 Cool-Down & Recovery Sessions",
-            duration: "Post-session",
-            price: `£${SERVICE_PLAN_PRICES.monthly}`,
-            icon: ShieldCheck,
-            isMandatory: true,
-          },
-          {
-            name: "10-Day Grace Period Recovery",
-            duration: "Bonus",
-            price: "Free",
-            icon: Award,
-            isMandatory: true,
-          },
-        ],
-        totalDurationLabel: "12 sessions (360 minutes)",
-        servicesCount: 12,
-      };
-    }
-    // Default / Custom Plan
-    return {
-      items: CUSTOM_ELEMENTS.filter(
-        (e) => (elementQuantities[e.id] || 0) > 0,
-      ).map((e) => {
-        const qty = elementQuantities[e.id] || 1;
-        return {
-          name: qty > 1 ? `${e.name} (x${qty})` : e.name,
-          duration: `${e.durationMin * qty} minutes`,
-          price: `£${e.price * qty}`,
-          icon: e.icon,
-          isMandatory: e.id === "guided-warmup",
-          description: e.description,
-        };
-      }),
-      totalDurationLabel: `${customPlanTotalMinutes} minutes`,
-      servicesCount: totalSelectedCount,
-    };
-  };
-
-  const packageDetails = getPackageLineItems();
-
-  const getStandardServiceDetails = () => {
-    if (isBasic) {
-      return {
-        title: "BX BASIC",
-        description:
-          "A focused foundation session designed for high-efficiency movement and core strength development.",
-        duration: "15 MINUTES",
-        format: "1-on-1 Live Virtual Session",
-        price: SERVICE_PLAN_PRICES.basic,
-      };
-    }
-    if (isFocus) {
-      return {
-        title: "BX FOCUS",
-        description:
-          "A targeted double-discipline session combining guided warm-up with focused strength or functional conditioning.",
-        duration: "30 MINUTES",
-        format: "1-on-1 Live Virtual Session",
-        price: SERVICE_PLAN_PRICES.focus,
-      };
-    }
-    if (isPerformance) {
-      return {
-        title: "BX PERFORMANCE",
-        description:
-          "A performance-focused session designed for more complete movement, strength and mobility work.",
-        duration: "45 MINUTES",
-        format: "1-on-1 Live Virtual Session",
-        price: SERVICE_PLAN_PRICES.performance,
-      };
-    }
-    if (isComplete) {
-      return {
-        title: "BX COMPLETE",
-        description:
-          "The ultimate comprehensive training session integrating full dynamic preparation, strength, boxing, functional athletic conditioning and dedicated recovery.",
-        duration: "60 MINUTES",
-        format: "1-on-1 Live Virtual Session",
-        price: SERVICE_PLAN_PRICES.complete,
-      };
-    }
-    if (isWellness) {
-      return {
-        title: "BX WELLNESS & MINDSET",
-        description:
-          "Holistic restorative session combining guided yoga flow, nervous system reset breathwork, and lifestyle wellness coaching.",
-        duration: "30 MINUTES",
-        format: "1-on-1 Live Virtual Session",
-        price: SERVICE_PLAN_PRICES.wellness,
-      };
-    }
-    return {
-      title: (service.title || "BX SESSION").toUpperCase(),
-      description:
-        service.description ||
-        "Personalised 1-on-1 virtual training tailored to your fitness level and goals.",
-      duration: service.duration
-        ? service.duration.toUpperCase()
-        : "45 MINUTES",
-      format: "1-on-1 Live Virtual Session",
-      price: displayTotalPrice,
-    };
-  };
-
-  const standardDetails = getStandardServiceDetails();
+  const standardDetails = getStandardServiceDetails({
+    planType,
+    service,
+    displayTotalPrice,
+  });
 
   // Handle Razorpay Checkout Initiation
   const handleProceedToPayment = async (simulateSuccess = false) => {
@@ -953,47 +246,15 @@ export const ServiceCustomizationModal: React.FC<
         userEmail: clientEmail,
         userName: clientName,
         userPhone: clientPhone,
-        notes: {
-          planTitle: service.title,
-          planType: isCustomPlan
-            ? "custom"
-            : isWeeklyPlan
-              ? "weekly"
-              : isMonthlyPlan
-                ? "monthly"
-                : "standard",
-          details: isCustomPlan
-            ? JSON.stringify({
-                elements: CUSTOM_ELEMENTS.filter(
-                  (e) => (elementQuantities[e.id] || 0) > 0,
-                ).map((e) => `${e.name} (x${elementQuantities[e.id]})`),
-                duration: `${customPlanTotalMinutes} minutes`,
-                quantities: elementQuantities,
-              })
-            : isWeeklyPlan
-              ? JSON.stringify({
-                  structure: "Guided Warm-Up + 1 Focus per session",
-                  sessions: weeklySessions.map(
-                    (s, idx) => `Session ${idx + 1}: Guided Warm-Up + ${s}`,
-                  ),
-                })
-              : isMonthlyPlan
-                ? JSON.stringify({
-                    structure: "12 Warm-Ups + 12 Core Services + 12 Cool-Downs",
-                    sessions: monthlySessions.map(
-                      (s, idx) =>
-                        `Session ${idx + 1}: Guided Warm-Up + ${s} + Cool-Down & Recovery`,
-                    ),
-                  })
-                : "",
-          customExercises: isCustomPlan
-            ? getCustomExerciseNames(elementQuantities)
-            : isWeeklyPlan
-              ? weeklySessions
-              : isMonthlyPlan
-                ? monthlySessions
-                : packageDetails.items.map((item) => item.name),
-        },
+        notes: buildCheckoutNotes({
+          serviceTitle: service.title,
+          planType,
+          elementQuantities,
+          customPlanTotalMinutes,
+          weeklySessions,
+          monthlySessions,
+          packageDetails,
+        }),
         onSuccess: async (res) => {
           setIsProcessing(false);
           if (!res.razorpay_order_id) {
@@ -1008,131 +269,31 @@ export const ServiceCustomizationModal: React.FC<
           // The server creates the subscription when it verifies the payment; pull it into the local cache
           // Record the dynamic Paid Package Booking in database
           try {
-            const pkgType = isCustomPlan ? 'custom' : isWeeklyPlan ? 'weekly' : isMonthlyPlan ? 'monthly' : 'standard';
-            const totalSess = isWeeklyPlan ? 3 : isMonthlyPlan ? 12 : isCustomPlan ? 1 : 1;
-            const durationMin = isCustomPlan
-              ? customPlanTotalMinutes
-              : isBasic
-              ? 15
-              : isFocus
-              ? 30
-              : isPerformance
-              ? 45
-              : isComplete
-              ? 60
-              : isWellness
-              ? 30
-              : isWeeklyPlan
-              ? 30
-              : isMonthlyPlan
-              ? 45
-              : parseInt(String(service.duration || '')) || 30;
-
-            const disclosuresObj = {
-              ageConfirmed: Boolean(ageConfirmed),
-              virtualCoachingConfirmed: Boolean(virtualCoachingConfirmed),
-              healthConfirmed: Boolean(healthConfirmed),
-              spaceConfirmed: Boolean(spaceConfirmed),
-              termsAccepted: Boolean(termsAccepted),
-              marketingConsent: Boolean(marketingConsent)
-            };
-
-            const chosenContactMethods = selectedMethods.length > 0
-              ? selectedMethods
-              : (user?.contactMethods || (user?.preferredContactMethod ? [user.preferredContactMethod] : []));
-            const chosenPreferredContactMethod = chosenContactMethods.length >= 3
-              ? 'all'
-              : (chosenContactMethods[0] || user?.preferredContactMethod || '');
-
-            const customizedDetailsObj: Record<string, any> = isCustomPlan
-              ? {
-                  elements: CUSTOM_ELEMENTS.filter(e => (elementQuantities[e.id] || 0) > 0).map(e => ({
-                    id: e.id,
-                    name: e.name,
-                    quantity: elementQuantities[e.id],
-                    unitMinutes: e.durationMin
-                  })),
-                  totalMinutes: customPlanTotalMinutes,
-                  elementQuantities,
-                  disclosures: disclosuresObj,
-                  contactMethods: chosenContactMethods,
-                  preferredContactMethod: chosenPreferredContactMethod
-                }
-              : isWeeklyPlan
-              ? {
-                  structure: 'Guided Warm-Up + 1 Focus per session',
-                  sessions: weeklySessions.map((s, idx) => ({ sessionNumber: idx + 1, warmUp: 'Guided Warm-Up', focus: s })),
-                  disclosures: disclosuresObj,
-                  contactMethods: chosenContactMethods,
-                  preferredContactMethod: chosenPreferredContactMethod
-                }
-              : isMonthlyPlan
-              ? {
-                  structure: '12 Warm-Ups + 12 Core Services + 12 Cool-Downs',
-                  sessions: monthlySessions.map((s, idx) => ({ sessionNumber: idx + 1, warmUp: 'Guided Warm-Up', core: s, coolDown: 'Cool-Down & Recovery' })),
-                  disclosures: disclosuresObj,
-                  contactMethods: chosenContactMethods,
-                  preferredContactMethod: chosenPreferredContactMethod
-                }
-              : {
-                  structure: packageDetails.totalDurationLabel,
-                  items: packageDetails.items.map(item => ({ name: item.name, duration: item.duration, price: item.price })),
-                  disclosures: disclosuresObj,
-                  contactMethods: chosenContactMethods,
-                  preferredContactMethod: chosenPreferredContactMethod
-                };
-
-            const focusList = isCustomPlan
-              ? getCustomExerciseNames(elementQuantities)
-              : isWeeklyPlan
-              ? weeklySessions
-              : isMonthlyPlan
-              ? monthlySessions
-              : packageDetails.items.map(item => item.name);
-
-            VelocityAPI.createPaidBooking({
+            recordPaidBooking({
               orderId: res.razorpay_order_id,
               paymentId: res.razorpay_payment_id,
-              userId: user?.id,
+              user,
               clientName,
               clientEmail,
               clientPhone,
-              packageName: service.title,
-              packageType: pkgType,
-              totalPrice: displayTotalPrice,
-              currency: 'GBP',
-              totalSessions: totalSess,
-              durationMinutes: durationMin,
-              validityDays: isMonthlyPlan ? 60 : 30,
-              customizedDetails: customizedDetailsObj,
-              sessionFocusList: focusList
-            }).catch(err => console.warn('Paid booking creation error:', err));
-
-            // Dispatch customer payment receipt & admin notification emails
-            sendBrevoPaymentReceiptEmail({
-              orderId: res.razorpay_order_id,
-              clientName,
-              clientEmail,
-              planName: service.title,
-              serviceType: pkgType,
-              amountPaid: displayTotalPrice,
-              expiryDate: new Date(Date.now() + (isMonthlyPlan ? 60 : 30) * 86400000).toLocaleDateString(),
-              selectedExercises: focusList,
-              paymentMethod: 'Razorpay'
-            }).catch(e => console.warn('Payment receipt email dispatch notice:', e?.message));
-
-            sendBrevoCoachAssignmentAlertToAdmin({
-              bookingId: res.razorpay_order_id,
-              clientName,
-              clientEmail,
-              clientPhone: clientPhone || '',
-              serviceTitle: service.title,
-              serviceType: pkgType,
-              amountPaid: displayTotalPrice,
-              customExercises: focusList
-            }).catch(e => console.warn('Admin coach alert email dispatch notice:', e?.message));
-
-            window.dispatchEvent(new CustomEvent('bxstrength_paid_bookings_updated'));
+              service,
+              displayTotalPrice,
+              planType,
+              elementQuantities,
+              customPlanTotalMinutes,
+              weeklySessions,
+              monthlySessions,
+              packageDetails,
+              selectedMethods,
+              agreements: {
+                ageConfirmed: agreementState.ageConfirmed,
+                virtualCoachingConfirmed: agreementState.virtualCoachingConfirmed,
+                healthConfirmed: agreementState.healthConfirmed,
+                spaceConfirmed: agreementState.spaceConfirmed,
+                termsAccepted: agreementState.termsAccepted,
+                marketingConsent: agreementState.marketingConsent,
+              },
+            });
           } catch (createErr) {
             console.warn('Failed to build paid booking payload:', createErr);
           }
@@ -1164,20 +325,12 @@ export const ServiceCustomizationModal: React.FC<
     if (onNavigateToDashboard) onNavigateToDashboard();
   };
 
-  const modalMaxWidth =
-    mainStage === 3
-      ? "max-w-4xl lg:max-w-5xl"
-      : mainStage === 1 && isCustomPlan
-        ? "max-w-5xl xl:max-w-6xl"
-        : mainStage === 1 && (isMonthlyPlan || isWeeklyPlan)
-          ? "max-w-4xl lg:max-w-5xl"
-          : mainStage === 1
-            ? "max-w-2xl sm:max-w-3xl"
-            : mainStage === 2
-              ? "max-w-3xl"
-              : mainStage === 4
-                ? "max-w-2xl"
-                : "max-w-xl";
+  const modalMaxWidth = getModalMaxWidth({
+    mainStage,
+    isCustomPlan,
+    isWeeklyPlan,
+    isMonthlyPlan,
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md overflow-y-auto">
@@ -1189,156 +342,9 @@ export const ServiceCustomizationModal: React.FC<
         tabIndex={-1}
         className={`relative w-full ${modalMaxWidth} max-h-[94vh] flex flex-col bg-[#0c0d12] border border-zinc-800 rounded-2xl shadow-2xl my-auto transition-all outline-none`}
       >
-        {/* =========================================================================
-            TOP BRAND HEADER
-           ========================================================================= */}
-        <div className="px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between border-b border-zinc-800/80 shrink-0">
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            <img
-              src="https://res.cloudinary.com/yuyxn5b0/image/upload/v1789566029/WhatsApp_Image_2026-09-08_at_10.50.41_AM.png"
-              alt="BX Strength"
-              className="h-9 sm:h-10 w-auto max-w-[185px] object-contain"
-            />
-          </div>
+        <CheckoutHeader onClose={onClose} />
 
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
-            aria-label="Close modal"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div
-          className={`${mainStage === 4 ? "hidden" : "flex"} items-center justify-between px-3 sm:px-6 py-2.5 sm:py-3.5 border-b border-zinc-800/80 bg-zinc-950/70 overflow-x-auto text-xs no-scrollbar shrink-0 gap-1 sm:gap-2`}
-        >
-          {/* Step 1: Onboarding */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            <div
-              className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all ${
-                mainStage === 1
-                  ? "bg-[#CCFF00] text-black shadow-[0_0_12px_rgba(204,255,0,0.35)]"
-                  : mainStage > 1
-                    ? "bg-[#CCFF00] text-black"
-                    : "bg-zinc-800 text-zinc-400 border border-zinc-700/60"
-              }`}
-            >
-              {mainStage > 1 ? (
-                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" />
-              ) : (
-                "1"
-              )}
-            </div>
-            <div>
-              <p
-                className={`font-black uppercase tracking-wider text-[10px] sm:text-[11px] ${mainStage >= 1 ? "text-[#CCFF00]" : "text-zinc-400"}`}
-              >
-                ONBOARDING
-              </p>
-              <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">
-                Selected Service 
-              </p>
-            </div>
-          </div>
-
-          <span className="text-zinc-600 font-bold px-1 sm:px-2.5 text-xs sm:text-base shrink-0">
-            ›
-          </span>
-
-          {/* Step 2: Checkout */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            <div
-              className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all ${
-                mainStage === 2
-                  ? "bg-[#CCFF00] text-black shadow-[0_0_12px_rgba(204,255,0,0.35)]"
-                  : mainStage > 2
-                    ? "bg-[#CCFF00] text-black"
-                    : "bg-zinc-800 text-zinc-400 border border-zinc-700/60"
-              }`}
-            >
-              {mainStage > 2 ? (
-                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" />
-              ) : (
-                "2"
-              )}
-            </div>
-            <div>
-              <p
-                className={`font-black uppercase tracking-wider text-[10px] sm:text-[11px] ${mainStage >= 2 ? "text-[#CCFF00]" : "text-zinc-400"}`}
-              >
-                CHECKOUT
-              </p>
-              <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">
-                Accept Terms
-              </p>
-            </div>
-          </div>
-
-          <span className="text-zinc-600 font-bold px-1 sm:px-2.5 text-xs sm:text-base shrink-0">
-            ›
-          </span>
-
-          {/* Step 3: Payment */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            <div
-              className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all ${
-                mainStage === 3
-                  ? "bg-[#CCFF00] text-black shadow-[0_0_12px_rgba(204,255,0,0.35)]"
-                  : mainStage > 3
-                    ? "bg-[#CCFF00] text-black"
-                    : "bg-zinc-800 text-zinc-400 border border-zinc-700/60"
-              }`}
-            >
-              {mainStage > 3 ? (
-                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" />
-              ) : (
-                "3"
-              )}
-            </div>
-            <div>
-              <p
-                className={`font-black uppercase tracking-wider text-[10px] sm:text-[11px] ${mainStage >= 3 ? "text-[#CCFF00]" : "text-zinc-400"}`}
-              >
-                PAYMENT
-              </p>
-              <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">
-                Pay Securely
-              </p>
-            </div>
-          </div>
-
-          <span className="text-zinc-600 font-bold px-1 sm:px-2.5 text-xs sm:text-base shrink-0">
-            ›
-          </span>
-
-          {/* Step 4: Confirmed */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            <div
-              className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all ${
-                mainStage === 4 || isPaymentSuccess
-                  ? "bg-[#CCFF00] text-black shadow-[0_0_15px_rgba(204,255,0,0.35)]"
-                  : "bg-zinc-800 text-zinc-400 border border-zinc-700/60"
-              }`}
-            >
-              {mainStage === 4 || isPaymentSuccess ? (
-                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" />
-              ) : (
-                "4"
-              )}
-            </div>
-            <div>
-              <p
-                className={`font-black uppercase tracking-wider text-[10px] sm:text-[11px] ${mainStage === 4 || isPaymentSuccess ? "text-[#CCFF00]" : "text-zinc-400"}`}
-              >
-                CONFIRMED
-              </p>
-              <p className="text-[10px] text-zinc-400 font-medium hidden sm:block">
-                Session Confirmed
-              </p>
-            </div>
-          </div>
-        </div>
+        <CheckoutStepper mainStage={mainStage} isPaymentSuccess={isPaymentSuccess} />
 
         {/* Error Alert */}
         {errorMessage && (
@@ -1354,1471 +360,99 @@ export const ServiceCustomizationModal: React.FC<
             <div className="space-y-5 sm:space-y-6">
 
               {!isCustomPlan && !isWeeklyPlan && !isMonthlyPlan && (
-                <div className="space-y-5 sm:space-y-6">
-                  {/* Step 1 of 1 & Lime Line */}
-                  <div>
-                    <div className="w-full h-1 bg-[#CCFF00] rounded-full mb-4 sm:mb-6" />
-                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight uppercase">
-                      {standardDetails.title}
-                    </h2>
-                    <p className="text-xs sm:text-sm text-zinc-400 mt-1.5 sm:mt-2">
-                      {standardDetails.description}
-                    </p>
-                  </div>
-
-                  {/* Summary Card */}
-                  <div className="p-4 sm:p-6 rounded-2xl bg-[#0e1319] border border-zinc-800/90 shadow-xl space-y-3 sm:space-y-4 my-4 sm:my-6">
-                    <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="text-zinc-400 font-medium">
-                        Service Duration
-                      </span>
-                      <span className="font-black text-white uppercase tracking-wide">
-                        {standardDetails.duration}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="text-zinc-400 font-medium">Format</span>
-                      <span className="font-bold text-[#CCFF00]">
-                        {standardDetails.format}
-                      </span>
-                    </div>
-                    <div className="pt-3.5 sm:pt-4 border-t border-zinc-800/80 flex items-center justify-between">
-                      <span className="text-sm sm:text-base font-black text-white uppercase tracking-wider">
-                        TOTAL PRICE
-                      </span>
-                      <span className="text-2xl sm:text-3xl font-black text-white">
-                        £{standardDetails.price}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Bottom Action Bar */}
-                  <div className="flex flex-row items-center justify-between gap-2.5 sm:gap-3 pt-4 border-t border-zinc-800/80">
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="px-4 sm:px-5 py-3 rounded-xl border border-zinc-800 hover:border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-300 flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-colors"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>Back</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setMainStage(2)}
-                      className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
-                    >
-                      <span>NEXT: CHECKOUT &amp; TERMS</span>
-                      <ArrowRight className="w-4 h-4 stroke-[3]" />
-                    </button>
-                  </div>
-                </div>
+                <StandardPlanStep
+                  standardDetails={standardDetails}
+                  onBack={onClose}
+                  onNext={() => setMainStage(2)}
+                />
               )}
 
               {isCustomPlan && (
-                <div className="space-y-5 sm:space-y-6">
-                  {/* Top Header Section: Left Title & Right "How it works?" box */}
-                  <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 pb-2 border-b border-zinc-800/80">
-                    {/* Left: BX Custom Title & Subtitle */}
-                    <div className="space-y-1.5 max-w-xl">
-                      <div className="flex items-center gap-2.5">
-                        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight uppercase">
-                          BX <span className="text-[#CCFF00]">CUSTOM</span>
-                        </h2>
-                        <span className="text-[10px] sm:text-xs font-bold text-[#CCFF00] bg-[#CCFF00]/10 border border-[#CCFF00]/30 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                          Tailored Plan
-                        </span>
-                      </div>
-                      <h3 className="text-xs sm:text-sm font-black text-zinc-200 uppercase tracking-wider">
-                        BUILD YOUR OWN BX SESSION.
-                      </h3>
-                      <p className="text-xs text-zinc-400 leading-relaxed">
-                        Choose only the training elements you need. Each element
-                        has a fixed time and price.
-                      </p>
-                    </div>
-
-                    {/* Right: "How it works?" Reference Card */}
-                    <div className="bg-[#101218] border border-zinc-800 rounded-2xl p-3 sm:p-4 shrink-0 lg:max-w-md w-full lg:w-auto shadow-md">
-                      <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-zinc-800/80">
-                        <div className="w-5 h-5 rounded-md bg-[#CCFF00]/15 flex items-center justify-center text-[#CCFF00]">
-                          <Lightbulb className="w-3.5 h-3.5" />
-                        </div>
-                        <span className="text-xs font-black uppercase tracking-wider text-white">
-                          How it works?
-                        </span>
-                      </div>
-                      <ol className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-[11px] text-zinc-400">
-                        <li className="flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-300 font-bold text-[9px] flex items-center justify-center shrink-0">
-                            1
-                          </span>
-                          <span className="truncate">
-                            Select the services you want
-                          </span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-300 font-bold text-[9px] flex items-center justify-center shrink-0">
-                            2
-                          </span>
-                          <span className="truncate">
-                            Set the quantity for each service
-                          </span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-300 font-bold text-[9px] flex items-center justify-center shrink-0">
-                            3
-                          </span>
-                          <span className="truncate">
-                            Review your plan and total time
-                          </span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-300 font-bold text-[9px] flex items-center justify-center shrink-0">
-                            4
-                          </span>
-                          <span className="truncate">
-                            Proceed to booking and payment
-                          </span>
-                        </li>
-                      </ol>
-                    </div>
-                  </div>
-
-                  {/* 3-Column Elements Grid matching Target Screenshot format */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                    {CUSTOM_ELEMENTS.map((element) => {
-                      const qty = elementQuantities[element.id] || 0;
-                      const isSelected = qty > 0;
-                      const IconComp = element.icon;
-
-                      return (
-                        <div
-                          key={element.id}
-                          role="group"
-                          tabIndex={0}
-                          onClick={() => {
-                            if (!isSelected)
-                              updateElementQuantity(element.id, 1);
-                          }}
-                          onKeyDown={(event) => {
-                            if (
-                              event.target === event.currentTarget &&
-                              (event.key === "Enter" || event.key === " ") &&
-                              !isSelected
-                            ) {
-                              event.preventDefault();
-                              updateElementQuantity(element.id, 1);
-                            }
-                          }}
-                          className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
-                            isSelected
-                              ? "bg-[#181822] border-[#CCFF00] shadow-[0_0_18px_-4px_rgba(204,255,0,0.28)]"
-                              : "bg-[#101218] border-zinc-800/90 hover:border-zinc-700/80"
-                          }`}
-                        >
-                          {/* Top: Icon + Title + Description */}
-                          <div className="flex items-start gap-3">
-                            <div
-                              className={`p-2.5 rounded-xl shrink-0 transition-colors ${
-                                isSelected
-                                  ? "bg-[#CCFF00]/15 text-[#CCFF00]"
-                                  : "bg-zinc-800/80 text-zinc-400"
-                              }`}
-                            >
-                              <IconComp className="w-5 h-5" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <h4 className="text-sm font-bold text-white tracking-tight leading-snug">
-                                {element.name}
-                              </h4>
-                              <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
-                                {element.description}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Bottom Bar: Duration | Price and Quantity Controls */}
-                          <div className="pt-3 border-t border-zinc-800/80 flex items-center justify-between gap-2 mt-auto">
-                            {/* Left: Duration | Price */}
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="text-zinc-400 font-semibold">
-                                {element.durationLabel}
-                              </span>
-                              <span className="text-zinc-700 font-bold">|</span>
-                              <span className="font-black text-white text-sm">
-                                £{element.price}
-                              </span>
-                            </div>
-
-                            {/* Right: Quantity Stepper (- 0 +) */}
-                            <div className="flex items-center bg-[#0a0a0f] border border-zinc-800 rounded-lg p-0.5">
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  updateElementQuantity(element.id, -1);
-                                }}
-                                disabled={qty === 0}
-                                className={`w-8 h-8 rounded flex items-center justify-center transition-colors cursor-pointer ${
-                                  qty === 0
-                                    ? "text-zinc-600 cursor-not-allowed"
-                                    : "text-zinc-300 hover:text-white hover:bg-zinc-800"
-                                }`}
-                                aria-label={`Decrease ${element.name} quantity`}
-                              >
-                                <Minus className="w-5 h-5" strokeWidth={2.5} />
-                              </button>
-
-                              <span
-                                className={`w-8 text-center text-xs font-black select-none ${isSelected ? "text-[#CCFF00]" : "text-zinc-400"}`}
-                              >
-                                {qty}
-                              </span>
-
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  updateElementQuantity(element.id, 1);
-                                }}
-                                className="w-8 h-8 rounded flex items-center justify-center text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
-                                aria-label={`Increase ${element.name} quantity`}
-                              >
-                                <Plus className="w-5 h-5" strokeWidth={2.5} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    {/* Info Card spanning remaining 2 columns in the bottom row on desktop */}
-                    <div className="col-span-1 md:col-span-2 lg:col-span-2 p-4 sm:p-5 rounded-2xl bg-[#101218] border border-zinc-800/90 flex items-center gap-3.5 shadow-md">
-                      <div className="w-9 h-9 rounded-full bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center text-[#CCFF00] shrink-0">
-                        <Info className="w-4 h-4" />
-                      </div>
-                      <div className="text-xs text-zinc-300 leading-relaxed">
-                        <p className="font-semibold text-white">
-                          Your total session time will be the sum of all
-                          selected services.
-                        </p>
-                        <p className="text-zinc-400 text-[11px] mt-0.5">
-                          There is no fixed duration — we'll create a session
-                          that fits your plan.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bottom Action Bar */}
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-zinc-800/80">
-                    <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
-                      <button
-                        type="button"
-                        onClick={onClose}
-                        className="px-4 sm:px-5 py-3 rounded-xl border border-zinc-800 hover:border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-300 flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-colors"
-                      >
-                        <ArrowLeft className="w-3.5 h-3.5" />
-                        <span>Back</span>
-                      </button>
-
-                      <div className="flex items-center gap-3 text-sm sm:text-base pl-2">
-                        <span className="text-zinc-300 font-semibold">
-                          Total Time:{" "}
-                          <strong className="font-bold text-white">
-                            {customPlanTotalMinutes} min
-                          </strong>
-                        </span>
-                        <span className="text-zinc-500">•</span>
-                        <span className="text-zinc-300 font-semibold">
-                          Price:{" "}
-                          <strong className="font-bold text-white">
-                            £{customPlanTotalPrice}
-                          </strong>
-                        </span>
-                      </div>
-                    </div>
-
-                    <span className="relative w-full sm:w-auto group">
-                      <button
-                        type="button"
-                        onClick={() => setMainStage(2)}
-                        disabled={totalSelectedCount === 0}
-                        aria-describedby={
-                          totalSelectedCount === 0
-                            ? "service-selection-alert"
-                            : undefined
-                        }
-                        className={`w-full sm:w-auto font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-5 sm:px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md ${
-                          totalSelectedCount > 0
-                            ? "bg-[#CCFF00] hover:bg-[#b8e600] text-black cursor-pointer"
-                            : "bg-zinc-800 text-zinc-500 cursor-not-allowed border border-zinc-700/50"
-                        }`}
-                      >
-                        <span>NEXT: CHECKOUT &amp; TERMS</span>
-                        <ArrowRight className="w-4 h-4 stroke-[3]" />
-                      </button>
-                      {totalSelectedCount === 0 && (
-                        <span
-                          id="service-selection-alert"
-                          role="alert"
-                          className="pointer-events-none absolute bottom-full right-0 z-20 mb-2.5 flex w-max max-w-[min(19rem,calc(100vw-3rem))] items-start gap-2.5 rounded-lg border border-[#CCFF00]/35 bg-gradient-to-br from-zinc-800 to-zinc-950 px-4 py-3 text-[13px] font-semibold leading-snug text-white opacity-0 shadow-[0_10px_28px_rgba(0,0,0,0.5)] ring-1 ring-white/10 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:opacity-100 group-focus-within:-translate-y-0.5 group-focus-within:opacity-100 sm:text-sm"
-                        >
-                          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#CCFF00]/15 text-base font-black leading-none text-[#CCFF00] ring-1 ring-[#CCFF00]/30">
-                            !
-                          </span>
-                          <span className="max-w-[15rem]">
-                            Choose at least one training service before
-                            continuing to checkout.
-                          </span>
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                </div>
+                <CustomPlanStep
+                  elementQuantities={elementQuantities}
+                  updateElementQuantity={updateElementQuantity}
+                  totalSelectedCount={totalSelectedCount}
+                  customPlanTotalMinutes={customPlanTotalMinutes}
+                  customPlanTotalPrice={customPlanTotalPrice}
+                  onBack={onClose}
+                  onNext={() => setMainStage(2)}
+                />
               )}
 
-              {/* -------------------------------------------------------------
-                  C. WEEKLY PLAN (3 Sessions)
-                 ------------------------------------------------------------- */}
               {isWeeklyPlan && (
-                <div className="space-y-5 sm:space-y-6">
-                  <div>
-                    <p className="text-[11px] sm:text-xs font-bold text-[#CCFF00] tracking-wider uppercase mb-1.5">
-                      Step 1 of 3
-                    </p>
-                    <div className="w-full h-1 bg-[#CCFF00] rounded-full mb-4 sm:mb-6" />
-                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight uppercase">
-                      PLAN YOUR 3 SESSIONS
-                    </h2>
-                    <p className="text-xs sm:text-sm text-zinc-400 mt-1.5 sm:mt-2">
-                      Guided Warm-Up is pre-selected for all 3 sessions. Choose
-                      1 additional training focus for each session.
-                    </p>
-                  </div>
-
-                  <div className="p-4 sm:p-5 rounded-2xl bg-[#101218] border border-zinc-800 space-y-4 shadow-lg">
-                    <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-                      <span className="text-xs font-black uppercase tracking-wider text-zinc-300 block">
-                        3 Sessions Breakdown
-                      </span>
-                      <span className="text-[11px] sm:text-xs font-bold text-[#CCFF00] bg-[#CCFF00]/10 border border-[#CCFF00]/30 px-2.5 py-1 rounded-full shrink-0">
-                        10-Day Validity
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-3.5">
-                      {[0, 1, 2].map((sessionIdx) => (
-                        <div
-                          key={sessionIdx}
-                          className="p-3.5 sm:p-4 rounded-xl bg-[#14151e] border border-zinc-800 flex flex-col justify-between space-y-3"
-                        >
-                          <div className="space-y-2.5">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <span className="text-xs font-black uppercase text-white block">
-                                  Session {sessionIdx + 1}
-                                </span>
-                                <span className="text-[10px] text-zinc-400">
-                                  1 Warm-Up + 1 Focus
-                                </span>
-                              </div>
-                              <span className="text-[10px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded">
-                                30 min
-                              </span>
-                            </div>
-
-                            {/* Pre-selected Warm-Up with zero overlap */}
-                            <div className="p-2.5 rounded-xl bg-[#CCFF00]/10 border border-[#CCFF00]/30 flex items-center justify-between gap-2 overflow-hidden">
-                              <div className="flex items-center gap-2 min-w-0 flex-1">
-                                <div className="w-5 h-5 rounded-full bg-[#CCFF00] text-black flex items-center justify-center shrink-0">
-                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-xs font-bold text-white truncate">
-                                    Guided Warm-Up
-                                  </p>
-                                  <p className="text-[9px] text-zinc-400 truncate">
-                                    Pre-selected for session
-                                  </p>
-                                </div>
-                              </div>
-                              <span className="text-[9px] font-black uppercase tracking-wider text-[#CCFF00] bg-[#CCFF00]/20 border border-[#CCFF00]/30 px-2 py-0.5 rounded shrink-0 ml-1">
-                                INCLUDED
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* List of 7 options as buttons */}
-                          <div className="space-y-1.5 pt-1">
-                            <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">
-                              Select 1 Extra Focus:
-                            </p>
-                            <div className="space-y-1.5 max-h-48 sm:max-h-56 overflow-y-auto pr-0.5">
-                              {WEEKLY_EXTRA_OPTIONS.map((opt) => {
-                                const isSelected =
-                                  weeklySessions[sessionIdx] === opt;
-                                return (
-                                  <button
-                                    key={opt}
-                                    type="button"
-                                    onClick={() => {
-                                      const updated = [...weeklySessions];
-                                      updated[sessionIdx] = opt;
-                                      setWeeklySessions(updated);
-                                    }}
-                                    className={`w-full p-2 sm:p-2.5 rounded-lg border text-left text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
-                                      isSelected
-                                        ? "bg-[#181f14] border-[#CCFF00] text-white shadow-[0_0_12px_rgba(204,255,0,0.2)]"
-                                        : "bg-[#101218] border-zinc-800 text-zinc-300 hover:border-zinc-700"
-                                    }`}
-                                  >
-                                    <span className="truncate">{opt}</span>
-                                    {isSelected && (
-                                      <Check className="w-3.5 h-3.5 text-[#CCFF00] stroke-[3] shrink-0 ml-1.5" />
-                                    )}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Bottom Action Bar */}
-                  <div className="flex flex-row items-center justify-between gap-2.5 sm:gap-3 pt-4 border-t border-zinc-800/80">
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="px-4 sm:px-5 py-3 rounded-xl border border-zinc-800 hover:border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-300 flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-colors"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>Back</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setMainStage(2)}
-                      className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
-                    >
-                      <span>NEXT: CHECKOUT &amp; TERMS</span>
-                      <ArrowRight className="w-4 h-4 stroke-[3]" />
-                    </button>
-                  </div>
-                </div>
+                <WeeklyPlanStep
+                  weeklySessions={weeklySessions}
+                  setWeeklySessions={setWeeklySessions}
+                  onBack={onClose}
+                  onNext={() => setMainStage(2)}
+                />
               )}
 
-              {/* -------------------------------------------------------------
-                  D. MONTHLY PLAN (12 Sessions)
-                 ------------------------------------------------------------- */}
               {isMonthlyPlan && (
-                <div className="space-y-5 sm:space-y-6">
-                  <div>
-                    <p className="text-[11px] sm:text-xs font-bold text-[#CCFF00] tracking-wider uppercase mb-1.5">
-                      Step 1 of 1
-                    </p>
-                    <div className="w-full h-1 bg-[#CCFF00] rounded-full mb-4 sm:mb-6" />
-                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight uppercase">
-                      MONTHLY COACHING SESSIONS
-                    </h2>
-                    <p className="text-xs sm:text-sm text-zinc-400 mt-1.5 sm:mt-2">
-                      User gets 1 Guided Warm-Up, 1 chosen service, and 1
-                      Cool-Down &amp; Recovery in each of the 12 sessions.
-                    </p>
-                  </div>
-
-                  <div className="p-4 sm:p-5 rounded-2xl bg-[#101218] border border-zinc-800 space-y-4 shadow-lg">
-                    <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-                      <span className="text-xs font-black uppercase tracking-wider text-zinc-300 block">
-                        12 Sessions Included
-                      </span>
-                      <span className="text-[11px] sm:text-xs font-bold text-[#CCFF00] bg-[#CCFF00]/10 border border-[#CCFF00]/30 px-2.5 py-1 rounded-full shrink-0">
-                        Save £40 Launch Offer
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 sm:gap-3 max-h-80 overflow-y-auto pr-1">
-                      {monthlySessions.map((sessionService, idx) => (
-                        <div
-                          key={idx}
-                          className="p-2.5 sm:p-3 rounded-xl bg-[#14151e] border border-zinc-800 flex flex-col xs:flex-row xs:items-center justify-between gap-2 text-xs"
-                        >
-                          <div className="flex items-center gap-2 shrink-0">
-                            <Calendar className="w-4 h-4 text-[#CCFF00] shrink-0" />
-                            <span className="font-bold text-white whitespace-nowrap shrink-0">
-                              Session {idx + 1}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between xs:justify-end gap-1.5 shrink-0 whitespace-nowrap">
-                            <span className="text-[11px] font-bold text-[#CCFF00] whitespace-nowrap shrink-0 inline-block">
-                              Warm-Up&nbsp;+
-                            </span>
-
-                            <select
-                              value={sessionService}
-                              onChange={(e) => {
-                                const updated = [...monthlySessions];
-                                updated[idx] = e.target.value;
-                                setMonthlySessions(updated);
-                              }}
-                              className="bg-zinc-900 border border-zinc-700 text-white font-bold text-xs rounded-lg px-2 py-1.5 focus:border-[#CCFF00] focus:outline-hidden min-w-[125px] max-w-[155px] truncate cursor-pointer shrink-0"
-                            >
-                              {MONTHLY_OPTIONS.map((opt) => (
-                                <option key={opt} value={opt}>
-                                  {opt}
-                                </option>
-                              ))}
-                            </select>
-
-                            <span className="text-[11px] font-bold text-[#CCFF00] whitespace-nowrap shrink-0 inline-block">
-                              +&nbsp;Recovery
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Bottom Action Bar */}
-                  <div className="flex flex-row items-center justify-between gap-2.5 sm:gap-3 pt-4 border-t border-zinc-800/80">
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="px-4 sm:px-5 py-3 rounded-xl border border-zinc-800 hover:border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-300 flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-colors"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>Back</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setMainStage(2)}
-                      className="bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
-                    >
-                      <span>NEXT: CHECKOUT &amp; TERMS</span>
-                      <ArrowRight className="w-4 h-4 stroke-[3]" />
-                    </button>
-                  </div>
-                </div>
+                <MonthlyPlanStep
+                  monthlySessions={monthlySessions}
+                  setMonthlySessions={setMonthlySessions}
+                  onBack={onClose}
+                  onNext={() => setMainStage(2)}
+                />
               )}
             </div>
           )}
 
-          {/* =====================================================================
-              STEP 2: CHECKOUT & ACCEPT TERMS
-              Pixel-accurate matching user screenshot Screenshot 1:
-              - Title: Checkout & Accept Terms
-              - Subtitle: Confirm your training agreement and health disclosures before proceeding.
-              - Card 1: PLAN SELECTED (left) and AMOUNT (right in #CCFF00)
-              - Card 2: HEALTH & TRAINING DISCLOSURES with custom #CCFF00 checkboxes
-              - Action Bar: [Back] and [NEXT: PROCEED TO PAYMENT ->]
-             ===================================================================== */}
           {mainStage === 2 && (
-            <div className="space-y-5 sm:space-y-6">
-              {/* Header matching screenshot */}
-              <div>
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight">
-                  Checkout &amp; Accept Terms
-                </h2>
-                <p className="text-xs sm:text-sm text-zinc-400 mt-1.5">
-                  Confirm your training agreement and health disclosures before
-                  proceeding.
-                </p>
-              </div>
-
-              {/* Card 1: Plan Selected & Amount */}
-              <div className="p-4 sm:p-6 rounded-2xl bg-[#0e1319] border border-zinc-800/90 shadow-xl flex items-center justify-between gap-3">
-                <div>
-                  <span className="text-[10px] sm:text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
-                    PLAN SELECTED
-                  </span>
-                  <span className="text-sm sm:text-lg lg:text-xl font-black text-white uppercase tracking-tight">
-                    {service.title.toUpperCase()}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] sm:text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
-                    AMOUNT
-                  </span>
-                  <span className="text-xl sm:text-2xl lg:text-3xl font-black text-[#CCFF00]">
-                    £{displayTotalPrice}
-                  </span>
-                </div>
-              </div>
-
-              {/* Card 2: Mode of Contact - Shown when logged in */}
-              {user && (
-                <div className="p-4 sm:p-6 rounded-2xl bg-[#0e1319] border border-zinc-800/90 shadow-xl space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="w-4 h-4 text-[#CCFF00]" />
-                      <span className="text-xs font-black uppercase tracking-wider text-white">
-                        CHOOSE MODE OF CONTACT
-                      </span>
-                    </div>
-                    {selectedMethods.length === 0 ? (
-                      <span className="text-[10px] sm:text-[11px] font-bold text-[#CCFF00] bg-[#CCFF00]/10 border border-[#CCFF00]/30 px-2 py-0.5 rounded">
-                        Required For Coach Onboarding
-                      </span>
-                    ) : (
-                      <span className="text-[10px] sm:text-[11px] font-bold text-zinc-300 bg-zinc-900 border border-zinc-800 px-2.5 py-0.5 rounded">
-                        Selected:{" "}
-                        <strong className="text-[#CCFF00]">
-                          {selectedMethods.map(contactModeLabel).join(", ")}
-                        </strong>
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    <p className="text-xs text-zinc-400">
-                      Choose one or more ways your assigned UK coach can connect
-                      with you for session onboarding, prep drills, and live
-                      video links:
-                    </p>
-
-                    {/* Three methods on one horizontal row */}
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { id: "whatsapp" as const, label: "WhatsApp", icon: MessageSquare },
-                        { id: "call" as const, label: "Phone Call", icon: Phone },
-                        { id: "email" as const, label: "Email", icon: Mail },
-                      ].map((mode) => {
-                        const isSelected = selectedMethods.includes(mode.id);
-                        const IconComp = mode.icon;
-                        return (
-                          <button
-                            key={mode.id}
-                            type="button"
-                            aria-pressed={isSelected}
-                            onClick={() => toggleMethod(mode.id)}
-                            className={`flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-lg border text-[11px] sm:text-xs font-bold transition-colors cursor-pointer ${
-                              isSelected
-                                ? "bg-[#CCFF00]/10 border-[#CCFF00] text-white"
-                                : "bg-[#12141c] border-zinc-800 text-zinc-300 hover:border-zinc-700"
-                            }`}
-                          >
-                            <IconComp
-                              className={`w-4 h-4 shrink-0 ${isSelected ? "text-[#CCFF00]" : "text-zinc-400"}`}
-                            />
-                            <span className="truncate">{mode.label}</span>
-                            {isSelected && (
-                              <Check className="w-3.5 h-3.5 shrink-0 text-[#CCFF00]" strokeWidth={3} />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Compact confirmation lines for whatever is switched on */}
-                    {selectedMethods.length > 0 && (
-                      <div className="space-y-1.5">
-                        {selectedMethods.includes("whatsapp") && (
-                          <div className="rounded-lg bg-[#12141c] border border-zinc-800 px-3 py-2 space-y-1.5">
-                            <div className="flex items-center gap-2 text-[11px]">
-                              <MessageSquare className="w-3.5 h-3.5 text-[#CCFF00] shrink-0" />
-                              <span className="font-bold text-white truncate">
-                                {user.phone
-                                  ? `WhatsApp: ${user.phone}`
-                                  : "Add your WhatsApp number"}
-                              </span>
-                              {user.phone && (
-                                <label className="flex items-center gap-1 ml-auto shrink-0 text-[10px] text-zinc-400 cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={whatsappIsCurrent}
-                                    onChange={(e) => setWhatsappIsCurrent(e.target.checked)}
-                                    className="w-3 h-3 accent-[#CCFF00]"
-                                  />
-                                  on WhatsApp
-                                </label>
-                              )}
-                            </div>
-                            {(!user.phone || !whatsappIsCurrent) && (
-                              <PhoneInput
-                                label=""
-                                value={whatsappNumberInput}
-                                onChange={setWhatsappNumberInput}
-                                inputClassName="w-full bg-[#0e1319] border border-zinc-700 rounded-md pl-[104px] pr-2.5 py-1.5 text-[11px] text-white placeholder-zinc-500 focus:outline-hidden focus:border-[#CCFF00]"
-                              />
-                            )}
-                          </div>
-                        )}
-
-                        {selectedMethods.includes("call") &&
-                          (user.phone ? (
-                            <div className="rounded-lg bg-[#12141c] border border-zinc-800 px-3 py-2 flex items-center gap-2 text-[11px]">
-                              <Phone className="w-3.5 h-3.5 text-[#CCFF00] shrink-0" />
-                              <span className="font-bold text-white truncate">
-                                We'll call you on {user.phone}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="rounded-lg bg-[#12141c] border border-zinc-800 p-2">
-                              <PhoneInput
-                                label=""
-                                value={contactPhoneInput}
-                                onChange={setContactPhoneInput}
-                                inputClassName="w-full bg-[#0e1319] border border-zinc-700 rounded-md pl-[104px] pr-2.5 py-1.5 text-[11px] text-white placeholder-zinc-500 focus:outline-hidden focus:border-[#CCFF00]"
-                              />
-                            </div>
-                          ))}
-
-                        {selectedMethods.includes("email") && (
-                          <div className="rounded-lg bg-[#12141c] border border-zinc-800 px-3 py-2 flex items-center gap-2 text-[11px]">
-                            <Mail className="w-3.5 h-3.5 text-[#CCFF00] shrink-0" />
-                            <span className="font-bold text-white truncate">
-                              Session links to {user.email}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Card 3: 4 Checkbox Disclosures matching user screenshot in a 2x2 grid */}
-              <div className="space-y-3.5">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-white">
-                    HEALTH &amp; TRAINING DISCLOSURES
-                  </h4>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#CCFF00]">
-                    Required To Proceed
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
-                  {/* 1. 18+ CONFIRMATION */}
-                  <div
-                    role="checkbox"
-                    aria-checked={ageConfirmed}
-                    tabIndex={0}
-                    onClick={() => setAgeConfirmed(!ageConfirmed)}
-                    onKeyDown={(event) => {
-                      if (event.key === " " || event.key === "Enter") {
-                        event.preventDefault();
-                        setAgeConfirmed(!ageConfirmed);
-                      }
-                    }}
-                    className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
-                      ageConfirmed
-                        ? "bg-[#12141c] border-[#CCFF00]/40 shadow-sm"
-                        : "bg-[#0f1015] border-zinc-800/80 opacity-75"
-                    }`}
-                  >
-                    <div
-                      className={`w-5 h-5 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
-                        ageConfirmed
-                          ? "bg-[#CCFF00] text-black shadow-xs"
-                          : "border border-zinc-700 bg-zinc-900"
-                      }`}
-                    >
-                      {ageConfirmed && (
-                        <Check className="w-3.5 h-3.5 stroke-[3]" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 text-xs sm:text-sm font-black uppercase tracking-wider text-white">
-                        <UserCheck className="w-4 h-4 text-[#CCFF00] shrink-0" />
-                        <span>18+ CONFIRMATION</span>
-                      </div>
-                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                        I confirm I am 18 years of age or older.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* 2. VIRTUAL COACHING */}
-                  <div
-                    role="checkbox"
-                    aria-checked={virtualCoachingConfirmed}
-                    tabIndex={0}
-                    onClick={() =>
-                      setVirtualCoachingConfirmed(!virtualCoachingConfirmed)
-                    }
-                    onKeyDown={(event) => {
-                      if (event.key === " " || event.key === "Enter") {
-                        event.preventDefault();
-                        setVirtualCoachingConfirmed(!virtualCoachingConfirmed);
-                      }
-                    }}
-                    className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
-                      virtualCoachingConfirmed
-                        ? "bg-[#12141c] border-[#CCFF00]/40 shadow-sm"
-                        : "bg-[#0f1015] border-zinc-800/80 opacity-75"
-                    }`}
-                  >
-                    <div
-                      className={`w-5 h-5 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
-                        virtualCoachingConfirmed
-                          ? "bg-[#CCFF00] text-black shadow-xs"
-                          : "border border-zinc-700 bg-zinc-900"
-                      }`}
-                    >
-                      {virtualCoachingConfirmed && (
-                        <Check className="w-3.5 h-3.5 stroke-[3]" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 text-xs sm:text-sm font-black uppercase tracking-wider text-white">
-                        <Video className="w-4 h-4 text-[#CCFF00] shrink-0" />
-                        <span>VIRTUAL SESSIONS</span>
-                      </div>
-                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                        Live interactive sessions with expert UK trainers at home.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* 3. HEALTH DISCLOSURE */}
-                  <div
-                    role="checkbox"
-                    aria-checked={healthConfirmed}
-                    tabIndex={0}
-                    onClick={() => setHealthConfirmed(!healthConfirmed)}
-                    onKeyDown={(event) => {
-                      if (event.key === " " || event.key === "Enter") {
-                        event.preventDefault();
-                        setHealthConfirmed(!healthConfirmed);
-                      }
-                    }}
-                    className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
-                      healthConfirmed
-                        ? "bg-[#12141c] border-[#CCFF00]/40 shadow-sm"
-                        : "bg-[#0f1015] border-zinc-800/80 opacity-75"
-                    }`}
-                  >
-                    <div
-                      className={`w-5 h-5 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
-                        healthConfirmed
-                          ? "bg-[#CCFF00] text-black shadow-xs"
-                          : "border border-zinc-700 bg-zinc-900"
-                      }`}
-                    >
-                      {healthConfirmed && (
-                        <Check className="w-3.5 h-3.5 stroke-[3]" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 text-xs sm:text-sm font-black uppercase tracking-wider text-white">
-                        <ShieldCheck className="w-4 h-4 text-[#CCFF00] shrink-0" />
-                        <span>HEALTH DISCLOSURE</span>
-                      </div>
-                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                        I confirm there are no medical conditions preventing
-                        participation.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* 4. SAFE TRAINING SPACE */}
-                  <div
-                    role="checkbox"
-                    aria-checked={spaceConfirmed}
-                    tabIndex={0}
-                    onClick={() => setSpaceConfirmed(!spaceConfirmed)}
-                    onKeyDown={(event) => {
-                      if (event.key === " " || event.key === "Enter") {
-                        event.preventDefault();
-                        setSpaceConfirmed(!spaceConfirmed);
-                      }
-                    }}
-                    className={`p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
-                      spaceConfirmed
-                        ? "bg-[#12141c] border-[#CCFF00]/40 shadow-sm"
-                        : "bg-[#0f1015] border-zinc-800/80 opacity-75"
-                    }`}
-                  >
-                    <div
-                      className={`w-5 h-5 rounded mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
-                        spaceConfirmed
-                          ? "bg-[#CCFF00] text-black shadow-xs"
-                          : "border border-zinc-700 bg-zinc-900"
-                      }`}
-                    >
-                      {spaceConfirmed && (
-                        <Check className="w-3.5 h-3.5 stroke-[3]" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 text-xs sm:text-sm font-black uppercase tracking-wider text-white">
-                        <Zap className="w-4 h-4 text-[#CCFF00] shrink-0" />
-                        <span>SAFE TRAINING SPACE</span>
-                      </div>
-                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                        I have a safe and suitable space to train at home.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Additional Terms agreement */}
-                <div className="p-3.5 rounded-xl bg-[#0e1319] border border-zinc-800/80 flex items-start gap-2.5 sm:gap-3 text-xs sm:text-sm text-zinc-300">
-                  {/* Only the box toggles; the sentence holds the terms link */}
-                  <label className="mt-0.5 shrink-0 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={termsAccepted}
-                      onChange={(e) => setTermsAccepted(e.target.checked)}
-                      aria-labelledby="checkout-terms-text"
-                      className="peer sr-only"
-                    />
-                    <span
-                      className={`w-4 h-4 rounded flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#CCFF00] peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[#0e1319] ${
-                        termsAccepted
-                          ? "bg-[#CCFF00] text-black"
-                          : "border border-zinc-700 bg-zinc-900"
-                      }`}
-                    >
-                      {termsAccepted && (
-                        <Check className="w-3.5 h-3.5 stroke-[3]" />
-                      )}
-                    </span>
-                  </label>
-                  <span id="checkout-terms-text" className="leading-relaxed">
-                    I agree to the{" "}
-                    <a
-                      href="/terms"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-white font-bold underline underline-offset-2 hover:text-[#CCFF00]"
-                    >
-                      Terms &amp; Conditions,
-                    </a>{" "}
-                    <a
-                      href="/onboarding-terms"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-white font-bold underline underline-offset-2 hover:text-[#CCFF00]"
-                    >
-                      Onboarding & Checkout Policies,
-                    </a>{" "}
-                    and{" "}
-                    <a
-                      href="/privacy"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-white font-bold underline underline-offset-2 hover:text-[#CCFF00]"
-                    >
-                      Privacy Policies.
-                    </a>{" "}
-                    {/* and cancellation policy. */}
-                  </span>
-                </div>
-                {/* Optional marketing consent: same box-only toggle as the terms row */}
-                <div className="p-3.5 rounded-xl bg-[#0e1319] border border-zinc-800/80 flex items-start gap-2.5 sm:gap-3 text-xs sm:text-sm text-zinc-300">
-                  <label className="mt-0.5 shrink-0 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={marketingConsent}
-                      onChange={(e) => setMarketingConsent(e.target.checked)}
-                      aria-labelledby="checkout-marketing-title checkout-marketing-text"
-                      className="peer sr-only"
-                    />
-                    <span
-                      className={`w-4 h-4 rounded flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#CCFF00] peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[#0e1319] ${
-                        marketingConsent
-                          ? "bg-[#CCFF00] text-black"
-                          : "border border-zinc-700 bg-zinc-900"
-                      }`}
-                    >
-                      {marketingConsent && (
-                        <Check className="w-3.5 h-3.5 stroke-[3]" />
-                      )}
-                    </span>
-                  </label>
-                  <div className="leading-relaxed">
-                    <p
-                      id="checkout-marketing-title"
-                      className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-400"
-                    >
-                      Optional Marketing Consent
-                    </p>
-                    <p id="checkout-marketing-text" className="mt-0.5">
-                      I would like to receive BXStrength offers, training
-                      updates and marketing communications. I understand that I
-                      can unsubscribe at any time.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Bar */}
-              <div className="flex flex-row items-center justify-between gap-2.5 sm:gap-3 pt-4 border-t border-zinc-800/80">
-                <button
-                  type="button"
-                  onClick={() => setMainStage(1)}
-                  className="px-4 sm:px-5 py-3 rounded-xl border border-zinc-800 hover:border-zinc-700 bg-zinc-900 text-xs font-bold text-zinc-300 flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-colors"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Back</span>
-                </button>
-
-                <button
-                  type="button"
-                  disabled={
-                    !termsAccepted ||
-                    !ageConfirmed ||
-                    !virtualCoachingConfirmed ||
-                    !healthConfirmed ||
-                    !spaceConfirmed ||
-                    Boolean(user && !contactSelectionValid)
-                  }
-                  onClick={continueToPayment}
-                  className="bg-[#CCFF00] hover:bg-[#b8e600] disabled:opacity-50 text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
-                >
-                  <span>PROCEED TO PAYMENT</span>
-                  <ArrowRight className="w-4 h-4 stroke-[3]" />
-                </button>
-              </div>
-            </div>
+            <CheckoutTermsStep
+              serviceTitle={service.title}
+              displayTotalPrice={displayTotalPrice}
+              user={user}
+              contact={{
+                selectedMethods,
+                onToggleMethod: toggleMethod,
+                whatsappIsCurrent,
+                setWhatsappIsCurrent,
+                whatsappNumberInput,
+                setWhatsappNumberInput,
+                contactPhoneInput,
+                setContactPhoneInput,
+              }}
+              agreements={agreementState}
+              proceedDisabled={
+                !agreementState.termsAccepted ||
+                !agreementState.ageConfirmed ||
+                !agreementState.virtualCoachingConfirmed ||
+                !agreementState.healthConfirmed ||
+                !agreementState.spaceConfirmed ||
+                Boolean(user && !contactSelectionValid)
+              }
+              onBack={() => setMainStage(1)}
+              onProceed={continueToPayment}
+            />
           )}
 
           {mainStage === 3 && user && (
-            <div className="space-y-5 sm:space-y-6">
-              {/* Header inside Payment stage */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white mt-1">
-                    <span className="text-[#CCFF00]">BX</span>{" "}
-                    {service.title.replace(/^BX\s*/i, "")}
-                  </h2>
-                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-zinc-400 mt-0.5">
-                    COMPLETE YOUR BOOKING
-                  </p>
-                </div>
-              </div>
-
-              {/* Responsive Column Layout: 1 col on mobile & tablet, 2 cols on desktop */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-stretch">
-                {/* Left Column: Booking Summary */}
-                <div className="flex h-full flex-col">
-                  <div className="flex flex-1 flex-col gap-3 sm:gap-4 rounded-2xl bg-[#0e1319] border border-zinc-800/90 p-4 sm:p-5 shadow-xl">
-                    <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
-                      <h4 className="text-xs sm:text-sm font-black text-white uppercase tracking-wide">
-                        Booking Summary
-                      </h4>
-                      {(isCustomPlan || isWeeklyPlan || isMonthlyPlan) && (
-                        <button
-                          type="button"
-                          onClick={() => setMainStage(1)}
-                          className="text-xs font-bold text-[#CCFF00] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
-                        >
-                          <Pencil className="w-3.5 h-3.5 text-[#CCFF00]" />
-                          <span>Edit</span>
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Service Rows with Application Theme Lime Icons */}
-                    <div className="space-y-2.5 sm:space-y-3">
-                      {packageDetails.items.map((item, idx) => {
-                        const IconComp = item.icon;
-                        return (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between text-xs"
-                          >
-                            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-                              <IconComp className="w-4 h-4 text-[#CCFF00] shrink-0" />
-                              <span className="font-bold text-white truncate">
-                                {item.name}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-3 sm:gap-4 shrink-0 ml-2">
-                              <span className="font-bold text-white text-right">
-                                {item.price.startsWith("£")
-                                  ? "Included"
-                                  : item.price}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Summary Totals */}
-                    <div className="pt-3 border-t border-zinc-800/80 space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2 text-zinc-300">
-                          <Clock className="w-4 h-4 text-[#CCFF00] shrink-0" />
-                          <span>Total Session Time</span>
-                        </div>
-                        <span className="font-bold text-white">
-                          {packageDetails.totalDurationLabel}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-xs pt-1">
-                        <div className="flex items-center gap-2 text-zinc-300">
-                          <Coins className="w-4 h-4 text-[#CCFF00] shrink-0" />
-                          <span>Total Price</span>
-                        </div>
-                        <span className="text-xl sm:text-2xl font-black text-white">
-                          £{displayTotalPrice}
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setMainStage(2)}
-                      className="mt-auto pt-3 px-3.5 sm:px-4 py-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 hover:text-white text-zinc-300 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>Back</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Right Column: Payment Method */}
-                <div className="flex h-full flex-col p-4 sm:p-5 rounded-2xl bg-[#0e1319] border border-zinc-800/90 shadow-xl space-y-4 sm:space-y-5">
-                  <h4 className="text-xs sm:text-sm font-black text-white uppercase tracking-wide">
-                    Payment Method
-                  </h4>
-
-                  {/* Option 1: Card / UPI / International Card (Selected) */}
-                  <div className="p-3.5 sm:p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-3">
-                    <div className="flex items-start gap-2.5 sm:gap-3">
-                      {/* Theme Lime radio button */}
-                      <div className="w-4 h-4 rounded-full border-2 border-[#CCFF00] flex items-center justify-center shrink-0 mt-0.5">
-                        <div className="w-2 h-2 rounded-full bg-[#CCFF00]" />
-                      </div>
-                      <div>
-                        <p className="text-xs sm:text-sm font-bold text-white">
-                          Credit / Debit Card
-                        </p>
-                        <p className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5">
-                          Secure payment powered by Razorpay
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Payment Logos Pill Row - Responsive wrap */}
-                    <div className="flex items-center gap-1.5 sm:gap-2 pt-1 flex-wrap pl-0 sm:pl-7">
-                      {/* VISA */}
-                      <span className="inline-flex items-center justify-center px-2 py-0.5 rounded bg-white text-[#1a1f71] font-black text-[10px] tracking-tight border border-zinc-200 shadow-xs">
-                        VISA
-                      </span>
-
-                      {/* Mastercard */}
-                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-white border border-zinc-200 shadow-xs">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#eb001b]" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#f79e1b] -ml-1.5 opacity-90" />
-                      </span>
-
-                      {/* AMEX */}
-                      <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded bg-[#007bc1] text-white font-extrabold text-[9px] tracking-tight shadow-xs">
-                        AMEX
-                      </span>
-
-                      {/* JCB */}
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white border border-zinc-200 shadow-xs">
-                        <span className="w-1 h-2.5 rounded-xs bg-[#005a9c]" />
-                        <span className="w-1 h-2.5 rounded-xs bg-[#d9272e]" />
-                        <span className="w-1 h-2.5 rounded-xs bg-[#00873c]" />
-                        <span className="text-[9px] font-black text-zinc-900 ml-0.5">
-                          JCB
-                        </span>
-                      </span>
-
-                      {/* Apple Pay */}
-                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-black text-white text-[9px] font-bold border border-zinc-700 shadow-xs">
-                        <span></span>Pay
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={isProcessing}
-                    onClick={() => void handleProceedToPayment()}
-                    className="w-full bg-[#CCFF00] hover:bg-[#b8e600] active:scale-[0.99] disabled:opacity-50 text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3.5 sm:py-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(204,255,0,0.3)]"
-                  >
-                    <span>
-                      {isProcessing
-                        ? "Processing..."
-                        : `Pay £${displayTotalPrice}`}
-                    </span>
-                    <ArrowRight className="w-4 h-4 stroke-[3]" />
-                  </button>
-                  {canTestMockPayment && (
-                    <button
-                      type="button"
-                      disabled={isProcessing}
-                      onClick={() => void handleProceedToPayment(true)}
-                      className="w-full border border-amber-400/60 bg-amber-400/10 hover:bg-amber-400/20 disabled:opacity-50 text-amber-200 font-bold text-xs uppercase tracking-wider py-3 rounded-xl transition-colors"
-                    >
-                      Simulate successful payment (test only)
-                    </button>
-                  )}
-                  
-
-                  {/* Security indicator */}
-                  <div className="flex items-center justify-center gap-1.5 text-[10px] sm:text-[11px] text-zinc-400 text-center">
-                    <Lock className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                    <span>
-                      Your payment information is secure and encrypted.
-                    </span>
-                  </div>
-                </div>
-
-                {isSuccessAnimationVisible && (
-                  <div
-                    role="status"
-                    aria-live="assertive"
-                    aria-label="Payment successful. Opening your thank-you page."
-                    className="absolute inset-0 z-[60] flex items-center justify-center rounded-2xl bg-black/60 p-4 text-center backdrop-blur-sm"
-                  >
-                    <div className="payment-success-alert flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl border border-[#CCFF00]/40 bg-[#101318] px-6 py-7 shadow-[0_20px_80px_rgba(0,0,0,0.65)]">
-                      <div className="payment-success-overlay-icon relative flex h-20 w-20 items-center justify-center">
-                        <div className="absolute inset-0 rounded-full border-2 border-[#CCFF00]/25 border-t-[#CCFF00] payment-success-spinner" />
-                        {Array.from({ length: 16 }, (_, index) => (
-                          <span
-                            key={index}
-                            className="payment-success-firework-particle"
-                            style={
-                              {
-                                "--burst-angle": `${index * 22.5}deg`,
-                                "--burst-distance": `${42 + (index % 3) * 10}px`,
-                                "--burst-delay": `${(index % 4) * 25}ms`,
-                              } as React.CSSProperties
-                            }
-                          />
-                        ))}
-                        <div className="payment-success-overlay-check flex h-14 w-14 items-center justify-center rounded-full bg-[#CCFF00] text-black shadow-[0_0_35px_rgba(204,255,0,0.45)]">
-                          <Check className="h-8 w-8 stroke-[4]" />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <h2 className="text-xl font-black text-white sm:text-2xl">
-                          Payment Successful
-                        </h2>
-                        <p className="text-sm text-zinc-400">
-                          Taking you to your thank-you page…
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            <PaymentStep
+              serviceTitle={service.title}
+              packageDetails={packageDetails}
+              showEdit={isCustomPlan || isWeeklyPlan || isMonthlyPlan}
+              displayTotalPrice={displayTotalPrice}
+              isProcessing={isProcessing}
+              canTestMockPayment={canTestMockPayment}
+              isSuccessAnimationVisible={isSuccessAnimationVisible}
+              onEdit={() => setMainStage(1)}
+              onBack={() => setMainStage(2)}
+              onPay={() => void handleProceedToPayment()}
+              onSimulatePay={() => void handleProceedToPayment(true)}
+            />
           )}
 
-          {/* =====================================================================
-              STEP 4: CONFIRMED / COMPLETED SECTION
-              Pixel-accurate to reference screenshot Screenshot 2 & mandated text:
-              - Top: Green circle with checkmark & radiating celebratory burst rays
-              - "Thank You!"
-              - "Your booking request has been received."
-              - Receipt details card (Booking Reference, Services, Date, Time, Total Paid)
-              - Mandated text blocks:
-                "We’ll Contact You Soon"
-                "Thank you for booking with BXStrength. Our team will now confirm your session date and time and send you the final booking details, including the joining link and any required information, via email or WhatsApp."
-                "If you have any specific request, feel free to reply once you receive our confirmation message."
-              - Two horizontal buttons in one line:
-                Button 1: Home (redirects to dashboard)
-                Button 2: Contact Us (redirects to user dashboard create ticket section)
-              - Customer support email address at the end
-             ===================================================================== */}
           {(mainStage === 4 || isPaymentSuccess) && (
-            <div className="max-w-2xl mx-auto text-center space-y-4 py-1">
-              {/* Celebratory radiating burst rays with lime checkmark circle */}
-              <div className="payment-success-badge relative w-[4.5rem] h-[4.5rem] sm:w-20 sm:h-20 mx-auto flex items-center justify-center">
-                <svg
-                  className="payment-success-rays absolute inset-0 w-full h-full text-[#CCFF00]"
-                  viewBox="0 0 100 100"
-                  fill="none"
-                >
-                  {/* Cardinal rays */}
-                  <line
-                    x1="50"
-                    y1="5"
-                    x2="50"
-                    y2="10"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                  <line
-                    x1="50"
-                    y1="90"
-                    x2="50"
-                    y2="95"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                  <line
-                    x1="5"
-                    y1="50"
-                    x2="10"
-                    y2="50"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                  <line
-                    x1="90"
-                    y1="50"
-                    x2="95"
-                    y2="50"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                  {/* Diagonal rays */}
-                  <line
-                    x1="18"
-                    y1="18"
-                    x2="22"
-                    y2="22"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                  <line
-                    x1="78"
-                    y1="22"
-                    x2="82"
-                    y2="18"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                  <line
-                    x1="18"
-                    y1="82"
-                    x2="22"
-                    y2="78"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                  <line
-                    x1="78"
-                    y1="78"
-                    x2="82"
-                    y2="82"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="payment-success-mark w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#CCFF00] flex items-center justify-center text-black shadow-[0_0_30px_rgba(204,255,0,0.45)]">
-                  <Check className="w-8 h-8 sm:w-9 sm:h-9 stroke-[3.5] text-black" />
-                </div>
-              </div>
-
-              {/* Title & Subtitle */}
-              <div>
-                <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                  Thank You!
-                </h3>
-                <p className="text-zinc-400 text-xs sm:text-sm mt-1">
-                  Your booking request has been received.
-                </p>
-              </div>
-
-              {/* Receipt Summary Card */}
-              <div className="p-3 sm:p-4 rounded-2xl bg-[#0e1319] border border-zinc-800 text-left text-xs space-y-2 shadow-xl">
-                <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
-                  <div className="flex items-center gap-2 text-zinc-400">
-                    <UserIcon className="w-4 h-4 text-zinc-400 shrink-0" />
-                    <span>Booking Reference</span>
-                  </div>
-                  <span className="font-black text-white text-xs sm:text-sm">
-                    {confirmedOrderId}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
-                  <div className="flex items-center gap-2 text-zinc-400">
-                    <Award className="w-4 h-4 text-zinc-400 shrink-0" />
-                    <span>Services</span>
-                  </div>
-                  <span className="font-bold text-white text-xs">
-                    {packageDetails.servicesCount} services (
-                    {packageDetails.totalDurationLabel})
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
-                  <div className="flex items-center gap-2 text-zinc-400">
-                    <Calendar className="w-4 h-4 text-zinc-400 shrink-0" />
-                    <span>Date</span>
-                  </div>
-                  <span className="font-bold text-white text-xs">
-                    {bookingDate}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
-                  <div className="flex items-center gap-2 text-zinc-400">
-                    <Clock className="w-4 h-4 text-zinc-400 shrink-0" />
-                    <span>Time (Your Local Time)</span>
-                  </div>
-                  <span className="font-bold text-white text-xs">
-                    10:00 (Your Local Time)
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <div className="flex items-center gap-2 text-zinc-400">
-                    <Coins className="w-4 h-4 text-zinc-400 shrink-0" />
-                    <span>Total Paid</span>
-                  </div>
-                  <span className="text-base sm:text-lg font-black text-white">
-                    £{displayTotalPrice}
-                  </span>
-                </div>
-              </div>
-
-              {/* Mandated User Copy Box */}
-              <div className="p-3 sm:p-4 rounded-2xl bg-zinc-900/70 border border-zinc-800 text-left space-y-2">
-                <h4 className="text-xs sm:text-sm font-black text-white uppercase tracking-wider text-center text-[#CCFF00]">
-                  We’ll Contact You Soon
-                </h4>
-                <p className="text-xs text-zinc-300 leading-relaxed text-center sm:text-left">
-                  Thank you for booking with BXStrength. Our team will now
-                  confirm your session date and time and send you the final
-                  booking details, including the joining link and any required
-                  information, via email or WhatsApp.
-                </p>
-                <p className="text-[10px] sm:text-[11px] text-zinc-400 leading-relaxed text-center sm:text-left pt-1 border-t border-zinc-800/80">
-                  If you have any specific request, feel free to reply once you
-                  receive our confirmation message.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleRedirectHome}
-                className="w-full bg-[#CCFF00] hover:bg-[#b8e600] text-black font-black text-xs sm:text-sm uppercase tracking-wider py-3 px-3 sm:px-4 rounded-xl flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md transition-all active:scale-[0.98]"
-              >
-                <span>Go to Dashboard</span>
-                <ArrowRight className="w-3.5 sm:w-4 h-3.5 sm:h-4 stroke-[3]" />
-              </button>
-
-              {/* Customer Support Email Address */}
-              <div className="pt-1 text-center">
-                <p className="text-xs text-zinc-400 flex items-center justify-center gap-1.5 flex-wrap">
-                  <Mail className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                  <span>Customer Support:</span>
-                  <a
-                    href="mailto:support@bxstrength.com"
-                    className="font-bold text-[#CCFF00] hover:underline"
-                  >
-                    support@bxstrength.com
-                  </a>
-                </p>
-              </div>
-            </div>
+            <BookingConfirmedStep
+              confirmedOrderId={confirmedOrderId}
+              servicesCount={packageDetails.servicesCount}
+              totalDurationLabel={packageDetails.totalDurationLabel}
+              bookingDate={bookingDate}
+              displayTotalPrice={displayTotalPrice}
+              onGoToDashboard={handleRedirectHome}
+            />
           )}
         </div>
       </div>

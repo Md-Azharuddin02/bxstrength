@@ -224,21 +224,22 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
     }
   };
 
-  const handleTransferToHeadCoach = () => {
+  // A ticket is not an enquiry (separate records), so "transfer" hands the ticket itself to the head coach.
+  const handleTransferToHeadCoach = async () => {
     if (!selectedTicket) return;
-    try {
-      VelocityAPI.transferEnquiryToHeadCoach(
-        selectedTicket.id,
-        user ? user.name : 'Customer Support Desk',
-        `Support Ticket #${selectedTicket.id}: ${selectedTicket.description}`,
-        selectedTicket.category,
-        selectedTicket.priority === 'medium' ? 'normal' : selectedTicket.priority
-      );
-      onShowToast(`Enquiry for "${selectedTicket.userName}" transferred directly to Head Coach Enquiries Tab!`);
-      fetchTickets();
-    } catch (err: any) {
-      onShowToast(err.message || 'Failed to transfer to Head Coach');
-    }
+    const head = coaches.find(c => c.role === 'headcoach' || /head|chief/i.test(c.coachPosition || ''));
+    const headName = head?.name || 'Head Coach';
+    const note = `Transferred by ${user ? user.name : 'Customer Support Desk'}`;
+    const saved = await saveTicketChange({
+      assignedAgent: headName,
+      assignedAgentRole: 'headcoach',
+      status: selectedTicket.status === 'new' ? 'assigned' : undefined,
+      escalation: { reason: note, escalatedTo: headName, priorityAtEscalation: selectedTicket.priority },
+    });
+    if (!saved) return;
+    setSelectedTicket({ ...selectedTicket, assignedAgent: headName, assignedAgentRole: 'headcoach', status: selectedTicket.status === 'new' ? 'assigned' : selectedTicket.status });
+    fetchTickets();
+    onShowToast(`Ticket #${selectedTicket.id} transferred to ${headName}.`);
   };
 
   const handleConfirmDelete = async () => {
@@ -288,7 +289,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
           }}
         />
 
-        <main className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3 sm:p-5 space-y-6">
+        <main className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3 sm:p-5 space-y-6 ${activeTab === 'inbox' ? 'lg:overflow-hidden lg:flex lg:flex-col lg:space-y-0' : ''}`}>
 
         {activeTab === 'dashboard' && (
           <SupportOverview
@@ -338,7 +339,29 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
 
         {/* TAB 1: CENTRAL TICKET INBOX & 360 WORKSPACE */}
         {activeTab === 'inbox' && (
-          <div className="space-y-4">
+          <div className="space-y-4 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col lg:space-y-0 lg:gap-4">
+            {/* Status dashboard: counts use the same rules as the status filter below; click to filter */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+              {([
+                { key: 'all', label: 'Total', color: 'text-white', n: tickets.length },
+                { key: 'new', label: 'Open', color: 'text-amber-400', n: tickets.filter(t => t.status === 'new' || t.status === 'open' || !t.status).length },
+                { key: 'in_progress', label: 'In Progress', color: 'text-sky-400', n: tickets.filter(t => t.status === 'in_progress' || t.status === 'assigned').length },
+                { key: 'waiting_customer', label: 'Awaiting Client', color: 'text-violet-400', n: tickets.filter(t => t.status === 'waiting_customer').length },
+                { key: 'resolved', label: 'Resolved', color: 'text-emerald-400', n: tickets.filter(t => t.status === 'resolved').length },
+                { key: 'closed', label: 'Closed', color: 'text-zinc-300', n: tickets.filter(t => t.status === 'closed').length },
+                { key: 'escalated', label: 'Escalated', color: 'text-red-400', n: tickets.filter(t => t.escalationHistory?.length).length },
+              ] as const).map(c => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => setStatusFilter(c.key)}
+                  className={`p-4 rounded-xl border text-left cursor-pointer transition-all ${statusFilter === c.key ? 'bg-[#18181b] border-zinc-500 shadow-md' : 'bg-[#121214] border-zinc-800 hover:border-zinc-700'}`}
+                >
+                  <span className={`text-[10px] font-black uppercase block tracking-widest ${c.color}`}>{c.label}</span>
+                  <span className={`text-2xl font-black mt-1 block ${c.color}`}>{c.n}</span>
+                </button>
+              ))}
+            </div>
             <TicketFiltersBar
               searchTerm={searchTerm}
               onSearchChange={setSearchTerm}
@@ -354,7 +377,7 @@ export const SupportDashboardView: React.FC<SupportDashboardViewProps> = ({
             />
 
             {/* SPLIT VIEW WORKSPACE (LEFT: TICKET LIST, RIGHT: DETAILED TICKET & 360 PROFILE) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:flex-1 lg:min-h-0 lg:grid-rows-[minmax(0,1fr)]">
               <TicketList
                 tickets={filteredTickets}
                 isLoading={isLoading}

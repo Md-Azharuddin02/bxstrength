@@ -12,7 +12,7 @@ interface TicketListProps {
 
 export const TicketList: React.FC<TicketListProps> = ({ tickets: filteredTickets, isLoading, selectedTicketId, onSelect }) => {
   return (
-    <div className="lg:col-span-5 bg-[#121214] border border-zinc-800 rounded-2xl p-4 space-y-3 lg:h-[calc(100dvh-11rem)] h-[70dvh] min-h-[420px] overflow-y-auto custom-scrollbar">
+    <div className="lg:col-span-5 bg-[#121214] border border-zinc-800 rounded-2xl p-4 space-y-3 lg:h-full h-[70dvh] min-h-[420px] overflow-y-auto custom-scrollbar">
       <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
         <span className="text-sm font-bold text-white">Tickets <span className="text-zinc-500 font-normal tabular-nums">{filteredTickets.length}</span></span>
         <span className="text-xs text-zinc-500">Updates every minute</span>

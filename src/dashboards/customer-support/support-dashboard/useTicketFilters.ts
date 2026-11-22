@@ -34,6 +34,7 @@ export const useTicketFilters = (tickets: SupportTicket[], activeRoleView: RoleV
 
     const matchesStatus = statusFilter === 'all' || 
       (statusFilter === 'new' ? (t.status === 'new' || t.status === 'open') :
+       statusFilter === 'escalated' ? Boolean(t.escalationHistory?.length) :
        statusFilter === 'open' ? (t.status !== 'resolved' && t.status !== 'closed') :
        statusFilter === 'in_progress' ? (t.status === 'in_progress' || t.status === 'assigned') :
        t.status === statusFilter);

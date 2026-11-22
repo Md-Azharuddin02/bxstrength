@@ -15,6 +15,9 @@ import { CoachesManager } from './CoachesManager';
 import { FreeConsultationsView } from '../head-coach/FreeConsultationsView';
 import { FreeAssessmentsView } from '../head-coach/FreeAssessmentsView';
 import { PaidBookingsView } from '../head-coach/PaidBookingsView';
+import { NotificationBell } from '../customer-support/NotificationBell';
+import { useStaffNotifications, parseLink } from '../../hooks/useStaffNotifications';
+import type { InAppNotification } from '../../types';
 import { TicketManagement } from '../customer-support/TicketManagement';
 import {
   LayoutDashboard, Users, Calendar, Dumbbell, Utensils,
@@ -117,6 +120,8 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
     )
   ));
   const isCoach = normRole === 'coach' || isHeadCoach;
+  // A plain coach gets their own alerts only; the shared staff feed lists every client's new records.
+  const bellFeed = useStaffNotifications(normRole === 'coach' && !isHeadCoach ? user.email : 'staff');
 
   const coachPerms = VelocityAPI.getCoachPermissions();
   const allowedCoachTabs: string[] = [];
@@ -194,6 +199,18 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
   ];
 
   // Auto-redirect coach if currently on a restricted tab (e.g., Financial Billing)
+  // The shared staff feed uses the support dashboard's tab names; map them to this dashboard's tabs and
+  // show a user only the alerts for sections they can open.
+  const NOTIF_TAB: Record<string, string> = { inbox: 'tickets', assessments: 'free_assessments' };
+  const notifTab = (n: InAppNotification) => { const t = parseLink(n).tab; return NOTIF_TAB[t] || t; };
+  const bellItems = bellFeed.items.filter(n => !isCoach || allowedCoachTabs.includes(notifTab(n)));
+  const bellUnread = bellItems.filter(n => !n.isRead).length;
+  const openNotification = (n: InAppNotification) => {
+    bellFeed.markRead([n.id]);
+    const t = notifTab(n);
+    if (!isCoach || allowedCoachTabs.includes(t)) setActiveTab(t);
+  };
+
   useEffect(() => {
     if (isCoach && !allowedCoachTabs.includes(activeTab)) {
       const fallbackTab = allowedCoachTabs[0] || 'overview';
@@ -323,6 +340,16 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
 
       {/* Main CRM Workspace */}
       <div ref={contentRef} className="flex-grow min-w-0 overflow-y-auto">
+      <div className="sticky top-0 z-30 flex justify-end px-4 sm:px-8 py-3 bg-[#0a0a0b]/90 backdrop-blur border-b border-zinc-800/60">
+        <NotificationBell
+          items={bellItems}
+          unread={bellUnread}
+          loading={bellFeed.loading}
+          error={bellFeed.error}
+          onOpen={openNotification}
+          onMarkAllRead={() => bellFeed.markRead(bellItems.filter(n => !n.isRead).map(n => n.id))}
+        />
+      </div>
       <main className="p-4 sm:p-8 max-w-7xl mx-auto w-full">
         {isLoading ? (
           <div className="space-y-6">

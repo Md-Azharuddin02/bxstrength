@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { ConsultationBooking, User } from '../../types';
 import { VelocityAPI } from '../../services/api';
 import { normalizeRole } from '../../utils/auth';
@@ -38,6 +39,7 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Assign Modal State
   const [assignTarget, setAssignTarget] = useState<ConsultationBooking | null>(null);
@@ -100,8 +102,8 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
     return Array.from(uniqueMap.values());
   }, [coaches, dbCoaches, user, isCustomerSupport]);
 
-  const loadConsultations = async () => {
-    setIsLoading(true);
+  const loadConsultations = async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       // The server only gives a coach the demos assigned to them
       const coachFilter = (normRole === 'coach' && !isHeadCoach) ? user.id : undefined;
@@ -115,9 +117,15 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
     }
   };
 
+  useEffect(() => { loadConsultations(); }, []);
+
+  // Poll only while a demo is underway (coach assigned/confirmed, not finished); idle otherwise.
+  const hasLiveDemo = consultations.some(c => c.status === 'Assigned' || c.status === 'Confirmed');
   useEffect(() => {
-    loadConsultations();
-  }, []);
+    if (!hasLiveDemo) return;
+    const timer = setInterval(() => { if (!document.hidden) loadConsultations(true); }, 15000);
+    return () => clearInterval(timer);
+  }, [hasLiveDemo]);
 
   // Filter based on role and tab
   const filteredList = useMemo(() => {
@@ -320,61 +328,95 @@ export const FreeConsultationsView: React.FC<FreeConsultationsViewProps> = ({
       await VelocityAPI.deleteConsultation(deletingId);
       onShowToast(`Consultation #${deletingId} deleted.`);
       setDeletingId(null);
+      setSelectedId(null);
       loadConsultations();
     } catch (err: any) {
       onShowToast('Failed to delete consultation.');
     }
   };
 
+  const selected = consultations.find(c => c.id === selectedId) || null;
+
   return (
     <div className="space-y-6 text-white font-sans">
 
-      {/* Top Banner */}
-      <ConsultationsHeader
-        isCustomerSupport={isCustomerSupport}
-        isHeadCoachOrAdmin={isHeadCoachOrAdmin}
-        leadCount={filteredList.length}
-        isLoading={isLoading}
-        onRefresh={loadConsultations}
-      />
-
-      {/* KPI Cards / Filter Shortcuts */}
-      <ConsultationStatsCards
-        stats={stats}
-        filterTab={filterTab}
-        isHeadCoachOrAdmin={isHeadCoachOrAdmin}
-        onSelectTab={setFilterTab}
-      />
-
-      {/* Search and Filters Bar */}
-      <ConsultationFilters
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        filterTab={filterTab}
-        onSelectTab={setFilterTab}
-        isHeadCoachOrAdmin={isHeadCoachOrAdmin}
-      />
-
-      {/* Main List */}
-      {filteredList.length === 0 ? (
-        <ConsultationsEmptyState filterTab={filterTab} />
-      ) : (
+      {selected ? (
         <div className="space-y-4">
-          {filteredList.map((item) => (
-            <ConsultationCard
-              key={item.id}
-              item={item}
-              isAdmin={isAdmin}
-              isHeadCoachOrAdmin={isHeadCoachOrAdmin}
-              isCustomerSupport={isCustomerSupport}
-              onTakeMyself={handleTakeMyself}
-              onOpenAssign={handleOpenAssignModal}
-              onOpenStatus={handleOpenStatusModal}
-              onMarkCompleted={handleMarkCompleted}
-              onDelete={setDeletingId}
-            />
-          ))}
+          <button
+            onClick={() => setSelectedId(null)}
+            className="flex items-center gap-1.5 text-xs font-bold uppercase text-zinc-300 hover:text-white cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 text-[#CCFF00]" /> Back to demo sessions
+          </button>
+          <ConsultationCard
+            item={selected}
+            isAdmin={isAdmin}
+            isHeadCoachOrAdmin={isHeadCoachOrAdmin}
+            isCustomerSupport={isCustomerSupport}
+            onTakeMyself={handleTakeMyself}
+            onOpenAssign={handleOpenAssignModal}
+            onOpenStatus={handleOpenStatusModal}
+            onMarkCompleted={handleMarkCompleted}
+            onDelete={setDeletingId}
+          />
         </div>
+      ) : (
+        <>
+          <ConsultationsHeader
+            isCustomerSupport={isCustomerSupport}
+            isHeadCoachOrAdmin={isHeadCoachOrAdmin}
+            leadCount={filteredList.length}
+            isLoading={isLoading}
+            onRefresh={() => loadConsultations()}
+          />
+
+          <ConsultationStatsCards
+            stats={stats}
+            filterTab={filterTab}
+            isHeadCoachOrAdmin={isHeadCoachOrAdmin}
+            onSelectTab={setFilterTab}
+          />
+
+          <ConsultationFilters
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            filterTab={filterTab}
+            onSelectTab={setFilterTab}
+            isHeadCoachOrAdmin={isHeadCoachOrAdmin}
+          />
+
+          {filteredList.length === 0 ? (
+            <ConsultationsEmptyState filterTab={filterTab} />
+          ) : (
+            <div className="bg-[#121214] border border-zinc-800 rounded-2xl divide-y divide-zinc-800 overflow-hidden">
+              {filteredList.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setSelectedId(item.id)}
+                  className="w-full text-left px-4 sm:px-5 py-3.5 flex items-center gap-4 hover:bg-zinc-900/70 transition-colors cursor-pointer"
+                >
+                  <div className="w-10 h-10 shrink-0 rounded-full bg-zinc-800 border border-zinc-700 text-[#CCFF00] font-black flex items-center justify-center">
+                    {(item.clientName || '?').charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold text-white truncate">{item.clientName}</div>
+                    <div className="text-xs text-zinc-400 truncate">
+                      {item.goal || 'Free demo'} · {item.assignedCoachName ? `Coach: ${item.assignedCoachName}` : 'Unassigned'}
+                    </div>
+                  </div>
+                  <span className="hidden sm:inline text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 shrink-0">
+                    {item.status}
+                  </span>
+                  <div className="hidden sm:block text-right shrink-0">
+                    <div className="font-mono text-[11px] text-amber-300">{item.id}</div>
+                    <div className="text-[11px] text-zinc-500">{new Date(item.scheduledAt || item.createdAt).toLocaleDateString()}</div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-zinc-500 shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* MODAL 1: Assign Specialist Coach & Schedule Free Demo */}

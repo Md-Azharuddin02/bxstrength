@@ -5,6 +5,7 @@ import { VelocityAPI, getApiUrl, apiFetch } from '../services/api';
 import { sendConsultationConfirmationEmail } from '../services/emailService';
 import { useAuth } from '../context/AuthContext';
 import { Calendar, Clock, User, CheckCircle2, X, Dumbbell, ShieldCheck, Bell, Info, ArrowLeft, Phone, Mail, Award, Check, Flame, AlertTriangle, LayoutDashboard } from 'lucide-react';
+import { Select } from './ui/Select';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -266,7 +267,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
       {/* Floating error toast (auto-dismisses, closable) */}
       {submitError && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[70] w-[calc(100%-2rem)] max-w-md animate-in fade-in slide-in-from-top-3 duration-200">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[10000] w-[calc(100%-2rem)] max-w-md animate-in fade-in slide-in-from-top-3 duration-200">
           <div className="flex items-start gap-3 bg-[#1a1012]/95 backdrop-blur-xl border border-red-700/70 px-4 py-3.5 rounded-2xl shadow-2xl shadow-red-950/40">
             <div className="w-9 h-9 rounded-xl bg-red-500/15 border border-red-700/60 flex items-center justify-center shrink-0">
               <AlertTriangle className="w-5 h-5 text-red-400" />
@@ -498,7 +499,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 <label htmlFor={goalInputId} className="block text-[11px] font-bold uppercase tracking-wider text-zinc-300 mb-2">
                   PRIMARY GOAL / EXERCISE PROTOCOL *
                 </label>
-                <select
+                <Select
                   id={goalInputId}
                   value={goal}
                   onChange={(e) => setGoal(e.target.value)}
@@ -509,7 +510,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       {g.title} ({g.category}) — Standard {g.durationText}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               {selectedGoalObj && (

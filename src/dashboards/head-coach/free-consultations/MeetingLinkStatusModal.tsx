@@ -1,6 +1,7 @@
 import React from 'react';
 import { ConsultationBooking } from '../../../types';
 import { Calendar, Video, X } from 'lucide-react';
+import { Select } from '../../../components/ui/Select';
 
 interface MeetingLinkStatusModalProps {
   target: ConsultationBooking;
@@ -97,7 +98,7 @@ export const MeetingLinkStatusModal: React.FC<MeetingLinkStatusModalProps> = ({
             <label className="block text-[11px] font-bold uppercase text-zinc-300 mb-1.5">
               DEMO SESSION STATUS
             </label>
-            <select
+            <Select
               value={status}
               onChange={(e) => onStatusChange(e.target.value)}
               className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-4 py-3 text-xs font-bold text-white focus:outline-none focus:border-[#CCFF00] cursor-pointer"
@@ -106,7 +107,7 @@ export const MeetingLinkStatusModal: React.FC<MeetingLinkStatusModalProps> = ({
               <option value="Completed">Completed (Demo Conducted)</option>
               <option value="Rescheduled">Rescheduled</option>
               <option value="Cancelled">Cancelled</option>
-            </select>
+            </Select>
           </div>
 
           <div>

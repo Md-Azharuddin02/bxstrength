@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { formatScheduledAt } from '../../utils/schedule';
 import { PaidPackageBooking, User } from '../../types';
 import { VelocityAPI, decodeHtmlEntities, formatMeetingUrl } from '../../services/api';
 import { normalizeRole } from '../../utils/auth';
@@ -7,6 +8,7 @@ import {
   Mail, Phone, MessageCircle, Search, Calendar, Award, Zap,
   Layers, ChevronDown, ChevronUp, ShieldCheck
 } from 'lucide-react';
+import { Select } from '../../components/ui/Select';
 
 interface CoachAvailabilityRosterProps {
   coaches: User[];
@@ -380,6 +382,13 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
                               </span>
                             </div>
 
+                            <div className="text-[11px] flex items-center justify-between">
+                              <span className="text-zinc-500">Scheduled:</span>
+                              {formatScheduledAt(b.scheduledAt)
+                                ? <span className="text-[#CCFF00] font-bold">{formatScheduledAt(b.scheduledAt)}</span>
+                                : <span className="text-amber-400/80">Not scheduled</span>}
+                            </div>
+
                             {/* Meeting Link status */}
                             <div className="text-[11px] pt-1 border-t border-zinc-800/40 flex items-center justify-between">
                               <span className="text-zinc-500">Live Video:</span>
@@ -483,7 +492,7 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
                 <label className="block text-[11px] font-bold uppercase text-zinc-400 mb-1.5">
                   Select Unassigned Booking <span className="text-red-400">*</span>
                 </label>
-                <select
+                <Select
                   value={selectedBookingId}
                   onChange={(e) => setSelectedBookingId(e.target.value)}
                   required
@@ -495,7 +504,7 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
                       {decodeHtmlEntities(b.clientName)} — {decodeHtmlEntities(b.packageName)} [Order ID: {b.orderId || b.id}]
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               {/* Scheduled Session Date & Time */}

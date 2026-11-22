@@ -1,7 +1,7 @@
 import React from 'react';
 import { User, AthleteAssessment } from '../../types';
 import {
-  ClipboardCheck, CheckCircle2, Clock, Sparkles, ChevronRight
+  ClipboardCheck, CheckCircle2, Sparkles, ChevronRight
 } from 'lucide-react';
 import { decodeHtmlEntities } from '../../services/api';
 
@@ -37,8 +37,6 @@ export const MyAssessmentsView: React.FC<MyAssessmentsViewProps> = ({
       </div>
     );
   }
-
-  const isReviewed = latestAssessment?.status === 'Reviewed' || latestAssessment?.status === 'Completed';
 
   const formatSubmittedDate = (dateStr?: string) => {
     if (!dateStr) return 'Recently';
@@ -106,28 +104,13 @@ export const MyAssessmentsView: React.FC<MyAssessmentsViewProps> = ({
           {/* Header Status Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-zinc-800">
             <div className="flex items-center gap-3">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-lg ${
-                isReviewed
-                  ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400'
-                  : 'bg-amber-500/20 border border-amber-500/40 text-amber-400'
-              }`}>
-                {isReviewed ? (
-                  <CheckCircle2 className="w-7 h-7" />
-                ) : (
-                  <Clock className="w-7 h-7 animate-pulse" />
-                )}
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-400">
+                <CheckCircle2 className="w-7 h-7" />
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-mono text-[10px] font-bold text-amber-400 bg-amber-950/60 px-2.5 py-0.5 border border-amber-800/80 rounded">
                     ORDER ID: {latestAssessment.id}
-                  </span>
-                  <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full font-mono ${
-                    isReviewed
-                      ? 'bg-emerald-500 text-black'
-                      : 'bg-amber-500 text-black'
-                  }`}>
-                    {isReviewed ? '✓ REVIEWED BY HEAD COACH' : '● UNDER HEAD COACH REVIEW'}
                   </span>
                 </div>
                 <h3 className="text-lg sm:text-xl font-black uppercase text-white tracking-tight mt-1">

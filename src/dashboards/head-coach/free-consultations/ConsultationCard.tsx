@@ -161,7 +161,18 @@ export const ConsultationCard: React.FC<ConsultationCardProps> = ({
           </div>
 
           {/* Live Meeting Link display */}
-          {item.meetingLink && (
+          {item.meetingLink && (item.status === 'Completed' || item.status === 'Cancelled') && (
+            <div className="mt-3 pt-3 border-t border-zinc-800/80">
+              <span
+                aria-disabled="true"
+                className="inline-flex items-center gap-1.5 bg-zinc-900 text-zinc-500 border border-zinc-800 px-3 py-1.5 rounded-lg font-black text-xs cursor-not-allowed select-none"
+              >
+                <Video className="w-3.5 h-3.5" />
+                <span>MEETING LINK INACTIVE — SESSION {item.status === 'Completed' ? 'COMPLETED' : 'CANCELLED'}</span>
+              </span>
+            </div>
+          )}
+          {item.meetingLink && item.status !== 'Completed' && item.status !== 'Cancelled' && (
             <div className="mt-3 pt-3 border-t border-zinc-800/80 flex flex-wrap items-center justify-between gap-2">
               <a
                 href={formatMeetingUrl(item.meetingLink)}

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { RichPlanEditor } from '../../components/ui/RichPlanEditor';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { Select } from '../../components/ui/Select';
 
 interface ProgramManagerProps {
   programs?: any[];
@@ -234,7 +235,7 @@ export const ProgramManager: React.FC<ProgramManagerProps> = ({
           </div>
 
           {isHeadCoachOrAdmin && (
-            <select
+            <Select
               value={coachFilter}
               onChange={(e) => setCoachFilter(e.target.value)}
               className="py-1.5 px-3 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-white focus:outline-none focus:border-amber-400 cursor-pointer"
@@ -243,7 +244,7 @@ export const ProgramManager: React.FC<ProgramManagerProps> = ({
               {coaches.map(c => (
                 <option key={c.id} value={c.name}>{c.name}</option>
               ))}
-            </select>
+            </Select>
           )}
         </div>
       </div>

@@ -322,23 +322,25 @@ export const assignAssessment = async (req: Request, res: Response) => {
 export const updateAssessmentStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { status, coachFeedback, recommendedPlan, coachNotes } = req.body;
-
-    if (!status) {
-      return res.status(400).json({ error: 'Status is required' });
-    }
+    const { status, coachFeedback, recommendedPlan } = req.body;
+    // Notes are a log: each save appends an entry stamped with author, role and time.
+    const author = (req as any).user;
+    const newNote = typeof req.body.coachNotes === 'string' ? req.body.coachNotes.trim() : '';
+    const noteEntry = newNote
+      ? `[${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })}] ${author?.name || author?.email || 'Staff'} (${String(author?.role || 'staff').replace(/_/g, ' ')}):\n${newNote}`
+      : null;
 
     if (dbPool) {
       const updateRes = await dbPool.query(
         `UPDATE assessments 
-         SET status = $1,
+         SET status = COALESCE($1, status),
              coach_feedback = COALESCE($2, coach_feedback),
              recommended_plan = COALESCE($3, recommended_plan),
-             coach_notes = COALESCE($4, coach_notes),
+             coach_notes = CASE WHEN $4::text IS NULL THEN coach_notes ELSE COALESCE(NULLIF(coach_notes, '') || E'\\n\\n', '') || $4::text END,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $5
          RETURNING *`,
-        [status, coachFeedback || null, recommendedPlan || null, coachNotes || null, id]
+        [status || null, coachFeedback || null, recommendedPlan || null, noteEntry, id]
       );
 
       if (updateRes.rows.length === 0) {

@@ -5,6 +5,7 @@ import {
   Dumbbell, Calendar, Utensils, UserCheck, CheckSquare, Clock, ShieldCheck, 
   AlertTriangle, CheckCircle2, XCircle, Send, Edit, Eye, X, MessageSquare, Filter, Layers, ChevronRight, Activity, Plus
 } from 'lucide-react';
+import { Select } from '../../components/ui/Select';
 
 interface AssignedTasksSectionProps {
   currentUser?: User;
@@ -660,7 +661,7 @@ export const AssignedTasksSection: React.FC<AssignedTasksSectionProps> = ({
                   <label className="block text-xs font-bold uppercase text-zinc-300 mb-1">
                     Assignment Type
                   </label>
-                  <select
+                  <Select
                     value={newType}
                     onChange={(e) => setNewType(e.target.value as CoachAssignmentType)}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-xs text-white outline-none focus:border-zinc-600"
@@ -670,14 +671,14 @@ export const AssignedTasksSection: React.FC<AssignedTasksSectionProps> = ({
                     <option value="nutrition_plan">Nutrition Plan</option>
                     <option value="class_schedule">Class Schedule</option>
                     <option value="consultation">Consultation & Strategy Call</option>
-                  </select>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase text-zinc-300 mb-1">
                     Assign To Coach *
                   </label>
-                  <select
+                  <Select
                     value={newAssignedCoach}
                     onChange={(e) => setNewAssignedCoach(e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-xs text-white outline-none focus:border-zinc-600"
@@ -685,7 +686,7 @@ export const AssignedTasksSection: React.FC<AssignedTasksSectionProps> = ({
                     {coachOptions.map((cName) => (
                       <option key={cName} value={cName}>{cName}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               </div>
 
@@ -707,7 +708,7 @@ export const AssignedTasksSection: React.FC<AssignedTasksSectionProps> = ({
                   <label className="block text-xs font-bold uppercase text-zinc-300 mb-1">
                     Priority Level
                   </label>
-                  <select
+                  <Select
                     value={newPriority}
                     onChange={(e) => setNewPriority(e.target.value as any)}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-xs text-white outline-none focus:border-zinc-600"
@@ -716,7 +717,7 @@ export const AssignedTasksSection: React.FC<AssignedTasksSectionProps> = ({
                     <option value="medium">Medium Priority</option>
                     <option value="high">High Priority</option>
                     <option value="urgent">URGENT</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
 

@@ -4,6 +4,7 @@ import { BlogPost } from '../types';
 import { VelocityAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Search, Clock, User, Tag, ArrowRight, X, Plus, BookOpen, CheckCircle2 } from 'lucide-react';
+import { Select } from './ui/Select';
 
 interface BlogViewProps {
   initialSelectedPostId?: string | null;
@@ -99,7 +100,7 @@ export const BlogView: React.FC<BlogViewProps> = ({ initialSelectedPostId, onCle
     <div className="bg-[#0a0a0a] min-h-screen py-12 text-white font-sans border-b border-zinc-800">
       {/* Toast Alert */}
       {toastMsg && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#18181b] border-l-4 border-emerald-500 text-white px-5 py-3.5 shadow-2xl rounded-r-lg flex items-center gap-3 animate-in slide-in-from-bottom-5">
+        <div className="fixed bottom-6 right-6 z-[10000] bg-[#18181b] border-l-4 border-emerald-500 text-white px-5 py-3.5 shadow-2xl rounded-r-lg flex items-center gap-3 animate-in slide-in-from-bottom-5">
           <CheckCircle2 className="w-5 h-5 text-emerald-400" />
           <span className="text-xs font-bold uppercase tracking-wide">{toastMsg}</span>
           <button onClick={() => setToastMsg(null)} className="ml-2 text-zinc-400 hover:text-white">
@@ -315,7 +316,7 @@ export const BlogView: React.FC<BlogViewProps> = ({ initialSelectedPostId, onCle
                   <label className="block text-xs font-bold uppercase text-zinc-300 mb-1">
                     Category
                   </label>
-                  <select
+                  <Select
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value)}
                     className="w-full bg-[#18181b] border border-zinc-800 rounded-lg px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-zinc-600"
@@ -324,7 +325,7 @@ export const BlogView: React.FC<BlogViewProps> = ({ initialSelectedPostId, onCle
                     <option value="Nutrition">Nutrition & Diets</option>
                     <option value="Mind & Body">Mind & Recovery</option>
                     <option value="Transformation">Transformation Story</option>
-                  </select>
+                  </Select>
                 </div>
 
                 <div>

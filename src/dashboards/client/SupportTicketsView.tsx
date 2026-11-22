@@ -6,6 +6,7 @@ import { ArrowLeft, LifeBuoy, Plus, CheckCircle2, Clock, AlertCircle, MessageSqu
 
 import { TicketChat } from '../../components/TicketChat/TicketChat';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Select } from '../../components/ui/Select';
 
 interface SupportTicketsViewProps {
   user: User;
@@ -373,7 +374,7 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
                   <label className="block text-xs font-bold uppercase tracking-wider text-zinc-300 mb-1.5">
                     Category
                   </label>
-                  <select
+                  <Select
                     value={category}
                     onChange={(e) => setCategory(e.target.value as TicketCategory)}
                     className="w-full bg-[#18181b] border border-zinc-800 focus:border-zinc-600 text-white px-3 py-2.5 text-xs font-bold rounded-lg outline-none"
@@ -383,14 +384,14 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
                     <option value="Schedule">Schedule / Class</option>
                     <option value="Billing">Billing & Subscription</option>
                     <option value="General">General Inquiry</option>
-                  </select>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-zinc-300 mb-1.5">
                     Priority Level
                   </label>
-                  <select
+                  <Select
                     value={priority}
                     onChange={(e) => setPriority(e.target.value as TicketPriority)}
                     className="w-full bg-[#18181b] border border-zinc-800 focus:border-zinc-600 text-white px-3 py-2.5 text-xs font-bold rounded-lg outline-none"
@@ -399,7 +400,7 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
                     <option value="medium">Medium Priority</option>
                     <option value="high">High Priority</option>
                     <option value="urgent">Urgent Priority</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
 

@@ -7,6 +7,7 @@ import {
   ShieldAlert, Send, Trash2, UserCheck, RefreshCw, X, Tag, ShieldCheck, ChevronDown, FileText
 } from 'lucide-react';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Select } from '../../components/ui/Select';
 
 interface TicketManagementProps {
   user?: User;
@@ -449,7 +450,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-black uppercase text-zinc-400">PRIORITY:</span>
-              <select
+              <Select
                 value={priorityFilter}
                 onChange={(ev) => setPriorityFilter(ev.target.value)}
                 className="bg-[#18181b] border border-zinc-700 text-white text-xs font-bold px-2.5 py-1 rounded-lg focus:outline-none focus:border-emerald-500 cursor-pointer"
@@ -459,12 +460,12 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
                 <option value="high">High</option>
                 <option value="medium">Medium</option>
                 <option value="low">Low</option>
-              </select>
+              </Select>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-black uppercase text-zinc-400">CATEGORY:</span>
-              <select
+              <Select
                 value={categoryFilter}
                 onChange={(ev) => setCategoryFilter(ev.target.value)}
                 className="bg-[#18181b] border border-zinc-700 text-white text-xs font-bold px-2.5 py-1 rounded-lg focus:outline-none focus:border-emerald-500 cursor-pointer"
@@ -478,7 +479,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
                 <option value="Technical">Technical</option>
                 <option value="Chatbot">Chatbot</option>
                 <option value="Callback">Callback</option>
-              </select>
+              </Select>
             </div>
           </div>
 
@@ -560,7 +561,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
                   {/* Assignee */}
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black uppercase text-zinc-400">ASSIGNEE:</span>
-                    <select
+                    <Select
                       value={
                         (t.assignedAgent === 'Head Coach & Team' || t.assignedAgent === 'Head Coach' || t.assignedAgent === 'Shaban Faridi (Head Coach)')
                           ? 'Shaban Faridi'
@@ -575,13 +576,13 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
                       <option value="Moheeb Khan (Boxing Specialist)">Moheeb Khan (Boxing Specialist)</option>
                       <option value="CS Agent Desk">CS Agent Desk</option>
                       <option value="System Administrator">System Administrator</option>
-                    </select>
+                    </Select>
                   </div>
 
                   {/* Priority Override */}
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black uppercase text-zinc-400">PRIORITY:</span>
-                    <select
+                    <Select
                       value={t.priority || 'normal'}
                       onChange={(ev) => handleUpdatePriority(t.id, ev.target.value as TicketPriority)}
                       className="bg-[#121214] border border-zinc-700 text-white text-xs font-bold px-2.5 py-1 rounded focus:outline-none focus:border-emerald-500 cursor-pointer"
@@ -590,13 +591,13 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
                       <option value="high">High</option>
                       <option value="medium">Medium</option>
                       <option value="low">Low</option>
-                    </select>
+                    </Select>
                   </div>
 
                   {/* Category */}
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black uppercase text-zinc-400">CATEGORY:</span>
-                    <select
+                    <Select
                       value={t.category || 'General'}
                       onChange={(ev) => handleUpdateCategory(t.id, ev.target.value as TicketCategory)}
                       className="bg-[#121214] border border-zinc-700 text-white text-xs font-bold px-2.5 py-1 rounded focus:outline-none focus:border-emerald-500 cursor-pointer"
@@ -609,7 +610,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
                       <option value="Technical">Technical</option>
                       <option value="Chatbot">Chatbot</option>
                       <option value="Callback">Callback</option>
-                    </select>
+                    </Select>
                   </div>
                 </div>
 

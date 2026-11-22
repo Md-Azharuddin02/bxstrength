@@ -1,5 +1,6 @@
 import React, { useState, useId } from 'react';
 import { Calculator, Info, CheckCircle2, AlertCircle, Dumbbell, Activity } from 'lucide-react';
+import { Select } from './ui/Select';
 
 export const BmiCalculator: React.FC = () => {
   const [age, setAge] = useState<string>('25');
@@ -168,7 +169,7 @@ export const BmiCalculator: React.FC = () => {
                   <label htmlFor={genderInputId} className="block text-[11px] font-black uppercase tracking-wider text-gray-700 mb-1">
                     YOUR GENDER
                   </label>
-                  <select
+                  <Select
                     id={genderInputId}
                     value={gender}
                     onChange={(e) => setGender(e.target.value as 'Male' | 'Female')}
@@ -176,7 +177,7 @@ export const BmiCalculator: React.FC = () => {
                   >
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
-                  </select>
+                  </Select>
                 </div>
 
                 {/* Dynamic Calculated BMI Field */}

@@ -8,6 +8,7 @@ import { UsersTable } from './user-management/UsersTable';
 import { UserFormModal } from './user-management/UserFormModal';
 import { ResetPasswordModal } from './user-management/ResetPasswordModal';
 import { UserInspectDrawer } from './user-management/UserInspectDrawer';
+import { Select } from '../../components/ui/Select';
 
 interface UserManagementProps {
   users: User[];
@@ -367,7 +368,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <Filter className="w-4 h-4 text-gray-500" />
             <span className="text-xs font-bold text-gray-400 uppercase">Role Filter:</span>
-            <select
+            <Select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
               className="bg-gray-900 border border-gray-800 text-white text-xs px-3 py-2 rounded-none outline-none cursor-pointer font-bold"
@@ -378,7 +379,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
               <option value="coach">Coach</option>
               {!isHeadCoach && <option value="customer_support">Customer Support</option>}
               {!isHeadCoach && <option value="admin">System Admin</option>}
-            </select>
+            </Select>
           </div>
         )}
       </div>

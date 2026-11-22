@@ -2,6 +2,7 @@ import React from 'react';
 import { ConsultationBooking } from '../../../types';
 import { Calendar, Video, X } from 'lucide-react';
 import { SpecialistCoach } from './types';
+import { Select } from '../../../components/ui/Select';
 
 interface AssignCoachModalProps {
   target: ConsultationBooking;
@@ -73,7 +74,7 @@ export const AssignCoachModal: React.FC<AssignCoachModalProps> = ({
               </div>
             ) : (
               <>
-                <select
+                <Select
                   value={selectedCoachId}
                   onChange={(e) => onCoachChange(e.target.value)}
                   required
@@ -84,7 +85,7 @@ export const AssignCoachModal: React.FC<AssignCoachModalProps> = ({
                       {c.name} ({c.email}) {c.position ? `— ${c.position}` : ''}
                     </option>
                   ))}
-                </select>
+                </Select>
                 <p className="text-[10px] text-zinc-500 mt-1">
                   Staff coaches from your team directory appear here.
                 </p>

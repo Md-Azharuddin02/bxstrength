@@ -224,7 +224,27 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                         <Video className="w-3.5 h-3.5 text-[#CCFF00]" />
                       </div>
 
-                      {pkg.meetingLink ? (
+                      {pkg.scheduledAt && !isNaN(new Date(pkg.scheduledAt).getTime()) && (
+                        <div className="flex items-center gap-2 bg-black/40 border border-zinc-800 rounded-lg px-3 py-2">
+                          <Calendar className="w-4 h-4 text-[#CCFF00] shrink-0" />
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-zinc-500 block">Scheduled Session</span>
+                            <span className="text-sm font-bold text-white">
+                              {new Date(pkg.scheduledAt).toLocaleString('en-GB', {
+                                weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+                                hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London', timeZoneName: 'short'
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {pkg.meetingLink && pkg.status === 'Completed' ? (
+                        <div className="text-xs text-zinc-500 flex items-center gap-2 py-2">
+                          <Video className="w-4 h-4 shrink-0" />
+                          <span>Meeting link is no longer active — all sessions are completed.</span>
+                        </div>
+                      ) : pkg.meetingLink ? (
                         <div className="space-y-2">
                           <p className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
                             <CheckCircle2 className="w-3.5 h-3.5" /> Meeting link ready

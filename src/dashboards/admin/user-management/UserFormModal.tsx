@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { User, UserRole, SubscriptionTier, BillingStatement } from '../../../types';
 import { PhoneInput } from '../../../components/PhoneInput';
-import { X } from 'lucide-react';
+import { X, Eye, EyeOff } from 'lucide-react';
 import { BillingInvoicesEditor } from './BillingInvoicesEditor';
+import { Select } from '../../../components/ui/Select';
 
 interface UserFormModalProps {
   editingUser: User | null;
@@ -79,6 +80,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
   onSubmit,
   onClose
 }) => {
+  const [showPassword, setShowPassword] = useState(false);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md">
       <div className="relative w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-md bg-[#111111] text-white border-0 sm:border border-gray-800 p-4 sm:p-6 shadow-2xl overflow-y-auto flex flex-col rounded-none sm:rounded-xl">
@@ -129,14 +131,24 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
               <label className="block text-xs font-bold uppercase tracking-wider text-amber-400 mb-1">
                 Initial Account Password *
               </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="BxStrength2026!"
-                className="w-full bg-gray-900 border border-amber-800 text-white px-3.5 py-2 text-sm outline-none font-mono"
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="BxStrength2026!"
+                  className="w-full bg-gray-900 border border-amber-800 text-white pl-3.5 pr-10 py-2 text-sm outline-none font-mono"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute inset-y-0 right-0 px-3 text-gray-400 hover:text-white"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
               <span className="text-[10px] text-gray-500 block mt-0.5">User will use this password to log in via email/password.</span>
             </div>
           )}
@@ -169,7 +181,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                 <label className="block text-xs font-bold uppercase tracking-wider text-amber-400 mb-1">
                   Assign Account Role *
                 </label>
-                <select
+                <Select
                   value={role}
                   onChange={(e) => setRole(e.target.value as UserRole)}
                   className="w-full bg-black border border-amber-800 text-white px-3 py-2 text-sm outline-none font-bold uppercase cursor-pointer"
@@ -179,14 +191,14 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                   <option value="coach">Coach / Trainer</option>
                   {!isHeadCoach && <option value="customer_support">Customer Support Agent</option>}
                   {!isHeadCoach && <option value="admin">System Admin (Master Control)</option>}
-                </select>
+                </Select>
               </div>
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-emerald-400 mb-1">
                   Verification Authority Status *
                 </label>
-                <select
+                <Select
                   value={isVerified ? 'verified' : 'pending'}
                   onChange={(e) => setIsVerified(e.target.value === 'verified')}
                   className={`w-full bg-black border px-3 py-2 text-sm outline-none font-bold uppercase cursor-pointer ${
@@ -195,7 +207,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                 >
                   <option value="verified">✅ Verified Account (Active)</option>
                   <option value="pending">⏳ Pending Admin Verification</option>
-                </select>
+                </Select>
               </div>
             </div>
           )}
@@ -206,7 +218,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
               <label className="block text-xs font-bold uppercase tracking-wider text-blue-400 mb-1">
                 Assigned Coach
               </label>
-              <select
+              <Select
                 value={assignedCoach}
                 onChange={(e) => setAssignedCoach(e.target.value)}
                 className="w-full bg-black border border-blue-900 text-white px-3 py-2 text-xs font-bold outline-none cursor-pointer"
@@ -215,14 +227,14 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                 {availableCoaches.map((c) => (
                   <option key={c.id} value={c.name}>{c.name} ({c.role.toUpperCase()})</option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-amber-400 mb-1">
                 Assigned Head Coach Supervisor
               </label>
-              <select
+              <Select
                 value={assignedHeadCoach}
                 onChange={(e) => setAssignedHeadCoach(e.target.value)}
                 className="w-full bg-black border border-amber-900 text-white px-3 py-2 text-xs font-bold outline-none cursor-pointer"
@@ -231,7 +243,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                 {availableHeadCoaches.map((hc) => (
                   <option key={hc.id} value={hc.name}>{hc.name} (Head Coach)</option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
 
@@ -241,7 +253,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                 <label className="block text-xs font-bold uppercase tracking-wider text-pink-400 mb-1">
                   Subscription Tier Level (Admin Only) *
                 </label>
-                <select
+                <Select
                   value={subscriptionTier}
                   onChange={(e) => setSubscriptionTier(e.target.value as SubscriptionTier)}
                   className="w-full bg-black border border-pink-950 text-white px-3 py-2 text-xs font-bold uppercase outline-none"
@@ -249,7 +261,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                   <option value="Normal User">Normal User (Free / Basic Membership)</option>
                   <option value="Premium User">Premium User (£49/mo - Coaching Tier)</option>
                   <option value="Premium Elite User">Premium Elite User (£89/mo - All Access Tier)</option>
-                </select>
+                </Select>
               </div>
 
               {/* Billing Statements Manager */}

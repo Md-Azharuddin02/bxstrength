@@ -2,6 +2,7 @@ import React from 'react';
 import { User, UserRole } from '../../../types';
 import { VelocityAPI } from '../../../services/api';
 import { CheckCircle2, Edit2, Eye, Key, Power, Trash2 } from 'lucide-react';
+import { Select } from '../../../components/ui/Select';
 
 interface UsersTableProps {
   users: User[];
@@ -80,7 +81,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                   <td className="py-3.5 px-4">
                     <div className="flex flex-col items-start gap-1">
                       {canManageCoaches ? (
-                        <select
+                        <Select
                           value={u.role}
                           onChange={async (e) => {
                             const newRole = e.target.value as UserRole;
@@ -110,7 +111,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                           <option value="coach" className="bg-gray-900 text-white font-bold">COACH</option>
                           {!isHeadCoach && <option value="customer_support" className="bg-gray-900 text-white font-bold">CUSTOMER SUPPORT</option>}
                           {!isHeadCoach && <option value="admin" className="bg-gray-900 text-white font-bold">SYSTEM ADMIN</option>}
-                        </select>
+                        </Select>
                       ) : (
                         <span className="px-2.5 py-1 font-black uppercase text-[10px] border bg-gray-800 text-gray-300 border-gray-700">
                           {u.role}

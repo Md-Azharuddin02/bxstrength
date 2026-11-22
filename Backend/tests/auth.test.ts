@@ -282,7 +282,8 @@ test('paid booking lists are limited by role', async () => {
     assert.equal(await call(base, 'GET', `/paid-bookings?coachId=${coachId}`, coach), 200);
     assert.equal(await call(base, 'GET', '/paid-bookings?coachId=other-coach', coach), 403);
     assert.equal(await call(base, 'GET', `/paid-bookings?coachId[]=${coachId}`, coach), 403);
-    assert.equal(await call(base, 'GET', '/paid-bookings', coach), 403);
+    // A bare list is allowed for a coach; the controller narrows it to their own bookings
+    assert.equal(await call(base, 'GET', '/paid-bookings', coach), 200);
 
     for (const role of ['admin', 'headcoach', 'customer_support']) {
       assert.equal(await call(base, 'GET', '/paid-bookings', tokenFor(role)), 200, role);
@@ -336,21 +337,25 @@ test('changing paid bookings is limited by role', async () => {
 });
 
 test('a coach can only change paid bookings assigned to them', async () => {
-  const run = async (role: string, assigned: () => Promise<string | null | undefined>) => {
-    const req: any = { user: { id: 'coach-1', role }, params: { id: 'b1' } };
+  const run = async (role: string, owner: () => Promise<{ coachId?: string | null; coachName?: string | null } | undefined>) => {
+    const req: any = { user: { id: 'coach-1', name: 'Ravi', role }, params: { id: 'b1' } };
     const res = fakeRes();
     let passed = false;
-    await requireCoachOwnsBooking(assigned)(req, res, () => { passed = true; });
+    await requireCoachOwnsBooking(owner)(req, res, () => { passed = true; });
     return { passed, status: res.statusCode };
   };
 
-  assert.deepEqual(await run('coach', async () => 'coach-1'), { passed: true, status: 200 });
-  assert.deepEqual(await run('coach', async () => 'coach-2'), { passed: false, status: 403 });
-  assert.deepEqual(await run('coach', async () => null), { passed: false, status: 403 });
+  assert.deepEqual(await run('coach', async () => ({ coachId: 'coach-1' })), { passed: true, status: 200 });
+  // assigned by name only (no matching id): the dashboards list it as theirs, so the server must allow it
+  assert.deepEqual(await run('coach', async () => ({ coachId: null, coachName: 'Ravi' })), { passed: true, status: 200 });
+  // a partial name must not match, or a coach named "Coach" would see everyone's bookings
+  assert.deepEqual(await run('coach', async () => ({ coachId: null, coachName: 'Ravi Kumar' })), { passed: false, status: 403 });
+  assert.deepEqual(await run('coach', async () => ({ coachId: 'coach-2', coachName: 'Anita' })), { passed: false, status: 403 });
+  assert.deepEqual(await run('coach', async () => ({ coachId: null })), { passed: false, status: 403 });
   assert.deepEqual(await run('coach', async () => undefined), { passed: false, status: 403 });
   assert.deepEqual(await run('coach', async () => { throw new Error('db down'); }), { passed: false, status: 503 });
-  assert.deepEqual(await run('customer_support', async () => 'coach-2'), { passed: true, status: 200 });
-  assert.deepEqual(await run('admin', async () => null), { passed: true, status: 200 });
+  assert.deepEqual(await run('customer_support', async () => ({ coachId: 'coach-2' })), { passed: true, status: 200 });
+  assert.deepEqual(await run('admin', async () => undefined), { passed: true, status: 200 });
 });
 
 test('consultations, assessments and enquiries reject reads and changes without a token', async () => {

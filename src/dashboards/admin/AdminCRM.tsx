@@ -4,7 +4,7 @@ import { VelocityAPI, getApiUrl } from '../../services/api';
 import { normalizeRole } from '../../utils/auth';
 import { CRMOverview } from './CRMOverview';
 import { UserManagement } from './UserManagement';
-import { ClassScheduleManager } from '../head-coach/ClassScheduleManager';
+import { SessionScheduleManager } from '../head-coach/SessionScheduleManager';
 import { ProgramManager } from '../head-coach/ProgramManager';
 import { NutritionManager } from '../head-coach/NutritionManager';
 import { FinancialSubscriptions } from './FinancialSubscriptions';
@@ -378,13 +378,7 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
             )}
 
             {activeTab === 'schedule' && (
-              <ClassScheduleManager
-                classes={classes}
-                coaches={coaches}
-                clients={clients}
-                onClassesUpdated={loadCRMData}
-                onShowToast={showToast}
-              />
+              <SessionScheduleManager user={user} onShowToast={showToast} />
             )}
 
             {activeTab === 'programs' && (

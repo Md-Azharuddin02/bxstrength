@@ -1,6 +1,6 @@
 import { decodeHtmlEntities, formatMeetingUrl } from '../../services/core/mappers';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Booking, Enquiry, ClassSchedule, PaidPackageBooking, User } from '../../types';
+import { Booking, BookingSession, Enquiry, ClassSchedule, PaidPackageBooking, User } from '../../types';
 import { VelocityAPI } from '../../services/api';
 import { PlanCustomizationBreakdown } from '../../components/bookings/PlanCustomizationBreakdown';
 import {
@@ -49,6 +49,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
   });
   const [isLoadingPaid, setIsLoadingPaid] = useState<boolean>(false);
   const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<BookingSession[]>([]);
 
   const loadPaidBookings = useCallback(async () => {
     if (!user?.email) return;
@@ -56,6 +57,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
     try {
       const data = await VelocityAPI.fetchPaidBookings({ email: user.email });
       setPaidBookings(data);
+      setSessions(await VelocityAPI.fetchBookingSessions({ clientEmail: user.email }));
       try { localStorage.setItem(`bxstrength_paid_bookings_${user?.email || 'guest'}`, JSON.stringify(data)); } catch {}
     } catch (err: any) {
       console.warn('Failed to load user paid bookings:', err?.message);
@@ -268,6 +270,46 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                       )}
                     </div>
                   </div>
+
+                  {/* Session timetable set by the coach */}
+                  {(() => {
+                    const mine = sessions.filter(x => x.bookingId === pkg.id && x.status !== 'Cancelled');
+                    if (mine.length === 0) return null;
+                    const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', {
+                      weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London', timeZoneName: 'short'
+                    });
+                    const tone: Record<string, string> = {
+                      Scheduled: 'bg-sky-950 text-sky-300 border-sky-800',
+                      Completed: 'bg-emerald-950 text-emerald-300 border-emerald-800',
+                      Missed: 'bg-amber-950 text-amber-300 border-amber-800',
+                    };
+                    return (
+                      <div className="space-y-2 pt-2 border-t border-gray-800/60">
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Your Sessions ({mine.length})</span>
+                        <ol className="space-y-2">
+                          {mine.map((x, i) => {
+                            const link = x.meetingLink || pkg.meetingLink;
+                            return (
+                              <li key={x.id} className="flex flex-wrap items-center gap-3 bg-zinc-900/60 border border-zinc-800 rounded-lg px-3 py-2.5">
+                                <span className="w-7 h-7 shrink-0 rounded-full bg-zinc-800 text-[#CCFF00] text-xs font-black flex items-center justify-center">{i + 1}</span>
+                                <div className="flex-1 min-w-[10rem]">
+                                  <div className="text-sm font-bold text-white">{fmt(x.scheduledAt)}</div>
+                                  {x.notes && <div className="text-[11px] text-zinc-400 italic">"{x.notes}"</div>}
+                                </div>
+                                <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${tone[x.status]}`}>{x.status}</span>
+                                {x.status === 'Scheduled' && link && (
+                                  <a href={formatMeetingUrl(link)} target="_blank" rel="noopener noreferrer" className="text-[11px] font-black uppercase text-black bg-[#CCFF00] hover:bg-[#b8e600] px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                                    <Video className="w-3.5 h-3.5" /> Join
+                                  </a>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      </div>
+                    );
+                  })()}
 
                   {/* Customized Focus List & Details */}
                   {pkg.sessionFocusList && pkg.sessionFocusList.length > 0 && (

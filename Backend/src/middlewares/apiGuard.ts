@@ -33,6 +33,13 @@ const ownNotificationsOnly = (req: Request, res: Response, next: NextFunction) =
 };
 
 // Paid bookings, consultations and assessments: every record belongs to a client and may be assigned to a coach.
+// Coaches may list bookings; the controller narrows a plain coach to their own.
+const ownBookingList = (req: Request, res: Response, next: NextFunction) => {
+  const role = String(((req as any).user?.role) || '').toLowerCase();
+  if (role === 'coach' && req.query.coachId === undefined && req.query.email === undefined) return next();
+  return ownClientRecordsOnly(req, res, next);
+};
+
 const ownClientRecordsOnly = (req: Request, res: Response, next: NextFunction) => {
   if ((req as any).isPublicRoute) return next();
   const user = (req as any).user;
@@ -42,6 +49,15 @@ const ownClientRecordsOnly = (req: Request, res: Response, next: NextFunction) =
   if (role === 'coach' && req.query.coachId === user.id) return next();
   // Must be a plain string: the routes ignore any other shape, which would drop the filter and list every record
   if (typeof req.query.email === 'string' && sameText(req.query.email, user.email)) return next();
+  return res.status(403).json({ error: 'Forbidden: You can only view your own records.' });
+};
+
+// Plans and sessions: staff see everything, a client only their own (clientEmail must be given and match).
+const ownPlansOnly = (req: Request, res: Response, next: NextFunction) => {
+  if ((req as any).isPublicRoute) return next();
+  const user = (req as any).user;
+  if (!user || isStaff(req)) return next();
+  if (typeof req.query.clientEmail === 'string' && sameText(req.query.clientEmail, user.email)) return next();
   return res.status(403).json({ error: 'Forbidden: You can only view your own records.' });
 };
 
@@ -86,10 +102,18 @@ guard.delete('/users/:id', allow(['admin']));
 guard.get('/enquiries', allow(STAFF));
 guard.delete('/enquiries/:id', allow(['admin']));
 
-guard.get('/paid-bookings', ownClientRecordsOnly);
+guard.get('/paid-bookings', ownBookingList);
 guard.post('/paid-bookings', ownPaidBookingBodyOnly);
 guard.patch(['/paid-bookings/:id/assign', '/paid-bookings/:id/session'], allow(STAFF));
 guard.delete('/paid-bookings/:id', allow(MANAGERS));
+
+guard.get(['/booking-sessions', '/booking-diet-plans', '/booking-workout-plans'], ownPlansOnly);
+guard.post('/paid-bookings/:id/sessions', allow(STAFF));
+guard.patch('/booking-sessions/:sid', allow(STAFF));
+guard.delete('/booking-sessions/:sid', allow(STAFF));
+guard.post(['/booking-diet-plans', '/booking-workout-plans'], allow(COACHES));
+guard.put(['/booking-diet-plans/:id', '/booking-workout-plans/:id'], allow(COACHES));
+guard.delete(['/booking-diet-plans/:id', '/booking-workout-plans/:id'], allow(COACHES));
 
 guard.get(['/consultations', '/assessments'], ownClientRecordsOnly);
 guard.patch(['/consultations/:id/assign', '/assessments/:id/assign'], allow(MANAGERS));

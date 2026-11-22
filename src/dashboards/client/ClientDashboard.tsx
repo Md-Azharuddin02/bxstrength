@@ -182,7 +182,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
     <div className="min-h-screen md:min-h-0 md:h-dvh md:overflow-clip bg-[#0a0a0a] text-white font-sans flex flex-col md:flex-row">
       {/* Toast Alert */}
       {toastMsg && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#18181b] text-white border-l-4 border-white px-5 py-4 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5">
+        <div className="fixed bottom-6 right-6 z-[10000] bg-[#18181b] text-white border-l-4 border-white px-5 py-4 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5">
           <CheckCircle2 className="w-5 h-5 text-white flex-shrink-0" />
           <p className="text-xs font-bold uppercase tracking-wide">{toastMsg}</p>
           <button onClick={() => setToastMsg(null)} className="ml-2 text-zinc-400 hover:text-white">

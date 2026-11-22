@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatScheduledAt } from '../../../utils/schedule';
 import { PaidPackageBooking, User } from '../../../types';
 import { decodeHtmlEntities, formatMeetingUrl } from '../../../services/core/mappers';
 import { PlanCustomizationBreakdown } from '../../../components/bookings/PlanCustomizationBreakdown';
@@ -159,6 +160,12 @@ export const PaidBookingCard: React.FC<PaidBookingCardProps> = ({
         </div>
 
         <div>
+          <p className="text-gray-400 font-bold uppercase text-[10px]">Scheduled Session</p>
+          {formatScheduledAt(b.scheduledAt) ? (
+            <p className="text-[#CCFF00] font-bold text-xs mt-0.5 mb-2.5">{formatScheduledAt(b.scheduledAt)}</p>
+          ) : (
+            <p className="text-gray-500 text-xs mt-0.5 mb-2.5">Not scheduled yet</p>
+          )}
           <p className="text-gray-400 font-bold uppercase text-[10px]">Live Meeting Link</p>
           {b.meetingLink ? (
             <a

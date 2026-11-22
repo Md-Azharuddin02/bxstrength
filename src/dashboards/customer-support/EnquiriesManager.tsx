@@ -8,6 +8,7 @@ import {
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { PhoneInput } from '../../components/PhoneInput';
 import { normalizeRole } from '../../utils/auth';
+import { Select } from '../../components/ui/Select';
 
 interface EnquiriesManagerProps {
   enquiries: Enquiry[];
@@ -533,7 +534,7 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
           </div>
 
           {/* Category Filter */}
-          <select
+          <Select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="bg-[#18181b] border border-zinc-700 text-white text-xs px-3 py-2.5 rounded-lg focus:outline-none focus:border-[#CCFF00] cursor-pointer"
@@ -544,7 +545,7 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
             <option value="Rehab & Recovery">Category: Rehab & Recovery</option>
             <option value="Nutrition & Recomp">Category: Nutrition & Recomp</option>
             <option value="Head Coach Consultation">Category: Head Coach Consultation</option>
-          </select>
+          </Select>
         </div>
 
         {/* Status Filter Badges */}
@@ -766,7 +767,7 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
             <form onSubmit={handleConfirmAssignCoach} className="space-y-3 text-xs">
               <div>
                 <label className="block text-[11px] font-bold uppercase text-zinc-300 mb-1">Select Coach / Specialist *</label>
-                <select
+                <Select
                   value={assignCoachName}
                   onChange={(e) => setAssignCoachName(e.target.value)}
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-white font-bold cursor-pointer"
@@ -775,7 +776,7 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
                   {availableCoachOptions.map((cName) => (
                     <option key={cName} value={cName}>{cName}</option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               <div>
@@ -852,7 +853,7 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
                 />
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-zinc-300 mb-1">Enquiry Category *</label>
-                  <select
+                  <Select
                     value={createCategory}
                     onChange={(e) => setCreateCategory(e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-white font-bold cursor-pointer"
@@ -862,14 +863,14 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
                     <option value="Rehab & Recovery">Injury Rehab & Recovery</option>
                     <option value="Nutrition & Recomp">Nutrition & Recomp</option>
                     <option value="Head Coach Consultation">Head Coach Consultation</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-zinc-300 mb-1">Priority & Weightage *</label>
-                  <select
+                  <Select
                     value={createPriority}
                     onChange={(e) => setCreatePriority(e.target.value as any)}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-white font-bold cursor-pointer"
@@ -878,12 +879,12 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
                     <option value="high">⚡ High Weightage (80/100)</option>
                     <option value="normal">🟢 Normal Weightage (50/100)</option>
                     <option value="low">⚪ Low Weightage (20/100)</option>
-                  </select>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-zinc-300 mb-1">Assign Coach *</label>
-                  <select
+                  <Select
                     value={createAssignCoach}
                     onChange={(e) => setCreateAssignCoach(e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-white font-bold cursor-pointer"
@@ -892,7 +893,7 @@ export const EnquiriesManager: React.FC<EnquiriesManagerProps> = ({
                     {availableCoachOptions.map((cName) => (
                       <option key={cName} value={cName}>{cName}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               </div>
 

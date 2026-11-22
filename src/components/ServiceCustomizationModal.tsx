@@ -40,6 +40,7 @@ import { sendBrevoPaymentReceiptEmail, sendBrevoCoachAssignmentAlertToAdmin } fr
 import { canUseMockPayments } from '../services/mockPayment';
 import { calculateCustomPlanTotals, CUSTOM_SERVICE_PRICING, getCustomExerciseNames, getServicePlanType, getConfiguredServicePlanDuration, SERVICE_PLAN_PRICES } from '../services/servicePricing';
 import type { User } from '../types';
+import { Select } from './ui/Select';
 
 // Available Training Elements for Custom Plan
 export interface CustomTrainingElement {
@@ -1842,7 +1843,7 @@ export const ServiceCustomizationModal: React.FC<
                               Warm-Up&nbsp;+
                             </span>
 
-                            <select
+                            <Select
                               value={sessionService}
                               onChange={(e) => {
                                 const updated = [...monthlySessions];
@@ -1856,7 +1857,7 @@ export const ServiceCustomizationModal: React.FC<
                                   {opt}
                                 </option>
                               ))}
-                            </select>
+                            </Select>
 
                             <span className="text-[11px] font-bold text-[#CCFF00] whitespace-nowrap shrink-0 inline-block">
                               +&nbsp;Recovery

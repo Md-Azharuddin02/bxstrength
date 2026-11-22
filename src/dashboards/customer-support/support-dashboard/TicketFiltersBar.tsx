@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search } from 'lucide-react';
 import { SortBy } from './types';
+import { Select } from '../../../components/ui/Select';
 
 interface TicketFiltersBarProps {
   searchTerm: string;
@@ -44,7 +45,7 @@ export const TicketFiltersBar: React.FC<TicketFiltersBarProps> = ({
         />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <select aria-label="Status" value={statusFilter} onChange={(e) => onStatusChange(e.target.value)} className="bg-[#18181b] border border-zinc-800 rounded-lg px-2.5 py-2 text-sm text-zinc-300 focus:outline-none focus:border-[#CCFF00] cursor-pointer">
+        <Select aria-label="Status" value={statusFilter} onChange={(e) => onStatusChange(e.target.value)} className="bg-[#18181b] border border-zinc-800 rounded-lg px-2.5 py-2 text-sm text-zinc-300 focus:outline-none focus:border-[#CCFF00] cursor-pointer">
           <option value="all">All statuses</option>
           <option value="new">New / open</option>
           <option value="assigned">Assigned</option>
@@ -52,15 +53,15 @@ export const TicketFiltersBar: React.FC<TicketFiltersBarProps> = ({
           <option value="waiting_customer">Awaiting client</option>
           <option value="resolved">Resolved</option>
           <option value="closed">Closed</option>
-        </select>
-        <select aria-label="Priority" value={priorityFilter} onChange={(e) => onPriorityChange(e.target.value)} className="bg-[#18181b] border border-zinc-800 rounded-lg px-2.5 py-2 text-sm text-zinc-300 focus:outline-none focus:border-[#CCFF00] cursor-pointer">
+        </Select>
+        <Select aria-label="Priority" value={priorityFilter} onChange={(e) => onPriorityChange(e.target.value)} className="bg-[#18181b] border border-zinc-800 rounded-lg px-2.5 py-2 text-sm text-zinc-300 focus:outline-none focus:border-[#CCFF00] cursor-pointer">
           <option value="all">All priorities</option>
           <option value="urgent">Urgent</option>
           <option value="high">High</option>
           <option value="normal">Normal</option>
           <option value="low">Low</option>
-        </select>
-        <select aria-label="Channel" value={sourceFilter} onChange={(e) => onSourceChange(e.target.value)} className="bg-[#18181b] border border-zinc-800 rounded-lg px-2.5 py-2 text-sm text-zinc-300 focus:outline-none focus:border-[#CCFF00] cursor-pointer">
+        </Select>
+        <Select aria-label="Channel" value={sourceFilter} onChange={(e) => onSourceChange(e.target.value)} className="bg-[#18181b] border border-zinc-800 rounded-lg px-2.5 py-2 text-sm text-zinc-300 focus:outline-none focus:border-[#CCFF00] cursor-pointer">
           <option value="all">All channels</option>
           <option value="Website Contact Form">Website form</option>
           <option value="Chatbot">Chatbot</option>
@@ -68,12 +69,12 @@ export const TicketFiltersBar: React.FC<TicketFiltersBarProps> = ({
           <option value="Payment">Payment & billing</option>
           <option value="WhatsApp">WhatsApp</option>
           <option value="Callback Request">Phone callback</option>
-        </select>
-        <select aria-label="Sort" value={sortBy} onChange={(e) => onSortChange(e.target.value as SortBy)} className="bg-[#18181b] border border-zinc-800 rounded-lg px-2.5 py-2 text-sm text-zinc-300 focus:outline-none focus:border-[#CCFF00] cursor-pointer">
+        </Select>
+        <Select aria-label="Sort" value={sortBy} onChange={(e) => onSortChange(e.target.value as SortBy)} className="bg-[#18181b] border border-zinc-800 rounded-lg px-2.5 py-2 text-sm text-zinc-300 focus:outline-none focus:border-[#CCFF00] cursor-pointer">
           <option value="newest">Newest first</option>
           <option value="oldest">Oldest first</option>
           <option value="priority">Highest priority</option>
-        </select>
+        </Select>
         {(statusFilter !== 'all' || priorityFilter !== 'all' || sourceFilter !== 'all' || searchTerm) && (
           <button
             onClick={onClear}

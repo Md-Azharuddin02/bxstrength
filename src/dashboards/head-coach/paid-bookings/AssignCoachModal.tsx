@@ -3,6 +3,7 @@ import { PaidPackageBooking, User } from '../../../types';
 import { decodeHtmlEntities } from '../../../services/core/mappers';
 import { Calendar, Clock, Layers, UserCheck, Video, X } from 'lucide-react';
 import { AvailableCoach } from './types';
+import { Select } from '../../../components/ui/Select';
 
 interface AssignCoachModalProps {
   target: PaidPackageBooking;
@@ -189,7 +190,7 @@ export const AssignCoachModal: React.FC<AssignCoachModalProps> = ({
                   <label className="block text-[11px] font-bold text-gray-400 uppercase">
                     Select Specialist Coach from Staff Directory <span className="text-red-400">*</span>:
                   </label>
-                  <select
+                  <Select
                     value={selectedCoachId}
                     onChange={(e) => {
                       const found = availableCoaches.find(c => c.id === e.target.value);
@@ -207,7 +208,7 @@ export const AssignCoachModal: React.FC<AssignCoachModalProps> = ({
                           {c.name} — {c.position}
                         </option>
                       ))}
-                  </select>
+                  </Select>
                 </div>
               )}
             </div>

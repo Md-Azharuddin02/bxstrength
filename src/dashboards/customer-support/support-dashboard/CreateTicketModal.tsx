@@ -2,6 +2,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { TicketSource } from '../../../types';
 import { PhoneInput } from '../../../components/PhoneInput';
+import { Select } from '../../../components/ui/Select';
 
 interface CreateTicketModalProps {
   custName: string;
@@ -80,7 +81,7 @@ export const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
 
           <div>
             <label className="text-[10px] font-bold uppercase text-zinc-400 block mb-1">Source</label>
-            <select
+            <Select
               value={source}
               onChange={(e) => setSource(e.target.value as TicketSource)}
               className="w-full bg-[#121214] border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
@@ -91,7 +92,7 @@ export const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
               <option value="Payment">Payment</option>
               <option value="WhatsApp">WhatsApp</option>
               <option value="Callback Request">Callback Request</option>
-            </select>
+            </Select>
           </div>
         </div>
 

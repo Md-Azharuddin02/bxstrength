@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { isValidUkMobile, isValidPhone, UK_PHONE_ERROR_MSG } from '../../utils/phoneValidation';
 import { PhoneInput } from '../../components/PhoneInput';
 import { Camera, CheckCircle2, ShieldCheck, Mail, Phone, Lock, Save, AlertCircle, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { Select } from '../../components/ui/Select';
 
 interface ProfileManagementProps {
   user: User;
@@ -264,7 +265,7 @@ export const ProfileManagement: React.FC<ProfileManagementProps> = ({ user, onSh
                     <label className="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-1">
                       Gender
                     </label>
-                    <select
+                    <Select
                       value={gender}
                       onChange={(e) => setGender(e.target.value as any)}
                       className="w-full bg-gray-900 border border-gray-800 focus:border-[#E52165] text-white px-2 py-2.5 text-xs rounded-none outline-none"
@@ -273,7 +274,7 @@ export const ProfileManagement: React.FC<ProfileManagementProps> = ({ user, onSh
                       <option value="Female">Female</option>
                       <option value="Other">Other</option>
                       <option value="Prefer not to say">Prefer not to say</option>
-                    </select>
+                    </Select>
                   </div>
                 </div>
               </div>

@@ -3,7 +3,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { PaidPackageBooking, User } from '../../types';
 import { VelocityAPI } from '../../services/api';
 import { normalizeRole } from '../../utils/auth';
-import { Award, Clock } from 'lucide-react';
+import { Award, Clock, ArrowLeft, ChevronRight } from 'lucide-react';
+import { formatScheduledAt } from '../../utils/schedule';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { PaidBookingsHeader } from './paid-bookings/PaidBookingsHeader';
 import { PaidBookingsMetrics } from './paid-bookings/PaidBookingsMetrics';
@@ -56,6 +57,8 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Assign Modal
   const [assignTarget, setAssignTarget] = useState<PaidPackageBooking | null>(null);
@@ -296,6 +299,7 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
       if (success) {
         onShowToast('Paid booking deleted successfully.');
         setDeletingId(null);
+        setSelectedId(null);
         loadBookings();
       } else {
         onShowToast('Failed to delete booking.');
@@ -305,8 +309,34 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
     }
   };
 
+  const selected = bookings.find(x => x.id === selectedId) || null;
+
   return (
     <div className="space-y-6">
+      {selected ? (
+        <div className="space-y-4">
+          <button
+            onClick={() => setSelectedId(null)}
+            className="flex items-center gap-1.5 text-xs font-bold uppercase text-zinc-300 hover:text-white cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 text-[#CCFF00]" /> Back to paid bookings
+          </button>
+          <PaidBookingCard
+            booking={selected}
+            user={user}
+            userMaps={userMaps}
+            isExpanded={expandedId === selected.id}
+            isAdmin={isAdmin}
+            isHeadCoach={isHeadCoach}
+            isCustomerSupport={isCustomerSupport}
+            onToggleExpand={() => setExpandedId(expandedId === selected.id ? null : selected.id)}
+            onTakeMyself={handleTakeMyself}
+            onOpenAssign={openAssignModal}
+            onQuickSessionUpdate={handleQuickSessionUpdate}
+            onDelete={setDeletingId}
+          />
+        </div>
+      ) : (<>
       {/* Top Banner & Title */}
       <PaidBookingsHeader isLoading={isLoading} onRefresh={loadBookings} />
 
@@ -336,26 +366,37 @@ export const PaidBookingsView: React.FC<PaidBookingsViewProps> = ({
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="bg-[#121214] border border-zinc-800 rounded-2xl divide-y divide-zinc-800 overflow-hidden">
           {filteredBookings.map((b) => (
-            <PaidBookingCard
+            <button
               key={b.id}
-              booking={b}
-              user={user}
-              userMaps={userMaps}
-              isExpanded={expandedId === b.id}
-              isAdmin={isAdmin}
-              isHeadCoach={isHeadCoach}
-              isCustomerSupport={isCustomerSupport}
-              onToggleExpand={() => setExpandedId(expandedId === b.id ? null : b.id)}
-              onTakeMyself={handleTakeMyself}
-              onOpenAssign={openAssignModal}
-              onQuickSessionUpdate={handleQuickSessionUpdate}
-              onDelete={setDeletingId}
-            />
+              onClick={() => { setSelectedId(b.id); setExpandedId(b.id); }}
+              className="w-full text-left px-4 sm:px-5 py-3.5 flex items-center gap-4 hover:bg-zinc-900/70 transition-colors cursor-pointer"
+            >
+              <div className="w-10 h-10 shrink-0 rounded-full bg-zinc-800 border border-zinc-700 text-[#CCFF00] font-black flex items-center justify-center">
+                {(b.clientName || '?').charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-white truncate">{decodeHtmlEntities(b.clientName)}</div>
+                <div className="text-xs text-zinc-400 truncate">
+                  {decodeHtmlEntities(b.packageName)} · {b.assignedCoachName ? `Coach: ${b.assignedCoachName}` : 'Unassigned'}
+                </div>
+              </div>
+              <div className="hidden md:block text-xs text-zinc-400 shrink-0 text-right">
+                {formatScheduledAt(b.scheduledAt) || 'Not scheduled'}
+              </div>
+              <span className="hidden sm:inline font-mono text-[11px] text-zinc-300 shrink-0">
+                {b.completedSessions || 0}/{b.totalSessions || 1}
+              </span>
+              <span className="hidden sm:inline text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 shrink-0">
+                {b.status}
+              </span>
+              <ChevronRight className="w-4 h-4 text-zinc-500 shrink-0" />
+            </button>
           ))}
         </div>
       )}
+      </>)}
 
       {/* ASSIGN COACH & MEETING LINK MODAL */}
       {assignTarget && (

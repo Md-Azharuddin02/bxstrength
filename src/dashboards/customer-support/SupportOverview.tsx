@@ -71,7 +71,6 @@ export const SupportOverview: React.FC<Props> = ({ user, tickets, paidBookings, 
   const queue = useMemo<QueueItem[]>(() => ([
     ...paidBookings.filter(b => b.status !== 'Cancelled' && needsCoach(b)).map(b => ({ key: `b-${b.id}`, kind: 'booking' as const, title: b.clientName, detail: `${b.packageName} · needs a coach`, at: b.createdAt, tab: KIND.booking.tab })),
     ...consultations.filter(c => c.status === 'Pending').map(c => ({ key: `d-${c.id}`, kind: 'demo' as const, title: c.clientName, detail: c.goal || 'Free demo request', at: c.createdAt, tab: KIND.demo.tab })),
-    ...assessments.filter(a => a.status === 'Pending').map(a => ({ key: `a-${a.id}`, kind: 'assessment' as const, title: a.clientName, detail: a.primaryGoal || 'Self assessment', at: a.createdAt, tab: KIND.assessment.tab })),
     ...enquiries.filter(e => e.status === 'new').map(e => ({ key: `e-${e.id}`, kind: 'enquiry' as const, title: e.name, detail: e.subject, at: e.createdAt, tab: KIND.enquiry.tab })),
     ...tickets.filter(t => t.status !== 'resolved' && t.status !== 'closed').map(t => ({
       key: `t-${t.id}`, kind: 'ticket' as const, title: t.subject, detail: `${t.userName} · ${t.id}`, at: t.createdAt, tab: KIND.ticket.tab, recordId: t.id,
@@ -88,7 +87,7 @@ export const SupportOverview: React.FC<Props> = ({ user, tickets, paidBookings, 
   const kpis: { label: string; value: number; note: string; attention: number; tab: SupportTab; opts?: { priority: string } }[] = [
     { label: 'Paid bookings', value: paidBookings.length, note: 'need a coach', attention: countBy('booking'), tab: 'paid_bookings' },
     { label: 'Demo sessions', value: consultations.length, note: 'pending', attention: countBy('demo'), tab: 'free_consultations' },
-    { label: 'Assessments', value: assessments.length, note: 'pending', attention: countBy('assessment'), tab: 'assessments' },
+    { label: 'Assessments', value: assessments.length, note: 'received', attention: 0, tab: 'assessments' },
     { label: 'Enquiries', value: enquiries.length, note: 'new', attention: countBy('enquiry'), tab: 'enquiries' },
     { label: 'Open tickets', value: countBy('ticket'), note: 'urgent', attention: urgentCount, tab: 'inbox', opts: { priority: 'urgent' } },
   ];
@@ -160,7 +159,7 @@ export const SupportOverview: React.FC<Props> = ({ user, tickets, paidBookings, 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
         <Panel title="Needs attention" className="lg:col-span-2" action={<span className="text-xs text-zinc-400 tabular-nums">{queue.length} open</span>}>
           <div className="flex gap-1.5 px-5 pt-4 overflow-x-auto" role="tablist" aria-label="Filter by type">
-            {(['all', 'ticket', 'booking', 'demo', 'assessment', 'enquiry'] as const).map(k => (
+            {(['all', 'ticket', 'booking', 'demo', 'enquiry'] as const).map(k => (
               <button key={k} role="tab" aria-selected={filter === k} onClick={() => setFilter(k)}
                 className={`shrink-0 text-xs px-3 py-1.5 rounded-full border cursor-pointer transition-colors ${filter === k ? 'bg-[#CCFF00] text-black border-[#CCFF00] font-bold' : 'border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-600'}`}>
                 {k === 'all' ? 'All' : `${KIND[k].label}s`} <span className="tabular-nums opacity-70">{k === 'all' ? queue.length : countBy(k)}</span>

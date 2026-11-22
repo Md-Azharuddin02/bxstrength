@@ -4,6 +4,7 @@ import { VelocityAPI } from '../../services/api';
 import { User } from '../../types';
 import { Plus, Edit2, Trash2, ShieldCheck, Trophy, Star, CheckCircle2, X, RefreshCw, Image, UserCheck } from 'lucide-react';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { Select } from '../../components/ui/Select';
 
 interface CoachesManagerProps {
   user: User;
@@ -429,14 +430,14 @@ export const CoachesManager: React.FC<CoachesManagerProps> = ({ user, onShowToas
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold text-zinc-300 uppercase mb-1">Coach Position Tag</label>
-                  <select
+                  <Select
                     value={coachPosition}
                     onChange={(e) => setCoachPosition(e.target.value)}
                     className="w-full bg-[#18181b] border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
                   >
                     <option value="HEADCOACH">HEADCOACH</option>
                     <option value="COACH">COACH</option>
-                  </select>
+                  </Select>
                 </div>
 
                 <div>

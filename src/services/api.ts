@@ -2504,7 +2504,7 @@ export const VelocityAPI = {
   },
 
   async updateAssessmentStatus(id: string, data: {
-    status: string;
+    status?: string;
     coachFeedback?: string;
     recommendedPlan?: string;
     coachNotes?: string;

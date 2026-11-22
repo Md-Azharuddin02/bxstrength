@@ -49,5 +49,13 @@ export const useSupportData = () => {
     return () => window.removeEventListener('bxstrength_paid_bookings_updated', loadData);
   }, []);
 
+  // Poll only while a demo is underway; idle otherwise.
+  const hasLiveDemo = consultations.some(c => c.status === 'Assigned' || c.status === 'Confirmed');
+  useEffect(() => {
+    if (!hasLiveDemo) return;
+    const timer = setInterval(() => { if (!document.hidden) loadData(); }, 30000);
+    return () => clearInterval(timer);
+  }, [hasLiveDemo]);
+
   return { coaches, consultations, assessments, enquiries, loadError, paidBookings, loadData };
 };

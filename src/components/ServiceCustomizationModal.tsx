@@ -38,8 +38,9 @@ import { VelocityAPI } from '../services/api';
 import { openRazorpayCheckout } from '../services/razorpayService';
 import { sendBrevoPaymentReceiptEmail, sendBrevoCoachAssignmentAlertToAdmin } from '../services/emailService';
 import { canUseMockPayments } from '../services/mockPayment';
-import { calculateCustomPlanTotals, CUSTOM_SERVICE_PRICING, getCustomExerciseNames, getServicePlanType, SERVICE_PLAN_PRICES } from '../services/servicePricing';
+import { calculateCustomPlanTotals, CUSTOM_SERVICE_PRICING, getCustomExerciseNames, getServicePlanType, getConfiguredServicePlanDuration, SERVICE_PLAN_PRICES } from '../services/servicePricing';
 import type { User } from '../types';
+import { Select } from './ui/Select';
 
 // Available Training Elements for Custom Plan
 export interface CustomTrainingElement {
@@ -1010,23 +1011,7 @@ export const ServiceCustomizationModal: React.FC<
           try {
             const pkgType = isCustomPlan ? 'custom' : isWeeklyPlan ? 'weekly' : isMonthlyPlan ? 'monthly' : 'standard';
             const totalSess = isWeeklyPlan ? 3 : isMonthlyPlan ? 12 : isCustomPlan ? 1 : 1;
-            const durationMin = isCustomPlan
-              ? customPlanTotalMinutes
-              : isBasic
-              ? 15
-              : isFocus
-              ? 30
-              : isPerformance
-              ? 45
-              : isComplete
-              ? 60
-              : isWellness
-              ? 30
-              : isWeeklyPlan
-              ? 30
-              : isMonthlyPlan
-              ? 45
-              : parseInt(String(service.duration || '')) || 30;
+            const durationMin = isCustomPlan ? customPlanTotalMinutes : getConfiguredServicePlanDuration(service.title) ?? (parseInt(String(service.duration || '')) || 30);
 
             const disclosuresObj = {
               ageConfirmed: Boolean(ageConfirmed),
@@ -1037,7 +1022,14 @@ export const ServiceCustomizationModal: React.FC<
               marketingConsent: Boolean(marketingConsent)
             };
 
-            const customizedDetailsObj = isCustomPlan
+            const chosenContactMethods = selectedMethods.length > 0
+              ? selectedMethods
+              : (user?.contactMethods || (user?.preferredContactMethod ? [user.preferredContactMethod] : []));
+            const chosenPreferredContactMethod = chosenContactMethods.length >= 3
+              ? 'all'
+              : (chosenContactMethods[0] || user?.preferredContactMethod || '');
+
+            const customizedDetailsObj: Record<string, any> = isCustomPlan
               ? {
                   elements: CUSTOM_ELEMENTS.filter(e => (elementQuantities[e.id] || 0) > 0).map(e => ({
                     id: e.id,
@@ -1047,24 +1039,32 @@ export const ServiceCustomizationModal: React.FC<
                   })),
                   totalMinutes: customPlanTotalMinutes,
                   elementQuantities,
-                  disclosures: disclosuresObj
+                  disclosures: disclosuresObj,
+                  contactMethods: chosenContactMethods,
+                  preferredContactMethod: chosenPreferredContactMethod
                 }
               : isWeeklyPlan
               ? {
                   structure: 'Guided Warm-Up + 1 Focus per session',
                   sessions: weeklySessions.map((s, idx) => ({ sessionNumber: idx + 1, warmUp: 'Guided Warm-Up', focus: s })),
-                  disclosures: disclosuresObj
+                  disclosures: disclosuresObj,
+                  contactMethods: chosenContactMethods,
+                  preferredContactMethod: chosenPreferredContactMethod
                 }
               : isMonthlyPlan
               ? {
                   structure: '12 Warm-Ups + 12 Core Services + 12 Cool-Downs',
                   sessions: monthlySessions.map((s, idx) => ({ sessionNumber: idx + 1, warmUp: 'Guided Warm-Up', core: s, coolDown: 'Cool-Down & Recovery' })),
-                  disclosures: disclosuresObj
+                  disclosures: disclosuresObj,
+                  contactMethods: chosenContactMethods,
+                  preferredContactMethod: chosenPreferredContactMethod
                 }
               : {
                   structure: packageDetails.totalDurationLabel,
                   items: packageDetails.items.map(item => ({ name: item.name, duration: item.duration, price: item.price })),
-                  disclosures: disclosuresObj
+                  disclosures: disclosuresObj,
+                  contactMethods: chosenContactMethods,
+                  preferredContactMethod: chosenPreferredContactMethod
                 };
 
             const focusList = isCustomPlan
@@ -1843,7 +1843,7 @@ export const ServiceCustomizationModal: React.FC<
                               Warm-Up&nbsp;+
                             </span>
 
-                            <select
+                            <Select
                               value={sessionService}
                               onChange={(e) => {
                                 const updated = [...monthlySessions];
@@ -1857,7 +1857,7 @@ export const ServiceCustomizationModal: React.FC<
                                   {opt}
                                 </option>
                               ))}
-                            </select>
+                            </Select>
 
                             <span className="text-[11px] font-bold text-[#CCFF00] whitespace-nowrap shrink-0 inline-block">
                               +&nbsp;Recovery

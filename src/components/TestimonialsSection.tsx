@@ -240,7 +240,7 @@ export const TestimonialsSection: React.FC = () => {
       
       {/* Dedicated Toast Notification */}
       {toastMsg && (
-        <div className="fixed bottom-6 right-4 sm:right-6 z-50 max-w-[calc(100vw-2rem)] bg-[#18181b] border-l-4 border-emerald-500 text-white px-4 sm:px-5 py-3 sm:py-3.5 shadow-2xl rounded-r-lg flex items-center gap-3 animate-in slide-in-from-bottom-5">
+        <div className="fixed bottom-6 right-4 sm:right-6 z-[10000] max-w-[calc(100vw-2rem)] bg-[#18181b] border-l-4 border-emerald-500 text-white px-4 sm:px-5 py-3 sm:py-3.5 shadow-2xl rounded-r-lg flex items-center gap-3 animate-in slide-in-from-bottom-5">
           <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
           <span className="text-xs font-bold uppercase tracking-wide truncate">{toastMsg}</span>
           <button onClick={() => setToastMsg(null)} className="ml-1 text-zinc-400 hover:text-white cursor-pointer shrink-0">

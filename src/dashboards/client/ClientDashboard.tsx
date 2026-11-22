@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
+import { useNotificationSound } from '../../hooks/useNotificationSound';
 
 interface ClientDashboardProps {
   user: User;
@@ -34,6 +35,9 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   onOpenAssessment
 }) => {
   const [activeTab, setActiveTab] = useState<string>('overview');
+  // Set when a chat notification is clicked, so the Tickets tab opens that ticket's conversation.
+  const [ticketFocus, setTicketFocus] = useState<{ ticketId: string; at: number } | null>(null);
+  useEffect(() => { if (activeTab !== 'tickets') setTicketFocus(null); }, [activeTab]);
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Desktop scrolls the content area, mobile scrolls the window.
@@ -63,6 +67,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => VelocityAPI.getSubscriptions());
   const [enquiries, setEnquiries] = useState<Enquiry[]>(() => VelocityAPI.getEnquiries(user.email));
   const [notifications, setNotifications] = useState<InAppNotification[]>([]);
+  // True once the first notification fetch returns, so the sound hook knows what was already there.
+  const [notificationsLoaded, setNotificationsLoaded] = useState(false);
   const [consultations, setConsultations] = useState<ConsultationBooking[]>(() => VelocityAPI.getConsultations(user.email));
   const [assessments, setAssessments] = useState<AthleteAssessment[]>(() => VelocityAPI.getAssessments(user.email));
   const [isAssessmentsLoading, setIsAssessmentsLoading] = useState<boolean>(() => VelocityAPI.getAssessments(user.email).length === 0);
@@ -94,7 +100,10 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       }
       if (subRes.status === 'fulfilled' && Array.isArray(subRes.value)) setSubscriptions(subRes.value);
       if (consRes.status === 'fulfilled' && Array.isArray(consRes.value)) setConsultations(consRes.value);
-      if (notifRes.status === 'fulfilled' && Array.isArray(notifRes.value)) setNotifications(notifRes.value);
+      if (notifRes.status === 'fulfilled' && Array.isArray(notifRes.value)) {
+        setNotifications(notifRes.value);
+        setNotificationsLoaded(true);
+      }
       if (assessRes.status === 'fulfilled' && Array.isArray(assessRes.value)) setAssessments(assessRes.value);
       if (statsRes.status === 'fulfilled' && Array.isArray(statsRes.value)) setBodyStats(statsRes.value);
 
@@ -149,6 +158,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
+  useNotificationSound(notifications, notificationsLoaded);
 
   const permissions = VelocityAPI.getCoachPermissions();
 
@@ -169,10 +179,10 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const nextBooking = bookings.find((b) => b.status === 'Confirmed');
 
   return (
-    <div className="min-h-screen md:min-h-0 md:h-dvh md:overflow-hidden bg-[#0a0a0a] text-white font-sans flex flex-col md:flex-row">
+    <div className="min-h-screen md:min-h-0 md:h-dvh md:overflow-clip bg-[#0a0a0a] text-white font-sans flex flex-col md:flex-row">
       {/* Toast Alert */}
       {toastMsg && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#18181b] text-white border-l-4 border-white px-5 py-4 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5">
+        <div className="fixed bottom-6 right-6 z-[10000] bg-[#18181b] text-white border-l-4 border-white px-5 py-4 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5">
           <CheckCircle2 className="w-5 h-5 text-white flex-shrink-0" />
           <p className="text-xs font-bold uppercase tracking-wide">{toastMsg}</p>
           <button onClick={() => setToastMsg(null)} className="ml-2 text-zinc-400 hover:text-white">
@@ -339,12 +349,16 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                       {n.linkTab && (
                         <button
                           onClick={() => {
-                            setActiveTab(n.linkTab!);
+                            // linkTab is "<tab>" or "<tab>|<recordId>" (chat replies point at their ticket).
+                            const [tab, recordId] = n.linkTab!.split('|');
+                            setActiveTab(tab);
+                            if (tab === 'tickets' && recordId) setTicketFocus({ ticketId: recordId, at: Date.now() });
+                            if (!n.isRead) handleMarkNotificationRead(n.id);
                             setShowNotificationsMenu(false);
                           }}
                           className="mt-2 w-full bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] font-bold py-1 px-2 uppercase rounded flex items-center justify-center gap-1 cursor-pointer"
                         >
-                          <ExternalLink className="w-3 h-3 text-amber-400" /> View Update in {n.linkTab.toUpperCase()}
+                          <ExternalLink className="w-3 h-3 text-amber-400" /> {n.linkTab.startsWith('tickets|') ? `Open chat #${n.linkTab.split('|')[1]}` : `View Update in ${n.linkTab.split('|')[0].toUpperCase()}`}
                         </button>
                       )}
                     </div>
@@ -448,7 +462,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
             )}
 
             {activeTab === 'tickets' && (
-              <SupportTicketsView user={user} onShowToast={showToast} />
+              <SupportTicketsView user={user} onShowToast={showToast} focus={ticketFocus} />
             )}
 
             {activeTab === 'subscription' && (

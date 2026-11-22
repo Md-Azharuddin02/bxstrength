@@ -580,6 +580,7 @@ export interface ConsultationBooking {
   assignedCoachName?: string | null;
   assignedBy?: string | null;
   assignedAt?: string | null;
+  scheduledAt?: string | null;
   meetingLink?: string;
   preferredDate?: string;
   preferredTime?: string;
@@ -616,8 +617,20 @@ export interface PaidPackageBooking {
   assignedBy?: string | null;
   assignedAt?: string | null;
   meetingLink?: string | null;
+  scheduledAt?: string | null;
   coachNotes?: string | null;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface BookingSession {
+  id: string;
+  bookingId: string;
+  scheduledAt: string;
+  meetingLink?: string | null;
+  status: 'Scheduled' | 'Completed' | 'Missed' | 'Cancelled';
+  notes?: string | null;
+  createdAt?: string;
   updatedAt?: string;
 }
 

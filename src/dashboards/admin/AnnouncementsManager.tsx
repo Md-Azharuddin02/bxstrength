@@ -3,6 +3,7 @@ import { Announcement } from '../../types';
 import { VelocityAPI } from '../../services/api';
 import { ShieldAlert, Plus, Send, Trash2, Edit2, X } from 'lucide-react';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { Select } from '../../components/ui/Select';
 
 interface AnnouncementsManagerProps {
   announcements: Announcement[];
@@ -106,7 +107,7 @@ export const AnnouncementsManager: React.FC<AnnouncementsManagerProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold uppercase text-gray-300 mb-1">Target Tier</label>
-                <select
+                <Select
                   value={targetRole}
                   onChange={(e) => setTargetRole(e.target.value as any)}
                   className="w-full bg-gray-900 border border-gray-800 text-white px-2 py-2 text-xs outline-none"
@@ -114,12 +115,12 @@ export const AnnouncementsManager: React.FC<AnnouncementsManagerProps> = ({
                   <option value="all">All Users</option>
                   <option value="client">Clients Only</option>
                   <option value="coach">Coaches Only</option>
-                </select>
+                </Select>
               </div>
 
               <div>
                 <label className="block text-xs font-bold uppercase text-gray-300 mb-1">Priority</label>
-                <select
+                <Select
                   value={priority}
                   onChange={(e) => setPriority(e.target.value as any)}
                   className="w-full bg-gray-900 border border-gray-800 text-white px-2 py-2 text-xs outline-none"
@@ -127,7 +128,7 @@ export const AnnouncementsManager: React.FC<AnnouncementsManagerProps> = ({
                   <option value="low">Low Priority</option>
                   <option value="medium">Medium Priority</option>
                   <option value="high">High Priority</option>
-                </select>
+                </Select>
               </div>
             </div>
 

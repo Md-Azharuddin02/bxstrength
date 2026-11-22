@@ -53,7 +53,16 @@ export const FreeDemoView: React.FC<FreeDemoViewProps> = ({
     setTimeout(() => setCopiedLink(false), 3000);
   };
 
-  const scheduledSlot = consultation?.preferredDate
+  // The coach's confirmed slot wins; preferredDate/Time is only what the client asked for.
+  const confirmedSlot = consultation?.scheduledAt && !isNaN(new Date(consultation.scheduledAt).getTime())
+    ? new Date(consultation.scheduledAt).toLocaleString('en-GB', {
+        weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London', timeZoneName: 'short'
+      })
+    : '';
+  const scheduledSlot = confirmedSlot
+    ? confirmedSlot
+    : consultation?.preferredDate
     ? `${consultation.preferredDate} at ${consultation.preferredTime || 'Agreed Slot'}`
     : consultation?.date
     ? `${consultation.date} at ${consultation.timeSlot}`
@@ -131,7 +140,7 @@ export const FreeDemoView: React.FC<FreeDemoViewProps> = ({
                       : '● PENDING HEAD COACH REVIEW'}
                   </span>
                   <span className="text-[11px] font-mono font-bold text-zinc-400">
-                    REF: {consultation.id}
+                    ORDER ID : {consultation.id}
                   </span>
                 </div>
                 <h3 className="text-lg sm:text-xl font-black uppercase text-white tracking-tight mt-1">
@@ -269,7 +278,7 @@ export const FreeDemoView: React.FC<FreeDemoViewProps> = ({
                     DEMO SESSION COMPLETED
                   </span>
                   <span className="text-[11px] font-mono font-bold text-zinc-400">
-                    REF: {consultation.id}
+                    ORDER ID : {consultation.id}
                   </span>
                 </div>
                 <h3 className="text-lg sm:text-xl font-black uppercase text-white tracking-tight mt-1">
@@ -296,31 +305,11 @@ export const FreeDemoView: React.FC<FreeDemoViewProps> = ({
             </div>
           </div>
 
-          {/* Meeting Room Used Record */}
+          {/* Meeting room: link is dead once the session is completed */}
           {cleanMeetingLink && (
-            <div className="bg-zinc-900/80 p-4 rounded-xl border border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-              <div className="space-y-0.5">
-                <span className="text-[10px] uppercase font-bold text-zinc-500 block">Meeting Room Used:</span>
-                <a
-                  href={cleanMeetingLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-emerald-400 hover:text-emerald-300 font-mono text-xs flex items-center gap-1.5 underline break-all"
-                >
-                  <Video className="w-3.5 h-3.5 shrink-0" />
-                  <span>{cleanMeetingLink}</span>
-                  <ExternalLink className="w-3 h-3 shrink-0" />
-                </a>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handleCopyMeetingLink(cleanMeetingLink)}
-                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer self-start sm:self-auto shrink-0"
-              >
-                {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedLink ? 'Copied' : 'Copy Room Link'}</span>
-              </button>
+            <div className="bg-zinc-900/80 p-4 rounded-xl border border-zinc-800 flex items-center gap-3 text-xs text-zinc-500">
+              <Video className="w-4 h-4 shrink-0" />
+              <span>Meeting room link is no longer active — this session has ended.</span>
             </div>
           )}
         </div>

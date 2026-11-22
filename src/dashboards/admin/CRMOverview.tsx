@@ -10,6 +10,7 @@ import {
   ChevronRight, AlertCircle, BarChart3, Filter, PieChart, CheckCircle2, 
   ArrowRight, Plus, Edit2, Trash2, X, Zap, Phone, Mail, Clock, UserCheck, Calendar, Utensils
 } from 'lucide-react';
+import { Select } from '../../components/ui/Select';
 
 export interface CRMLead {
   id: string;
@@ -385,7 +386,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
     <div className="space-y-6 text-white relative">
       {/* Toast Alert */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#18181b] border-l-4 border-emerald-500 text-white px-5 py-3.5 shadow-2xl rounded-r-lg flex items-center gap-3 animate-in slide-in-from-bottom-5">
+        <div className="fixed bottom-6 right-6 z-[10000] bg-[#18181b] border-l-4 border-emerald-500 text-white px-5 py-3.5 shadow-2xl rounded-r-lg flex items-center gap-3 animate-in slide-in-from-bottom-5">
           <CheckCircle2 className="w-5 h-5 text-emerald-400" />
           <span className="text-xs font-bold uppercase tracking-wide">{toastMessage}</span>
           <button onClick={() => setToastMessage(null)} className="ml-2 text-zinc-400 hover:text-white">
@@ -450,7 +451,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
           {!isCoach && (
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-zinc-400 uppercase font-bold">Coach:</span>
-              <select
+              <Select
                 value={selectedFilterCoach}
                 onChange={(e) => setSelectedFilterCoach(e.target.value)}
                 className="bg-[#18181b] border border-zinc-800 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-zinc-600"
@@ -459,13 +460,13 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
                 {availableCoaches.map((cName) => (
                   <option key={cName} value={cName}>{cName}</option>
                 ))}
-              </select>
+              </Select>
             </div>
           )}
 
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] text-zinc-400 uppercase font-bold">Stage:</span>
-            <select
+            <Select
               value={selectedFilterStage}
               onChange={(e) => setSelectedFilterStage(e.target.value)}
               className="bg-[#18181b] border border-zinc-800 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-zinc-600"
@@ -474,7 +475,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
               {pipelineStages.map((stg) => (
                 <option key={stg} value={stg}>{stageLabel(stg)}</option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
       </div>
@@ -607,7 +608,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
                     <td className="py-3 px-3 font-bold text-white">{lead.assignedCoach}</td>
                     <td className="py-3 px-3 text-zinc-400 text-[11px]">{lead.source}</td>
                     <td className="py-3 px-3">
-                      <select
+                      <Select
                         value={lead.stage}
                         onChange={(e) => handleUpdateStage(lead.id, e.target.value as LeadPipelineStage)}
                         className="bg-[#18181b] text-white border border-zinc-700 font-bold uppercase text-[10px] rounded px-2.5 py-1 focus:outline-none focus:border-zinc-500 cursor-pointer"
@@ -615,7 +616,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
                         {pipelineStages.map((stg) => (
                           <option key={stg} value={stg}>{stageLabel(stg)}</option>
                         ))}
-                      </select>
+                      </Select>
                     </td>
                     <td className="py-3 px-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
@@ -756,7 +757,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
                   <label className="block text-xs font-bold uppercase text-zinc-300 mb-1">
                     Assigned Coach
                   </label>
-                  <select
+                  <Select
                     value={coachInput}
                     onChange={(e) => setCoachInput(e.target.value)}
                     className="w-full bg-[#18181b] border border-zinc-800 rounded-lg px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-zinc-600"
@@ -764,14 +765,14 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
                     {availableCoaches.map((cName) => (
                       <option key={cName} value={cName}>{cName}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase text-zinc-300 mb-1">
                     Initial Status
                   </label>
-                  <select
+                  <Select
                     value={stageInput}
                     onChange={(e) => setStageInput(e.target.value as LeadPipelineStage)}
                     className="w-full bg-[#18181b] border border-zinc-800 rounded-lg px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-zinc-600"
@@ -779,7 +780,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
                     {pipelineStages.map(stg => (
                       <option key={stg} value={stg}>{stageLabel(stg)}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               </div>
 
@@ -787,7 +788,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
                 <label className="block text-xs font-bold uppercase text-zinc-300 mb-1">
                   Client Source
                 </label>
-                <select
+                <Select
                   value={sourceInput}
                   onChange={(e) => setSourceInput(e.target.value)}
                   className="w-full bg-[#18181b] border border-zinc-800 rounded-lg px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-zinc-600"
@@ -797,7 +798,7 @@ export const CRMOverview: React.FC<CRMOverviewProps> = ({
                   <option value="Website Contact Form">Website Contact Form</option>
                   <option value="WhatsApp Direct Inquiry">WhatsApp Direct Inquiry</option>
                   <option value="Client Referral">Client Referral</option>
-                </select>
+                </Select>
               </div>
 
               <div className="pt-4 flex items-center justify-end gap-3 border-t border-zinc-800">

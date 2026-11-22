@@ -4,7 +4,7 @@ import { VelocityAPI, getApiUrl } from '../../services/api';
 import { normalizeRole } from '../../utils/auth';
 import { CRMOverview } from './CRMOverview';
 import { UserManagement } from './UserManagement';
-import { ClassScheduleManager } from '../head-coach/ClassScheduleManager';
+import { SessionScheduleManager } from '../head-coach/SessionScheduleManager';
 import { ProgramManager } from '../head-coach/ProgramManager';
 import { NutritionManager } from '../head-coach/NutritionManager';
 import { FinancialSubscriptions } from './FinancialSubscriptions';
@@ -209,10 +209,10 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
   const clients = users.filter((u) => u.role === 'client');
 
   return (
-    <div className="min-h-screen md:min-h-0 md:h-dvh md:overflow-hidden bg-[#0a0a0a] text-white font-sans flex flex-col md:flex-row">
+    <div className="min-h-screen md:min-h-0 md:h-dvh md:overflow-clip bg-[#0a0a0a] text-white font-sans flex flex-col md:flex-row">
       {/* Toast Alert */}
       {toastMsg && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#18181b] text-white border-l-4 border-white px-5 py-4 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5">
+        <div className="fixed bottom-6 right-6 z-[10000] bg-[#18181b] text-white border-l-4 border-white px-5 py-4 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5">
           <CheckCircle2 className="w-5 h-5 text-white" />
           <p className="text-xs font-bold uppercase tracking-wide">{toastMsg}</p>
           <button onClick={() => setToastMsg(null)} className="ml-2 text-zinc-400 hover:text-white">
@@ -378,13 +378,7 @@ export const AdminCRM: React.FC<AdminCRMProps> = ({ user, onLogout, onNavigateHo
             )}
 
             {activeTab === 'schedule' && (
-              <ClassScheduleManager
-                classes={classes}
-                coaches={coaches}
-                clients={clients}
-                onClassesUpdated={loadCRMData}
-                onShowToast={showToast}
-              />
+              <SessionScheduleManager user={user} onShowToast={showToast} />
             )}
 
             {activeTab === 'programs' && (

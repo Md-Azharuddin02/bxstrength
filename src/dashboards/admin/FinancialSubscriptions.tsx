@@ -3,6 +3,7 @@ import { Subscription, User } from '../../types';
 import { VelocityAPI } from '../../services/api';
 import { CreditCard, Trash2, Plus, X } from 'lucide-react';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { Select } from '../../components/ui/Select';
 
 interface FinancialSubscriptionsProps {
   subscriptions: Subscription[];
@@ -134,7 +135,7 @@ export const FinancialSubscriptions: React.FC<FinancialSubscriptionsProps> = ({
                   <td className="py-3.5 px-4 font-mono font-bold text-white">£{s.price}.00</td>
                   <td className="py-3.5 px-4 font-mono text-gray-400">{s.nextBillingDate}</td>
                   <td className="py-3.5 px-4">
-                    <select
+                    <Select
                       value={s.status}
                       onChange={(e) => handleUpdateStatus(s.id, e.target.value as any, s.userName)}
                       className={`px-2 py-1 font-bold uppercase text-[10px] bg-black border outline-none cursor-pointer ${
@@ -148,7 +149,7 @@ export const FinancialSubscriptions: React.FC<FinancialSubscriptionsProps> = ({
                       <option value="active" className="bg-black text-emerald-400">ACTIVE</option>
                       <option value="past_due" className="bg-black text-amber-400">PAST DUE</option>
                       <option value="cancelled" className="bg-black text-red-400">CANCELLED</option>
-                    </select>
+                    </Select>
                   </td>
                   <td className="py-3.5 px-4 text-right">
                     <button
@@ -184,7 +185,7 @@ export const FinancialSubscriptions: React.FC<FinancialSubscriptionsProps> = ({
             <form onSubmit={handleCreateSubmit} className="space-y-3">
               <div>
                 <label className="block text-xs font-bold uppercase text-gray-300 mb-1">Select Client (Name / Email) *</label>
-                <select
+                <Select
                   value={selectedUserId}
                   onChange={(e) => setSelectedUserId(e.target.value)}
                   className="w-full bg-gray-900 border border-gray-800 text-white p-2.5 text-xs outline-none"
@@ -194,7 +195,7 @@ export const FinancialSubscriptions: React.FC<FinancialSubscriptionsProps> = ({
                   {clients.map((c) => (
                     <option key={c.id} value={c.id}>{c.name} ({c.email})</option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               <div>
@@ -212,7 +213,7 @@ export const FinancialSubscriptions: React.FC<FinancialSubscriptionsProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold uppercase text-gray-300 mb-1">Billing Cycle</label>
-                  <select
+                  <Select
                     value={billingCycle}
                     onChange={(e) => setBillingCycle(e.target.value as any)}
                     className="w-full bg-gray-900 border border-gray-800 text-white px-2 py-2 text-xs outline-none"
@@ -220,7 +221,7 @@ export const FinancialSubscriptions: React.FC<FinancialSubscriptionsProps> = ({
                     <option value="monthly">Monthly</option>
                     <option value="quarterly">Quarterly</option>
                     <option value="annual">Annual</option>
-                  </select>
+                  </Select>
                 </div>
 
                 <div>
@@ -249,7 +250,7 @@ export const FinancialSubscriptions: React.FC<FinancialSubscriptionsProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold uppercase text-gray-300 mb-1">Initial Status</label>
-                  <select
+                  <Select
                     value={status}
                     onChange={(e) => setStatus(e.target.value as any)}
                     className="w-full bg-gray-900 border border-gray-800 text-white px-2 py-2 text-xs outline-none"
@@ -257,7 +258,7 @@ export const FinancialSubscriptions: React.FC<FinancialSubscriptionsProps> = ({
                     <option value="active">Active</option>
                     <option value="past_due">Past Due</option>
                     <option value="cancelled">Cancelled</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
 

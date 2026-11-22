@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { formatScheduledAt } from '../../utils/schedule';
 import { PaidPackageBooking, User } from '../../types';
 import { VelocityAPI, decodeHtmlEntities, formatMeetingUrl } from '../../services/api';
 import { normalizeRole } from '../../utils/auth';
@@ -7,6 +8,7 @@ import {
   Mail, Phone, MessageCircle, Search, Calendar, Award, Zap,
   Layers, ChevronDown, ChevronUp, ShieldCheck
 } from 'lucide-react';
+import { Select } from '../../components/ui/Select';
 
 interface CoachAvailabilityRosterProps {
   coaches: User[];
@@ -29,6 +31,7 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
   const [assigningCoach, setAssigningCoach] = useState<User | null>(null);
   const [selectedBookingId, setSelectedBookingId] = useState<string>('');
   const [meetingLinkInput, setMeetingLinkInput] = useState<string>('');
+  const [scheduledAtInput, setScheduledAtInput] = useState<string>('');
   const [coordinationNotes, setCoordinationNotes] = useState<string>('');
   const [isSubmittingAssign, setIsSubmittingAssign] = useState<boolean>(false);
 
@@ -120,6 +123,7 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
         assignedCoachName: assigningCoach.name,
         assignedBy: 'Customer Support Desk',
         meetingLink: meetingLinkInput.trim() || undefined,
+        scheduledAt: scheduledAtInput ? new Date(scheduledAtInput).toISOString() : undefined,
         coachNotes: coordinationNotes.trim() || undefined
       });
 
@@ -128,6 +132,7 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
         setAssigningCoach(null);
         setSelectedBookingId('');
         setMeetingLinkInput('');
+        setScheduledAtInput('');
         setCoordinationNotes('');
         onBookingsUpdated();
       } else {
@@ -377,6 +382,13 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
                               </span>
                             </div>
 
+                            <div className="text-[11px] flex items-center justify-between">
+                              <span className="text-zinc-500">Scheduled:</span>
+                              {formatScheduledAt(b.scheduledAt)
+                                ? <span className="text-[#CCFF00] font-bold">{formatScheduledAt(b.scheduledAt)}</span>
+                                : <span className="text-amber-400/80">Not scheduled</span>}
+                            </div>
+
                             {/* Meeting Link status */}
                             <div className="text-[11px] pt-1 border-t border-zinc-800/40 flex items-center justify-between">
                               <span className="text-zinc-500">Live Video:</span>
@@ -480,7 +492,7 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
                 <label className="block text-[11px] font-bold uppercase text-zinc-400 mb-1.5">
                   Select Unassigned Booking <span className="text-red-400">*</span>
                 </label>
-                <select
+                <Select
                   value={selectedBookingId}
                   onChange={(e) => setSelectedBookingId(e.target.value)}
                   required
@@ -489,10 +501,29 @@ export const CoachAvailabilityRoster: React.FC<CoachAvailabilityRosterProps> = (
                   <option value="" disabled>-- Select athlete booking --</option>
                   {unassignedBookings.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {decodeHtmlEntities(b.clientName)} — {decodeHtmlEntities(b.packageName)} [Ref: {b.id}]
+                      {decodeHtmlEntities(b.clientName)} — {decodeHtmlEntities(b.packageName)} [Order ID: {b.orderId || b.id}]
                     </option>
                   ))}
-                </select>
+                </Select>
+              </div>
+
+              {/* Scheduled Session Date & Time */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-zinc-400 mb-1.5 flex items-center justify-between">
+                  <span>Scheduled Session Date & Time (UK / GMT)</span>
+                  <Calendar className="w-3.5 h-3.5 text-[#CCFF00]" />
+                </label>
+                <div className="relative">
+                  <input
+                    type="datetime-local"
+                    value={scheduledAtInput}
+                    onChange={(e) => setScheduledAtInput(e.target.value)}
+                    className="w-full bg-[#18181b] border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#CCFF00]"
+                  />
+                </div>
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  Scheduled time will be formatted and emailed directly to both the client and assigned coach.
+                </p>
               </div>
 
               {/* Video Meeting URL */}

@@ -85,6 +85,7 @@ import { ticketsApi } from "./features/tickets";
 import { coachPermissionsApi } from "./features/coachPermissions";
 import { trainersApi } from "./features/trainers";
 import { bookingPlansApi } from "./features/bookingPlans";
+import { bookingSessionsApi } from "./features/bookingSessions";
 
 // Re-exported so existing `services/api` importers keep working unchanged.
 export { getApiUrl, apiFetch } from "./core/http";
@@ -660,7 +661,7 @@ export const VelocityAPI = {
   async fetchUsers(): Promise<User[]> {
     initStore();
     try {
-      const res = await fetch(getApiUrl('/api/users'));
+      const res = await apiFetch(getApiUrl('/api/users'));
       if (res.ok) {
         const rawUsers = await res.json();
         if (Array.isArray(rawUsers) && rawUsers.length > 0) {
@@ -2404,6 +2405,7 @@ export const VelocityAPI = {
     assignedBy?: string;
     meetingLink?: string;
     notes?: string;
+    scheduledAt?: string | null;
   }): Promise<{ success: boolean; consultation?: ConsultationBooking }> {
     const res = await apiFetch(getApiUrl(`/api/consultations/${id}/assign`), {
       method: 'PATCH',
@@ -2430,6 +2432,7 @@ export const VelocityAPI = {
     status: string;
     meetingLink?: string;
     notes?: string;
+    scheduledAt?: string | null;
   }): Promise<{ success: boolean; consultation?: ConsultationBooking }> {
     const res = await apiFetch(getApiUrl(`/api/consultations/${id}/status`), {
       method: 'PATCH',
@@ -2502,7 +2505,7 @@ export const VelocityAPI = {
   },
 
   async updateAssessmentStatus(id: string, data: {
-    status: string;
+    status?: string;
     coachFeedback?: string;
     recommendedPlan?: string;
     coachNotes?: string;
@@ -2591,6 +2594,7 @@ export const VelocityAPI = {
     assignedCoachName: string;
     assignedBy?: string;
     meetingLink?: string;
+    scheduledAt?: string;
     coachNotes?: string;
   }): Promise<{ success: boolean; booking?: PaidPackageBooking; error?: string }> {
     try {
@@ -3422,7 +3426,10 @@ export const VelocityAPI = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newTicket)
-    }).catch(() => {});
+    })
+      // Ticket lists read from the server, so tell them to reload once the ticket is saved there.
+      .then(() => window.dispatchEvent(new CustomEvent('bxstrength_tickets_updated')))
+      .catch(() => {});
 
     const current = this.getCurrentUser();
     this.addAuditLog(
@@ -3596,8 +3603,8 @@ export const VelocityAPI = {
     return null;
   },
 
-  getSupportAnalytics() {
-    const tickets = this.getTickets();
+  getSupportAnalytics(customTickets?: SupportTicket[]) {
+    const tickets = customTickets || this.getTickets();
     const bookings = this.getBookings();
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
@@ -3803,4 +3810,5 @@ export const VelocityAPI = {
 
   ...trainersApi,
   ...bookingPlansApi,
+  ...bookingSessionsApi,
 };

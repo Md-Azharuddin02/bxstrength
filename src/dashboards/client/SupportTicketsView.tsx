@@ -1,21 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, SupportTicket, TicketCategory, TicketPriority } from '../../types';
 import { VelocityAPI, getApiUrl, apiFetch } from '../../services/api';
 import { sendBrevoTicketEmail } from '../../services/emailService';
-import { LifeBuoy, Plus, CheckCircle2, Clock, AlertCircle, MessageSquare, Tag, X, ShieldAlert, Send, UserCheck } from 'lucide-react';
+import { ArrowLeft, LifeBuoy, Plus, CheckCircle2, Clock, AlertCircle, MessageSquare, Tag, X, ShieldAlert, Send, UserCheck } from 'lucide-react';
 
+import { TicketChat } from '../../components/TicketChat/TicketChat';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Select } from '../../components/ui/Select';
 
 interface SupportTicketsViewProps {
   user: User;
   onShowToast: (msg: string) => void;
+  /** Set by a clicked notification: open this ticket's chat. `at` changes on every click. */
+  focus?: { ticketId: string; at: number } | null;
 }
 
-export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, onShowToast }) => {
+export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, onShowToast, focus }) => {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  // Desktop always shows a ticket (the chosen one, else the newest); on phones null means "show the list".
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // While the ticket chat is open it takes over the detail panel.
+  const [chatOpen, setChatOpen] = useState(false);
+  const [openChatRequest, setOpenChatRequest] = useState(0);
+  const handledFocus = useRef(0);
+  const refetchedFor = useRef(0);
 
   // Form states initialized from draft storage if present
   const [subject, setSubject] = useState(() => sessionStorage.getItem('bxstrength_ticket_draft_subj') || '');
@@ -42,18 +53,11 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
   const fetchUserTickets = async (isInitial = false) => {
     if (isInitial) setIsLoading(true);
     try {
-      const localTickets = VelocityAPI.getTickets(user.id);
+      // Server is the only source of truth; on a failed request keep what is on screen (the local copy is stale).
       const res = await apiFetch(getApiUrl(`/api/tickets?userId=${encodeURIComponent(user.id)}&userEmail=${encodeURIComponent(user.email)}`));
-      if (res.ok) {
-        const serverTickets: SupportTicket[] = await res.json();
-        const map = new Map<string, SupportTicket>();
-        [...localTickets, ...serverTickets].forEach(t => map.set(t.id, t));
-        setTickets(Array.from(map.values()));
-      } else {
-        setTickets(localTickets);
-      }
+      if (res.ok) setTickets(await res.json());
     } catch {
-      setTickets(VelocityAPI.getTickets(user.id));
+      // Network error: keep the current list.
     } finally {
       if (isInitial) setIsLoading(false);
     }
@@ -63,7 +67,14 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
     fetchUserTickets(true);
     // Every client runs this, so keep it gentle and pause it in background tabs
     const interval = setInterval(() => { if (!document.hidden) fetchUserTickets(false); }, 30000);
-    return () => clearInterval(interval);
+    const onVisible = () => { if (!document.hidden) fetchUserTickets(false); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('bxstrength_tickets_updated', onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('bxstrength_tickets_updated', onVisible);
+    };
   }, [user.id, user.email]);
 
   const handleCreateTicket = async (e: React.FormEvent) => {
@@ -136,15 +147,23 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'open':
+      case 'new':
         return (
           <span className="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1">
             <Clock className="w-3 h-3" /> OPEN
           </span>
         );
+      case 'assigned':
       case 'in_progress':
         return (
           <span className="bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1">
             <AlertCircle className="w-3 h-3" /> IN PROGRESS
+          </span>
+        );
+      case 'waiting_customer':
+        return (
+          <span className="bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1">
+            <Clock className="w-3 h-3" /> AWAITING YOUR REPLY
           </span>
         );
       case 'resolved':
@@ -174,6 +193,24 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
         return <span className="bg-zinc-800 text-zinc-500 font-mono text-[9px] font-bold uppercase px-2 py-0.5 rounded">LOW</span>;
     }
   };
+
+  // A clicked notification: select its ticket and open the chat once the ticket is in the list.
+  useEffect(() => {
+    if (!focus || focus.at === handledFocus.current) return;
+    if (!tickets.some(t => t.id === focus.ticketId)) {
+      // Reload once per click (the ticket may be newer than the list); a deleted ticket just stays unselected.
+      if (!isLoading && refetchedFor.current !== focus.at) {
+        refetchedFor.current = focus.at;
+        fetchUserTickets(false);
+      }
+      return;
+    }
+    handledFocus.current = focus.at;
+    setSelectedId(focus.ticketId);
+    setOpenChatRequest(focus.at);
+  }, [focus, tickets, isLoading]);
+
+  const activeTicket = tickets.find(t => t.id === selectedId) ?? tickets[0];
 
   return (
     <div className="space-y-6">
@@ -209,59 +246,93 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {tickets.map((t) => (
-            <div key={t.id} className="bg-[#121214] border border-zinc-800 p-6 rounded-2xl space-y-4 transition-all hover:border-zinc-700">
-              
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800/80 pb-3">
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-xs font-bold text-emerald-400 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded">
-                    #{t.id}
-                  </span>
-                  <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
-                    {t.category}
-                  </span>
-                  {getPriorityBadge(t.priority)}
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,360px)_1fr] gap-4 items-start">
+          {/* LEFT: ticket list */}
+          <nav
+            aria-label="Your support tickets"
+            className={`${selectedId ? 'hidden lg:block' : ''} bg-[#121214] border border-zinc-800 rounded-2xl overflow-hidden lg:sticky lg:top-4`}
+          >
+            <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-wider text-white">Your tickets</span>
+              <span className="text-[10px] text-zinc-500">{tickets.length}</span>
+            </div>
+            <ul className="divide-y divide-zinc-800/80 lg:max-h-[calc(100dvh-21rem)] overflow-y-auto">
+              {tickets.map((t) => {
+                const active = t.id === activeTicket?.id;
+                return (
+                  <li key={t.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(t.id)}
+                      aria-current={active ? 'true' : undefined}
+                      className={`w-full text-left px-4 py-3.5 space-y-1.5 border-l-2 transition-colors cursor-pointer ${active ? 'bg-zinc-900 border-[#CCFF00]' : 'border-transparent hover:bg-zinc-900/60'}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-[11px] font-bold text-emerald-400">#{t.id}</span>
+                        {getStatusBadge(t.status)}
+                      </div>
+                      <p className="text-sm font-bold text-white truncate">{t.subject}</p>
+                      <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+                        <span className="uppercase font-bold tracking-wider">{t.category}</span>
+                        <span aria-hidden="true">·</span>
+                        <time dateTime={t.updatedAt || t.createdAt}>{new Date(t.updatedAt || t.createdAt).toLocaleDateString()} {new Date(t.updatedAt || t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
 
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] font-mono text-zinc-500">
-                    {new Date(t.createdAt).toLocaleDateString()} {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {/* RIGHT: selected ticket details + chat */}
+          {activeTicket && (
+            <section
+              aria-label={`Ticket ${activeTicket.id}`}
+              className={`${chatOpen ? `${selectedId ? 'flex' : 'hidden lg:flex'} flex-col h-[75dvh] lg:h-[calc(100dvh-18rem)] min-h-[420px]` : `${selectedId ? '' : 'hidden lg:block'} space-y-5`} bg-[#121214] border border-zinc-800 p-5 sm:p-6 rounded-2xl min-w-0`}
+            >
+              <button
+                type="button"
+                onClick={() => setSelectedId(null)}
+                hidden={chatOpen}
+                className="lg:hidden flex items-center gap-1.5 text-xs font-bold uppercase text-zinc-400 hover:text-white cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" /> All tickets
+              </button>
+
+              <div hidden={chatOpen} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800/80 pb-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="font-mono text-xs font-bold text-emerald-400 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded">
+                    #{activeTicket.id}
                   </span>
-                  {getStatusBadge(t.status)}
+                  <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">{activeTicket.category}</span>
+                  {getPriorityBadge(activeTicket.priority)}
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] font-mono text-zinc-500">{new Date(activeTicket.createdAt).toLocaleDateString()} {new Date(activeTicket.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  {getStatusBadge(activeTicket.status)}
                 </div>
               </div>
 
-              <div>
-                <h3 className="text-base font-bold text-white mb-2">{t.subject}</h3>
-                <p className="text-xs text-zinc-300 bg-[#18181b] p-3.5 rounded-xl border border-zinc-800/80 font-normal leading-relaxed">
-                  "{t.description}"
+              <div hidden={chatOpen}>
+                <h3 className="text-base font-bold text-white mb-2 break-words">{activeTicket.subject}</h3>
+                <p className="text-xs text-zinc-300 bg-[#18181b] p-3.5 rounded-xl border border-zinc-800/80 leading-relaxed whitespace-pre-wrap break-words">
+                  {activeTicket.description}
                 </p>
               </div>
 
-              {/* Admin Response Note */}
-              {t.adminResponse ? (
-                <div className="bg-emerald-950/30 border border-emerald-500/30 p-4 rounded-xl space-y-1">
+              {activeTicket.adminResponse && (
+                <div hidden={chatOpen} className="bg-emerald-950/30 border border-emerald-500/30 p-4 rounded-xl space-y-1">
                   <div className="flex items-center gap-2 text-emerald-400 text-xs font-black uppercase tracking-wider">
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>ADMIN RESOLUTION & COACH RESPONSE:</span>
+                    <span>Admin resolution & coach response</span>
                   </div>
-                  <p className="text-xs text-zinc-200 font-medium pl-6 leading-relaxed">
-                    {t.adminResponse}
-                  </p>
-                  <div className="text-[10px] font-mono text-zinc-500 pl-6 pt-1">
-                    Updated: {new Date(t.updatedAt).toLocaleDateString()} at {new Date(t.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-zinc-500 text-xs italic">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Awaiting coach/admin resolution response. You will be notified live once updated.</span>
+                  <p className="text-xs text-zinc-200 font-medium pl-6 leading-relaxed">{activeTicket.adminResponse}</p>
                 </div>
               )}
 
-            </div>
-          ))}
+              <TicketChat ticketId={activeTicket.id} currentUserId={user.id} subtitle={`#${activeTicket.id} · ${activeTicket.subject}`} onOpenChange={setChatOpen} openRequest={openChatRequest} />
+            </section>
+          )}
         </div>
       )}
 
@@ -303,7 +374,7 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
                   <label className="block text-xs font-bold uppercase tracking-wider text-zinc-300 mb-1.5">
                     Category
                   </label>
-                  <select
+                  <Select
                     value={category}
                     onChange={(e) => setCategory(e.target.value as TicketCategory)}
                     className="w-full bg-[#18181b] border border-zinc-800 focus:border-zinc-600 text-white px-3 py-2.5 text-xs font-bold rounded-lg outline-none"
@@ -313,14 +384,14 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
                     <option value="Schedule">Schedule / Class</option>
                     <option value="Billing">Billing & Subscription</option>
                     <option value="General">General Inquiry</option>
-                  </select>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-zinc-300 mb-1.5">
                     Priority Level
                   </label>
-                  <select
+                  <Select
                     value={priority}
                     onChange={(e) => setPriority(e.target.value as TicketPriority)}
                     className="w-full bg-[#18181b] border border-zinc-800 focus:border-zinc-600 text-white px-3 py-2.5 text-xs font-bold rounded-lg outline-none"
@@ -329,7 +400,7 @@ export const SupportTicketsView: React.FC<SupportTicketsViewProps> = ({ user, on
                     <option value="medium">Medium Priority</option>
                     <option value="high">High Priority</option>
                     <option value="urgent">Urgent Priority</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
 

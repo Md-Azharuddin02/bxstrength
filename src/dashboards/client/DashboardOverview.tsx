@@ -144,7 +144,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[10px] font-mono font-bold text-zinc-400">
-                    REF: {activeConsultation.id}
+                    ORDER ID : {activeConsultation.id}
                   </span>
                   <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
                     activeConsultation.status === 'Confirmed'
@@ -179,6 +179,15 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                     ? `Head Coach has assigned your free demo to Specialist Coach ${activeConsultation.assignedCoachName || 'Assigned Coach'}. The coach will generate and share your session link shortly.`
                     : 'Your request has been delivered to the Head Coach. Our coaching team will assign your specialist coach and reach out shortly.'}
                 </p>
+                {activeConsultation.scheduledAt && !isNaN(new Date(activeConsultation.scheduledAt).getTime()) && (
+                  <p className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" />
+                    {new Date(activeConsultation.scheduledAt).toLocaleString('en-GB', {
+                      weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London', timeZoneName: 'short'
+                    })}
+                  </p>
+                )}
               </div>
             </div>
             <div className="shrink-0 flex flex-wrap sm:flex-nowrap items-center gap-3">
@@ -217,7 +226,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded font-mono">
                   DEMO SESSION COMPLETED
                 </span>
-                <span className="text-xs font-mono text-zinc-400">REF: {activeConsultation.id}</span>
+                <span className="text-xs font-mono text-zinc-400">ORDER ID : {activeConsultation.id}</span>
               </div>
               <h3 className="text-sm font-bold text-white uppercase mt-0.5">
                 Complimentary 15-Min Strategy Session Completed

@@ -582,8 +582,6 @@ export const forgotPassword = async (req: Request, res: Response) => {
     res.json({ 
       message: sentMessage, 
       success: true, 
-      resetToken, 
-      resetUrl,
       emailSent: emailResult.success 
     });
   } catch (err: any) {

@@ -292,7 +292,7 @@ function AppContent() {
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#18181b] text-white border-l-4 border-white px-5 py-4 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5 rounded-lg border border-zinc-800">
+        <div className="fixed bottom-6 right-6 z-[10000] bg-[#18181b] text-white border-l-4 border-white px-5 py-4 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5 rounded-lg border border-zinc-800">
           <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
           <p className="text-xs font-bold uppercase tracking-wide">{toastMessage}</p>
           <button onClick={() => setToastMessage(null)} className="ml-2 text-zinc-400 hover:text-white">

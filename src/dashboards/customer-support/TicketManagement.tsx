@@ -7,6 +7,7 @@ import {
   ShieldAlert, Send, Trash2, UserCheck, RefreshCw, X, Tag, ShieldCheck, ChevronDown, FileText
 } from 'lucide-react';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Select } from '../../components/ui/Select';
 
 interface TicketManagementProps {
   user?: User;
@@ -55,23 +56,16 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
   const fetchAllTickets = async (showSpin = false) => {
     if (showSpin) setIsRefreshing(true);
     try {
-      const localTickets = VelocityAPI.getTickets();
-      let serverTickets: SupportTicket[] = [];
-
-      try {
-        const res = await apiFetch('/api/tickets');
-        if (res.ok) {
-          serverTickets = await res.json();
-        }
-      } catch (e) {
-        console.error('Failed to fetch server tickets:', e);
-      }
+      // Server is the only source of truth; on a failed request keep what is on screen (the local copy is stale).
+      const res = await apiFetch('/api/tickets');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const source: SupportTicket[] = await res.json();
 
       // Deduplicate by both ID and Content (userEmail + description snippet)
       const mapById = new Map<string, SupportTicket>();
       const mapByContent = new Map<string, SupportTicket>();
 
-      [...localTickets, ...serverTickets].forEach(t => {
+      source.forEach(t => {
         if (t && t.id && t.id !== 'TICKET-849201' && t.id !== 'TICKET-739104') {
           const email = (t.userEmail || '').toLowerCase().trim();
           const descSnippet = (t.description || t.subject || '').toLowerCase().trim().slice(0, 40);
@@ -95,7 +89,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
 
       setTickets(Array.from(mapById.values()));
     } catch (e) {
-      setTickets(VelocityAPI.getTickets().filter(t => t.id !== 'TICKET-849201' && t.id !== 'TICKET-739104'));
+      console.error('Failed to fetch server tickets:', e);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -182,7 +176,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
 
       // 2. Update via server API endpoint
       try {
-        await apiFetch(`/api/tickets/${ticketId}`, {
+        const res = await apiFetch(`/api/tickets/${ticketId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -190,8 +184,12 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
             adminResponse: resMsg
           })
         });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
       } catch (err) {
         console.error('Failed to update ticket on server:', err);
+        onShowToast('Could not save the status change. Please try again.');
+        fetchAllTickets();
+        return;
       }
 
       onShowToast(`Ticket #${ticketId} status updated to "${newStatus.toUpperCase().replace('_', ' ')}"!`);
@@ -302,6 +300,12 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
         return (
           <span className="bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1">
             <AlertCircle className="w-3 h-3" /> IN PROGRESS
+          </span>
+        );
+      case 'waiting_customer':
+        return (
+          <span className="bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1">
+            <Clock className="w-3 h-3" /> AWAITING CLIENT
           </span>
         );
       case 'resolved':
@@ -446,7 +450,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-black uppercase text-zinc-400">PRIORITY:</span>
-              <select
+              <Select
                 value={priorityFilter}
                 onChange={(ev) => setPriorityFilter(ev.target.value)}
                 className="bg-[#18181b] border border-zinc-700 text-white text-xs font-bold px-2.5 py-1 rounded-lg focus:outline-none focus:border-emerald-500 cursor-pointer"
@@ -456,12 +460,12 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
                 <option value="high">High</option>
                 <option value="medium">Medium</option>
                 <option value="low">Low</option>
-              </select>
+              </Select>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-black uppercase text-zinc-400">CATEGORY:</span>
-              <select
+              <Select
                 value={categoryFilter}
                 onChange={(ev) => setCategoryFilter(ev.target.value)}
                 className="bg-[#18181b] border border-zinc-700 text-white text-xs font-bold px-2.5 py-1 rounded-lg focus:outline-none focus:border-emerald-500 cursor-pointer"
@@ -475,7 +479,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
                 <option value="Technical">Technical</option>
                 <option value="Chatbot">Chatbot</option>
                 <option value="Callback">Callback</option>
-              </select>
+              </Select>
             </div>
           </div>
 
@@ -557,7 +561,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
                   {/* Assignee */}
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black uppercase text-zinc-400">ASSIGNEE:</span>
-                    <select
+                    <Select
                       value={
                         (t.assignedAgent === 'Head Coach & Team' || t.assignedAgent === 'Head Coach' || t.assignedAgent === 'Shaban Faridi (Head Coach)')
                           ? 'Shaban Faridi'
@@ -572,13 +576,13 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
                       <option value="Moheeb Khan (Boxing Specialist)">Moheeb Khan (Boxing Specialist)</option>
                       <option value="CS Agent Desk">CS Agent Desk</option>
                       <option value="System Administrator">System Administrator</option>
-                    </select>
+                    </Select>
                   </div>
 
                   {/* Priority Override */}
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black uppercase text-zinc-400">PRIORITY:</span>
-                    <select
+                    <Select
                       value={t.priority || 'normal'}
                       onChange={(ev) => handleUpdatePriority(t.id, ev.target.value as TicketPriority)}
                       className="bg-[#121214] border border-zinc-700 text-white text-xs font-bold px-2.5 py-1 rounded focus:outline-none focus:border-emerald-500 cursor-pointer"
@@ -587,13 +591,13 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
                       <option value="high">High</option>
                       <option value="medium">Medium</option>
                       <option value="low">Low</option>
-                    </select>
+                    </Select>
                   </div>
 
                   {/* Category */}
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black uppercase text-zinc-400">CATEGORY:</span>
-                    <select
+                    <Select
                       value={t.category || 'General'}
                       onChange={(ev) => handleUpdateCategory(t.id, ev.target.value as TicketCategory)}
                       className="bg-[#121214] border border-zinc-700 text-white text-xs font-bold px-2.5 py-1 rounded focus:outline-none focus:border-emerald-500 cursor-pointer"
@@ -606,7 +610,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
                       <option value="Technical">Technical</option>
                       <option value="Chatbot">Chatbot</option>
                       <option value="Callback">Callback</option>
-                    </select>
+                    </Select>
                   </div>
                 </div>
 

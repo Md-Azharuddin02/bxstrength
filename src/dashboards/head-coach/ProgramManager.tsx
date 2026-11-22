@@ -1,4 +1,6 @@
+import { planToSafeHtml } from '../../utils/planHtml';
 import React, { useState, useEffect, useMemo } from 'react';
+import { ArrowLeft, ChevronRight, Pencil } from 'lucide-react';
 import { User, PaidPackageBooking, BookingWorkoutPlan } from '../../types';
 import { VelocityAPI } from '../../services/api';
 import { 
@@ -7,6 +9,7 @@ import {
 } from 'lucide-react';
 import { RichPlanEditor } from '../../components/ui/RichPlanEditor';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { Select } from '../../components/ui/Select';
 
 interface ProgramManagerProps {
   programs?: any[];
@@ -35,6 +38,9 @@ export const ProgramManager: React.FC<ProgramManagerProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [coachFilter, setCoachFilter] = useState<string>('all');
   const [expandedBookings, setExpandedBookings] = useState<Record<string, boolean>>({});
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editingPlan, setEditingPlan] = useState<BookingWorkoutPlan | null>(null);
 
   // Add Plan Modal
   const [modalBooking, setModalBooking] = useState<PaidPackageBooking | null>(null);
@@ -82,8 +88,11 @@ export const ProgramManager: React.FC<ProgramManagerProps> = ({
       // If regular coach, strictly match assigned coach
       if (!isHeadCoachOrAdmin) {
         const matchesId = b.assignedCoachId && b.assignedCoachId === currentUser.id;
-        const matchesName = b.assignedCoachName && b.assignedCoachName.toLowerCase() === currentUser.name.toLowerCase();
-        return matchesId || matchesName;
+        const a = (b.assignedCoachName || '').trim().toLowerCase();
+        const me = (currentUser.name || '').trim().toLowerCase();
+        const matchesName = Boolean(a && me && a === me);
+        // A booking that carries a coach id belongs to that coach only; names are a fallback
+        return b.assignedCoachId ? Boolean(matchesId) : matchesName;
       }
       return true;
     });
@@ -109,18 +118,31 @@ export const ProgramManager: React.FC<ProgramManagerProps> = ({
   }, [bookings, currentUser, isHeadCoachOrAdmin, coachFilter, searchTerm]);
 
   // Open modal for a specific booking
+  // Opens the editor. New plans continue where the booking's latest plan ends (weekly: 7 days, monthly: 30).
   const handleOpenAddModal = (booking: PaidPackageBooking) => {
+    const existing = plans.filter(p => p.bookingId === booking.id);
+    const lastEnd = existing.map(p => p.validTo).sort().pop();
+    const start = lastEnd ? new Date(`${lastEnd}T00:00:00`) : new Date();
+    if (lastEnd) start.setDate(start.getDate() + 1);
+    const end = new Date(start);
+    end.setDate(end.getDate() + (booking.packageType === 'monthly' ? 29 : 6));
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    setEditingPlan(null);
     setModalBooking(booking);
-    setPlanTitle(`Week 1 Workout Program - ${booking.clientName}`);
-
-    // Default dates: today to +7 days
-    const today = new Date();
-    const nextWeek = new Date();
-    nextWeek.setDate(today.getDate() + 7);
-
-    setValidFrom(today.toISOString().split('T')[0]);
-    setValidTo(nextWeek.toISOString().split('T')[0]);
+    setPlanTitle(`${booking.packageType === 'monthly' ? 'Month' : 'Week'} ${existing.length + 1} Workout Program - ${booking.clientName}`);
+    setValidFrom(iso(start));
+    setValidTo(iso(end));
     setPlanContent('');
+  };
+
+  const handleOpenEditModal = (booking: PaidPackageBooking, plan: BookingWorkoutPlan) => {
+    setEditingPlan(plan);
+    setModalBooking(booking);
+    setPlanTitle(plan.title);
+    setValidFrom(plan.validFrom);
+    setValidTo(plan.validTo);
+    setPlanContent(planToSafeHtml(plan.content));
   };
 
   const handleSavePlan = async (e: React.FormEvent) => {
@@ -142,7 +164,9 @@ export const ProgramManager: React.FC<ProgramManagerProps> = ({
 
     setIsSaving(true);
     try {
-      const res = await VelocityAPI.createBookingWorkoutPlan({
+      const res = editingPlan
+        ? await VelocityAPI.updateBookingWorkoutPlan(editingPlan.id, { title: planTitle.trim(), validFrom, validTo, content: planContent })
+        : await VelocityAPI.createBookingWorkoutPlan({
         bookingId: modalBooking.id,
         clientEmail: modalBooking.clientEmail,
         clientName: modalBooking.clientName,
@@ -152,11 +176,12 @@ export const ProgramManager: React.FC<ProgramManagerProps> = ({
         validFrom,
         validTo,
         content: planContent
-      });
+        });
 
       if (res.success) {
         onShowToast(`Workout program "${planTitle}" published successfully!`);
         setModalBooking(null);
+        setEditingPlan(null);
         await loadData();
       } else {
         onShowToast(res.error || 'Failed to save workout program');
@@ -204,8 +229,11 @@ export const ProgramManager: React.FC<ProgramManagerProps> = ({
     }
   };
 
+  const selectedBooking = assignedBookings.find(b => b.id === selectedId) || null;
+
   return (
     <div className="space-y-6">
+      {!selectedBooking && (<>
       {/* Header */}
       <div className="bg-[#111111] border border-zinc-800 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-xl">
         <div>
@@ -234,7 +262,7 @@ export const ProgramManager: React.FC<ProgramManagerProps> = ({
           </div>
 
           {isHeadCoachOrAdmin && (
-            <select
+            <Select
               value={coachFilter}
               onChange={(e) => setCoachFilter(e.target.value)}
               className="py-1.5 px-3 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-white focus:outline-none focus:border-amber-400 cursor-pointer"
@@ -243,10 +271,12 @@ export const ProgramManager: React.FC<ProgramManagerProps> = ({
               {coaches.map(c => (
                 <option key={c.id} value={c.name}>{c.name}</option>
               ))}
-            </select>
+            </Select>
           )}
         </div>
       </div>
+
+      </>)}
 
       {/* Bookings & Programs List */}
       {isLoading ? (
@@ -263,9 +293,15 @@ export const ProgramManager: React.FC<ProgramManagerProps> = ({
               : 'You do not have any paid bookings assigned to you currently. Head Coach will assign bookings to your roster.'}
           </p>
         </div>
-      ) : (
+      ) : selectedBooking ? (
         <div className="space-y-4">
-          {assignedBookings.map((booking) => {
+          <button
+            onClick={() => setSelectedId(null)}
+            className="flex items-center gap-1.5 text-xs font-bold uppercase text-zinc-300 hover:text-white cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 text-[#CCFF00]" /> Back to bookings
+          </button>
+          {[selectedBooking!].map((booking) => {
             const bookingPlans = plans.filter(p => p.bookingId === booking.id);
             const isExpanded = expandedBookings[booking.id] ?? true;
 
@@ -361,7 +397,7 @@ export const ProgramManager: React.FC<ProgramManagerProps> = ({
                               {/* Formatted snippet */}
                               <div 
                                 className="text-xs text-zinc-400 line-clamp-2 max-h-12 overflow-hidden prose prose-invert prose-xs"
-                                dangerouslySetInnerHTML={{ __html: plan.content }}
+                                dangerouslySetInnerHTML={{ __html: planToSafeHtml(plan.content) }}
                               />
                             </div>
 
@@ -378,6 +414,14 @@ export const ProgramManager: React.FC<ProgramManagerProps> = ({
                                 >
                                   <Eye className="w-3 h-3 text-amber-400" />
                                   View Plan
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditModal(booking, plan)}
+                                  className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-white rounded transition cursor-pointer"
+                                  title="Edit"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   type="button"
@@ -399,6 +443,37 @@ export const ProgramManager: React.FC<ProgramManagerProps> = ({
             );
           })}
         </div>
+      ) : (
+        <div className="bg-[#121214] border border-zinc-800 rounded-2xl divide-y divide-zinc-800 overflow-hidden">
+          {assignedBookings.map((b) => {
+            const count = plans.filter(p => p.bookingId === b.id).length;
+            return (
+              <div key={b.id} className="flex items-center hover:bg-zinc-900/70 transition-colors">
+              <button
+                onClick={() => setSelectedId(b.id)}
+                className="flex-1 min-w-0 text-left pl-4 sm:pl-5 py-3.5 flex items-center gap-4 cursor-pointer"
+              >
+                <div className="w-10 h-10 shrink-0 rounded-full bg-zinc-800 border border-zinc-700 text-[#CCFF00] font-black flex items-center justify-center">
+                  {(b.clientName || '?').charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-white truncate">{b.clientName}</div>
+                  <div className="text-xs text-zinc-400 truncate">{b.packageName} · {b.assignedCoachName ? `Coach: ${b.assignedCoachName}` : 'Unassigned'}</div>
+                </div>
+                <span className="hidden sm:inline text-[11px] text-zinc-300 shrink-0">{count} {count === 1 ? 'program' : 'programs'}</span>
+                <ChevronRight className="w-4 h-4 text-zinc-500 shrink-0" />
+              </button>
+              <button
+                onClick={() => handleOpenAddModal(b)}
+                className="mx-4 sm:mx-5 shrink-0 px-3 py-1.5 bg-[#CCFF00] hover:bg-[#b8e600] text-black text-xs font-black uppercase rounded-lg flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                <span>Add Program</span>
+              </button>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {/* ADD WORKOUT PROGRAM MODAL */}
@@ -410,7 +485,7 @@ export const ProgramManager: React.FC<ProgramManagerProps> = ({
               <div>
                 <h3 className="text-base font-black uppercase text-white flex items-center gap-2">
                   <Dumbbell className="w-5 h-5 text-amber-400" />
-                  Add Workout Program
+                  {editingPlan ? 'Edit Workout Program' : 'Add Workout Program'}
                 </h3>
                 <p className="text-xs text-zinc-400 mt-0.5">
                   Client: <strong className="text-white">{modalBooking.clientName}</strong> ({modalBooking.packageName})
@@ -494,7 +569,7 @@ export const ProgramManager: React.FC<ProgramManagerProps> = ({
                   disabled={isSaving}
                   className="px-5 py-2 bg-amber-400 hover:bg-amber-300 text-black text-xs font-bold uppercase rounded-lg transition disabled:opacity-50 cursor-pointer shadow"
                 >
-                  {isSaving ? 'Publishing...' : 'Save & Publish Program'}
+                  {isSaving ? 'Publishing...' : editingPlan ? 'Save Changes' : 'Save & Publish Program'}
                 </button>
               </div>
             </form>
@@ -533,7 +608,7 @@ export const ProgramManager: React.FC<ProgramManagerProps> = ({
 
               <div 
                 className="prose prose-invert prose-sm max-w-none [&_h3]:text-amber-400 [&_h3]:font-black [&_h3]:text-base [&_h3]:mb-2 [&_h4]:text-white [&_h4]:font-bold [&_h4]:text-sm [&_h4]:mt-4 [&_h4]:mb-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2 [&_li]:text-zinc-300"
-                dangerouslySetInnerHTML={{ __html: viewingPlan.content }}
+                dangerouslySetInnerHTML={{ __html: planToSafeHtml(viewingPlan.content) }}
               />
             </div>
 

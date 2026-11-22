@@ -3,6 +3,7 @@ import { ClassSchedule, User } from '../../types';
 import { VelocityAPI } from '../../services/api';
 import { Calendar, Plus, Edit2, Trash2, Clock, MapPin, UserCheck, X } from 'lucide-react';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { Select } from '../../components/ui/Select';
 
 interface ClassScheduleManagerProps {
   classes: ClassSchedule[];
@@ -306,7 +307,7 @@ export const ClassScheduleManager: React.FC<ClassScheduleManagerProps> = ({
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-1">
                     Category
                   </label>
-                  <select
+                  <Select
                     value={category}
                     onChange={(e) => setCategory(e.target.value as any)}
                     className="w-full bg-gray-900 border border-gray-800 text-white px-2 py-2 text-xs outline-none"
@@ -316,14 +317,14 @@ export const ClassScheduleManager: React.FC<ClassScheduleManagerProps> = ({
                     <option value="boxing">Pro Boxing</option>
                     <option value="cycling">Spin Cycling</option>
                     <option value="mindbody">Yoga & Recovery</option>
-                  </select>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-1">
                     Assigned Coach
                   </label>
-                  <select
+                  <Select
                     value={trainerName}
                     onChange={(e) => setTrainerName(e.target.value)}
                     className="w-full bg-gray-900 border border-gray-800 text-white px-3 py-2 text-xs outline-none cursor-pointer font-bold"
@@ -332,7 +333,7 @@ export const ClassScheduleManager: React.FC<ClassScheduleManagerProps> = ({
                     {availableCoachOptions.map((cName) => (
                       <option key={cName} value={cName}>{cName}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               </div>
 
@@ -341,7 +342,7 @@ export const ClassScheduleManager: React.FC<ClassScheduleManagerProps> = ({
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-1">
                     Day
                   </label>
-                  <select
+                  <Select
                     value={dayOfWeek}
                     onChange={(e) => setDayOfWeek(e.target.value as any)}
                     className="w-full bg-gray-900 border border-gray-800 text-white px-2 py-2 text-xs outline-none"
@@ -353,7 +354,7 @@ export const ClassScheduleManager: React.FC<ClassScheduleManagerProps> = ({
                     <option value="Friday">Friday</option>
                     <option value="Saturday">Saturday</option>
                     <option value="Sunday">Sunday</option>
-                  </select>
+                  </Select>
                 </div>
 
                 <div>
@@ -410,7 +411,7 @@ export const ClassScheduleManager: React.FC<ClassScheduleManagerProps> = ({
 
             <div>
               <label className="block text-xs font-bold uppercase text-gray-300 mb-1">Select Client/Person *</label>
-              <select
+              <Select
                 value={selectedClientId}
                 onChange={(e) => setSelectedClientId(e.target.value)}
                 className="w-full bg-gray-900 border border-gray-800 text-white p-3 text-xs outline-none"
@@ -419,7 +420,7 @@ export const ClassScheduleManager: React.FC<ClassScheduleManagerProps> = ({
                 {clients.map((c) => (
                   <option key={c.id} value={c.id}>{c.name} ({c.email})</option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <button

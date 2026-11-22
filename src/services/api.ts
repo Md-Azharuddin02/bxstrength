@@ -85,6 +85,7 @@ import { ticketsApi } from "./features/tickets";
 import { coachPermissionsApi } from "./features/coachPermissions";
 import { trainersApi } from "./features/trainers";
 import { bookingPlansApi } from "./features/bookingPlans";
+import { bookingSessionsApi } from "./features/bookingSessions";
 
 // Re-exported so existing `services/api` importers keep working unchanged.
 export { getApiUrl, apiFetch } from "./core/http";
@@ -3809,4 +3810,5 @@ export const VelocityAPI = {
 
   ...trainersApi,
   ...bookingPlansApi,
+  ...bookingSessionsApi,
 };

@@ -181,6 +181,23 @@ export const listPaidBookings = async (req: Request, res: Response) => {
     const email = typeof req.query.email === 'string' ? req.query.email.trim().toLowerCase() : null;
     const coachId = typeof req.query.coachId === 'string' ? req.query.coachId.trim() : null;
 
+    // A plain coach only sees bookings assigned to them (by id or name); head coaches see all.
+    const me = (req as any).user;
+    let coachScope: { id: string; name: string } | null = null;
+    if (String(me?.role || '').toLowerCase() === 'coach' && !email && !coachId) {
+      let isHead = false;
+      if (dbPool) {
+        const r = await dbPool.query('SELECT coach_position FROM users WHERE id = $1', [me.id]);
+        isHead = /head|chief/i.test(r.rows[0]?.coach_position || '');
+      }
+      if (!isHead) coachScope = { id: me.id, name: String(me.name || '').trim().toLowerCase() };
+    }
+    const inScope = (id: any, name: any) => {
+      if (!coachScope) return true;
+      const n = String(name || '').trim().toLowerCase();
+      return id ? id === coachScope.id : Boolean(n && n === coachScope.name);
+    };
+
     if (dbPool) {
       try {
         let query = 'SELECT * FROM paid_bookings';
@@ -204,7 +221,7 @@ export const listPaidBookings = async (req: Request, res: Response) => {
         query += ' ORDER BY created_at DESC';
 
         const result = await dbPool.query(query, params);
-        const formatted = result.rows.map(formatPaidBookingRow);
+        const formatted = result.rows.map(formatPaidBookingRow).filter(b => inScope(b.assignedCoachId, b.assignedCoachName));
         return res.json(formatted);
       } catch (dbErr: any) {
         console.error('Fetch paid bookings DB error:', dbErr.message);
@@ -212,7 +229,7 @@ export const listPaidBookings = async (req: Request, res: Response) => {
       }
     }
 
-    let filtered = [...paidBookingsStore];
+    let filtered = paidBookingsStore.filter(b => inScope(b.assignedCoachId, b.assignedCoachName));
     if (email) filtered = filtered.filter(b => b.clientEmail.toLowerCase() === email);
     if (coachId) filtered = filtered.filter(b => b.assignedCoachId === coachId);
     res.json(filtered);

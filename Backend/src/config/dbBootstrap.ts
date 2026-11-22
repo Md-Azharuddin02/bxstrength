@@ -448,6 +448,55 @@ export const initDatabase = () => {
               updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
             ALTER TABLE paid_bookings ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMP WITH TIME ZONE;
+
+            CREATE TABLE IF NOT EXISTS booking_workout_plans (
+              id VARCHAR(100) PRIMARY KEY,
+              booking_id VARCHAR(100) NOT NULL,
+              client_email VARCHAR(255) NOT NULL,
+              client_name VARCHAR(255),
+              coach_id VARCHAR(100),
+              coach_name VARCHAR(255),
+              title VARCHAR(255) NOT NULL,
+              valid_from DATE NOT NULL,
+              valid_to DATE NOT NULL,
+              content TEXT NOT NULL,
+              status VARCHAR(30) DEFAULT 'active',
+              created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_booking_workout_plans_booking ON booking_workout_plans (booking_id);
+            CREATE INDEX IF NOT EXISTS idx_booking_workout_plans_client ON booking_workout_plans (LOWER(client_email));
+
+            CREATE TABLE IF NOT EXISTS booking_diet_plans (
+              id VARCHAR(100) PRIMARY KEY,
+              booking_id VARCHAR(100) NOT NULL,
+              client_email VARCHAR(255) NOT NULL,
+              client_name VARCHAR(255),
+              coach_id VARCHAR(100),
+              coach_name VARCHAR(255),
+              title VARCHAR(255) NOT NULL,
+              valid_from DATE NOT NULL,
+              valid_to DATE NOT NULL,
+              content TEXT NOT NULL,
+              status VARCHAR(30) DEFAULT 'active',
+              created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_booking_diet_plans_booking ON booking_diet_plans (booking_id);
+            CREATE INDEX IF NOT EXISTS idx_booking_diet_plans_client ON booking_diet_plans (LOWER(client_email));
+
+            CREATE TABLE IF NOT EXISTS booking_sessions (
+              id VARCHAR(100) PRIMARY KEY,
+              booking_id VARCHAR(100) NOT NULL,
+              scheduled_at TIMESTAMP WITH TIME ZONE NOT NULL,
+              meeting_link TEXT,
+              status VARCHAR(30) NOT NULL DEFAULT 'Scheduled',
+              notes TEXT,
+              created_by VARCHAR(255),
+              created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_booking_sessions_booking ON booking_sessions (booking_id);
           `);
         } catch (setupErr: any) {
           console.error('[DB SETUP] failed:', setupErr?.message);

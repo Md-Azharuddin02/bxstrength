@@ -1,3 +1,4 @@
+import { planToSafeHtml } from '../../utils/planHtml';
 import React, { useState, useEffect } from 'react';
 import { User, BookingDietPlan, PaidPackageBooking } from '../../types';
 import { VelocityAPI } from '../../services/api';
@@ -153,7 +154,7 @@ export const NutritionPlanView: React.FC<NutritionPlanViewProps> = ({ user: prop
                   <div className="p-6 bg-[#0c0c0d] border-t border-zinc-800/80 space-y-4">
                     <div 
                       className="prose prose-invert prose-sm max-w-none [&_h3]:text-emerald-400 [&_h3]:font-black [&_h3]:text-base [&_h3]:mb-3 [&_h4]:text-white [&_h4]:font-bold [&_h4]:text-sm [&_h4]:mt-5 [&_h4]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_li]:text-zinc-300 text-sm leading-relaxed"
-                      dangerouslySetInnerHTML={{ __html: plan.content }}
+                      dangerouslySetInnerHTML={{ __html: planToSafeHtml(plan.content) }}
                     />
                   </div>
                 )}

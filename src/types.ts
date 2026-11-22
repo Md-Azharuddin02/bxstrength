@@ -623,6 +623,17 @@ export interface PaidPackageBooking {
   updatedAt?: string;
 }
 
+export interface BookingSession {
+  id: string;
+  bookingId: string;
+  scheduledAt: string;
+  meetingLink?: string | null;
+  status: 'Scheduled' | 'Completed' | 'Missed' | 'Cancelled';
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface BookingDietPlan {
   id: string;
   bookingId: string;

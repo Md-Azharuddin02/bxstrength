@@ -53,6 +53,7 @@ export const TicketFiltersBar: React.FC<TicketFiltersBarProps> = ({
           <option value="waiting_customer">Awaiting client</option>
           <option value="resolved">Resolved</option>
           <option value="closed">Closed</option>
+          <option value="escalated">Escalated</option>
         </Select>
         <Select aria-label="Priority" value={priorityFilter} onChange={(e) => onPriorityChange(e.target.value)} className="bg-[#18181b] border border-zinc-800 rounded-lg px-2.5 py-2 text-sm text-zinc-300 focus:outline-none focus:border-[#CCFF00] cursor-pointer">
           <option value="all">All priorities</option>

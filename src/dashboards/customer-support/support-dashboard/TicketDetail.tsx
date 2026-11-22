@@ -50,7 +50,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
   const [chatOpen, setChatOpen] = useState(false);
 
   return (
-    <div className="lg:col-span-7 bg-[#121214] border border-zinc-800 rounded-2xl p-4 lg:h-[calc(100dvh-11rem)] h-[70dvh] min-h-[420px] overflow-y-auto custom-scrollbar flex flex-col">
+    <div className="lg:col-span-7 bg-[#121214] border border-zinc-800 rounded-2xl p-4 lg:h-full h-[70dvh] min-h-[420px] overflow-y-auto custom-scrollbar flex flex-col">
 
       {selectedTicket ? (
         <div className={chatOpen ? 'flex-1 min-h-0 flex flex-col' : 'space-y-4'}>

@@ -17,14 +17,14 @@ export const parseLink = (n: InAppNotification) => {
  * sockets/SSE: the repo has no socket layer, and 30s polling on an existing endpoint needs no new infra.
  * Read state lives in the DB, so counts survive refresh and are shared by the whole support team.
  */
-export function useStaffNotifications() {
+export function useStaffNotifications(email: string = 'staff') {
   const [items, setItems] = useState<InAppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      const res = await apiFetch('/api/notifications?email=staff');
+      const res = await apiFetch(`/api/notifications?email=${encodeURIComponent(email)}`);
       if (!res.ok) throw new Error(String(res.status));
       const raw = await res.json();
       setItems(Array.isArray(raw) ? raw : []);
@@ -34,7 +34,7 @@ export function useStaffNotifications() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [email]);
 
   useEffect(() => {
     refresh();

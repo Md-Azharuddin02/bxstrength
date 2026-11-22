@@ -15,6 +15,10 @@ interface TicketManagementProps {
   onShowToast: (msg: string) => void;
 }
 
+// open = new/open/unset, in_progress = assigned/in progress, so the cards, tabs and filter agree
+const statusBucket = (t: SupportTicket): string =>
+  !t.status || t.status === 'new' ? 'open' : t.status === 'assigned' ? 'in_progress' : t.status;
+
 const formatTicketDate = (rawDate?: string): string => {
   if (!rawDate) return 'Recently';
   try {
@@ -102,27 +106,32 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
     return () => clearInterval(interval);
   }, []);
 
+  // Role scope: a normal coach only sees tickets assigned to them
+  const inScope = (t: SupportTicket): boolean => {
+    if (isCoachOnly && currentUser) {
+      const coachName = (currentUser.name || '').toLowerCase().trim();
+      const coachEmail = (currentUser.email || '').toLowerCase().trim();
+      const assigned = (t.assignedAgent || '').toLowerCase().trim();
+
+      if (!assigned || assigned === 'unassigned' || assigned === 'cs team') {
+        return false;
+      }
+
+      const isAssignedToMe = assigned.includes(coachName) || (coachEmail && assigned.includes(coachEmail));
+      if (!isAssignedToMe) return false;
+    }
+    return true;
+  };
+
   // Filtered Tickets
   const filteredTickets = useMemo(() => {
     const term = searchTerm.toLowerCase().trim().replace(/^#/, '');
 
     return tickets.filter((t) => {
-      // Role Scope: Normal coach only views tickets assigned to them
-      if (isCoachOnly && currentUser) {
-        const coachName = (currentUser.name || '').toLowerCase().trim();
-        const coachEmail = (currentUser.email || '').toLowerCase().trim();
-        const assigned = (t.assignedAgent || '').toLowerCase().trim();
-
-        if (!assigned || assigned === 'unassigned' || assigned === 'cs team') {
-          return false;
-        }
-
-        const isAssignedToMe = assigned.includes(coachName) || (coachEmail && assigned.includes(coachEmail));
-        if (!isAssignedToMe) return false;
-      }
+      if (!inScope(t)) return false;
 
       // 1. Status Filter
-      if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+      if (statusFilter === 'escalated' ? !t.escalationHistory?.length : statusFilter !== 'all' && statusBucket(t) !== statusFilter) return false;
 
       // 2. Priority Filter
       if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
@@ -146,15 +155,21 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
     });
   }, [tickets, searchTerm, statusFilter, priorityFilter, categoryFilter, isCoachOnly, currentUser]);
 
-  // Stats Counters
+  // Stats Counters (only tickets this user may see)
   const stats = useMemo(() => {
-    const total = tickets.length;
-    const openCount = tickets.filter(t => t.status === 'open' || t.status === 'new' || !t.status).length;
-    const urgentHighCount = tickets.filter(t => t.priority === 'urgent' || t.priority === 'high').length;
-    const inProgressCount = tickets.filter(t => t.status === 'in_progress' || t.status === 'assigned').length;
-    const resolvedClosedCount = tickets.filter(t => t.status === 'resolved' || t.status === 'closed').length;
-    return { total, openCount, urgentHighCount, inProgressCount, resolvedClosedCount };
-  }, [tickets]);
+    const visible = tickets.filter(inScope);
+    const by = (b: string) => visible.filter(t => statusBucket(t) === b).length;
+    return {
+      total: visible.length,
+      open: by('open'),
+      inProgress: by('in_progress'),
+      waiting: by('waiting_customer'),
+      resolved: by('resolved'),
+      closed: by('closed'),
+      escalated: visible.filter(t => t.escalationHistory?.length).length,
+      urgentHigh: visible.filter(t => t.priority === 'urgent' || t.priority === 'high').length,
+    };
+  }, [tickets, isCoachOnly, currentUser]);
 
   // Actions
   const handleUpdateStatus = async (ticketId: string, newStatus: TicketStatus) => {
@@ -360,48 +375,38 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
         </button>
       </div>
 
-      {/* KPI Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <div
-          onClick={() => { setStatusFilter('all'); setPriorityFilter('all'); setCategoryFilter('all'); }}
-          className={`p-4 rounded-xl border cursor-pointer transition-all ${
-            statusFilter === 'all' && priorityFilter === 'all' ? 'bg-[#18181b] border-emerald-500/50 shadow-md' : 'bg-[#121214] border-zinc-800 hover:border-zinc-700'
-          }`}
-        >
-          <span className="text-[10px] font-black uppercase text-zinc-400 block tracking-widest">TOTAL TICKETS</span>
-          <span className="text-2xl font-black text-white mt-1 block">{stats.total}</span>
-        </div>
-
-        <div
-          onClick={() => setStatusFilter('open')}
-          className={`p-4 rounded-xl border cursor-pointer transition-all ${
-            statusFilter === 'open' ? 'bg-[#18181b] border-amber-500/50 shadow-md' : 'bg-[#121214] border-zinc-800 hover:border-zinc-700'
-          }`}
-        >
-          <span className="text-[10px] font-black uppercase text-amber-400 block tracking-widest">OPEN / UNASSIGNED</span>
-          <span className="text-2xl font-black text-amber-400 mt-1 block">{stats.openCount}</span>
-        </div>
-
-        <div
-          onClick={() => setPriorityFilter('urgent')}
-          className={`p-4 rounded-xl border cursor-pointer transition-all ${
-            priorityFilter === 'urgent' ? 'bg-[#18181b] border-red-500/50 shadow-md' : 'bg-[#121214] border-zinc-800 hover:border-zinc-700'
-          }`}
-        >
-          <span className="text-[10px] font-black uppercase text-red-400 block tracking-widest">URGENT & HIGH</span>
-          <span className="text-2xl font-black text-red-400 mt-1 block">{stats.urgentHighCount}</span>
-        </div>
-
-        <div
-          onClick={() => setStatusFilter('resolved')}
-          className={`p-4 rounded-xl border cursor-pointer transition-all ${
-            statusFilter === 'resolved' ? 'bg-[#18181b] border-emerald-500/50 shadow-md' : 'bg-[#121214] border-zinc-800 hover:border-zinc-700'
-          }`}
-        >
-          <span className="text-[10px] font-black uppercase text-emerald-400 block tracking-widest">RESOLVED / CLOSED</span>
-          <span className="text-2xl font-black text-emerald-400 mt-1 block">{stats.resolvedClosedCount}</span>
-        </div>
+      {/* Ticket status dashboard: click a card to filter the list */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+        {([
+          { key: 'all', label: 'Total', value: stats.total, color: 'text-white', ring: 'border-emerald-500/50' },
+          { key: 'open', label: 'Open', value: stats.open, color: 'text-amber-400', ring: 'border-amber-500/50' },
+          { key: 'in_progress', label: 'In Progress', value: stats.inProgress, color: 'text-sky-400', ring: 'border-sky-500/50' },
+          { key: 'waiting_customer', label: 'Waiting Customer', value: stats.waiting, color: 'text-violet-400', ring: 'border-violet-500/50' },
+          { key: 'resolved', label: 'Resolved', value: stats.resolved, color: 'text-emerald-400', ring: 'border-emerald-500/50' },
+          { key: 'closed', label: 'Closed', value: stats.closed, color: 'text-zinc-300', ring: 'border-zinc-500/50' },
+          { key: 'escalated', label: 'Escalated', value: stats.escalated, color: 'text-red-400', ring: 'border-red-500/50' },
+        ] as const).map(c => {
+          const active = statusFilter === c.key && priorityFilter === 'all';
+          return (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => { setStatusFilter(c.key); setPriorityFilter('all'); setCategoryFilter('all'); }}
+              className={`p-4 rounded-xl border text-left cursor-pointer transition-all ${active ? `bg-[#18181b] ${c.ring} shadow-md` : 'bg-[#121214] border-zinc-800 hover:border-zinc-700'}`}
+            >
+              <span className={`text-[10px] font-black uppercase block tracking-widest ${c.color}`}>{c.label}</span>
+              <span className={`text-2xl font-black mt-1 block ${c.color}`}>{c.value}</span>
+            </button>
+          );
+        })}
       </div>
+      <button
+        type="button"
+        onClick={() => { setPriorityFilter('urgent'); setStatusFilter('all'); }}
+        className={`self-start px-3 py-1.5 rounded-lg border text-[11px] font-black uppercase cursor-pointer ${priorityFilter === 'urgent' ? 'border-red-500/50 text-red-400 bg-[#18181b]' : 'border-zinc-800 text-zinc-400 hover:text-red-400'}`}
+      >
+        Urgent &amp; High: {stats.urgentHigh}
+      </button>
 
       {/* Filter & Search Controls Bar */}
       <div className="bg-[#121214] border border-zinc-800 p-4 rounded-xl space-y-4">
@@ -429,7 +434,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
 
           {/* Status Tabs */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-            {['all', 'open', 'in_progress', 'resolved', 'closed'].map((st) => (
+            {['all', 'open', 'in_progress', 'waiting_customer', 'resolved', 'closed'].map((st) => (
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
@@ -439,7 +444,7 @@ export const TicketManagement: React.FC<TicketManagementProps> = ({ user, coache
                     : 'bg-[#18181b] text-zinc-400 border-zinc-800 hover:text-white hover:border-zinc-700'
                 }`}
               >
-                {st === 'all' ? `ALL (${tickets.length})` : st.replace('_', ' ')}
+                {st === 'all' ? `ALL (${stats.total})` : `${st.replace('_', ' ')} (${st === 'open' ? stats.open : st === 'in_progress' ? stats.inProgress : st === 'waiting_customer' ? stats.waiting : st === 'resolved' ? stats.resolved : stats.closed})`}
               </button>
             ))}
           </div>

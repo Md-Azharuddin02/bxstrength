@@ -151,11 +151,6 @@ export const PlanCustomizationBreakdown: React.FC<PlanCustomizationBreakdownProp
                       <p className="text-xs font-bold text-white truncate leading-tight">
                         {decodeHtmlEntities(item.name)}
                       </p>
-                      {item.duration && (
-                        <p className="text-[10px] text-zinc-400 mt-0.5 flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-zinc-500" /> {item.duration}
-                        </p>
-                      )}
                     </div>
                   </div>
 
@@ -201,8 +196,7 @@ export const PlanCustomizationBreakdown: React.FC<PlanCustomizationBreakdownProp
                   <div>
                     <p className="text-xs font-bold text-white">{decodeHtmlEntities(el.name)}</p>
                     <p className="text-[10px] text-zinc-400 mt-0.5">
-                      {el.quantity || 1} Block{(el.quantity || 1) > 1 ? 's' : ''} •{' '}
-                      {(el.quantity || 1) * (el.unitMinutes || 15)} Minutes
+                      {el.quantity || 1} Block{(el.quantity || 1) > 1 ? 's' : ''}
                     </p>
                   </div>
                 </div>

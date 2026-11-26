@@ -1,19 +1,13 @@
-
 <!doctype html>
 <html lang="en" class="dark">
   <head>
 
-    <!-- Google Tag Manager -->
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag() {
-        window.dataLayer.push(arguments);
-      }
-      gtag('js', new Date());
-    </script>
-    
-
-    <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-M7ZFVV8C"></script>
+  <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-M7ZFVV8C"></script>
+  <script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  </script>
 
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
@@ -47,7 +41,7 @@
       "name": "BxStrength",
       "alternateName": "BXStrength",
       "url": "https://bxstrength.com/",
-      "description": "BXStrength is a live virtual fitness and performance platform built for people who want structured coaching without needing to organise their life around a gym.",
+      "description": "Live online boxing, strength & conditioning and rehab coaching with a UK certified head coach. Train anywhere with structured plans. 1,000+ clients served.",
       "slogan": "UK Digital Coaching, Boxing & Fitness Platform",
       "image": "https://res.cloudinary.com/yuyxn5b0/image/upload/v1793983602/BXStrength-logo.png",
       "foundingLocation": {
@@ -105,6 +99,7 @@
         "https://www.linkedin.com/company/bxstrength/",
         "https://www.facebook.com/bxstrength/",
         "https://bxstrength.com/"
+        "https://t.me/BxStrength"
       ]
     }
     </script>
@@ -114,11 +109,7 @@
     <link rel="alternate" hreflang="en-GB" href="https://bxstrength.com/" />
     <link rel="alternate" hreflang="x-default" href="https://bxstrength.com/" />
 
-    <meta name="geo.region" content="IN-DL" />
-    <meta name="geo.placename" content="Delhi, India &amp; London, UK" />
-    <meta name="geo.position" content="28.6139;77.2090" />
-    <meta name="ICBM" content="28.6139, 77.2090" />
-
+    
 <!-- 7. Open Graph (OG) Meta Tags for Facebook, WhatsApp, LinkedIn -->
 <!-- Open Graph -->
 <meta property="og:type" content="website">
@@ -156,99 +147,11 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Cinzel:wght@700;800;900&display=swap" rel="stylesheet" />
 
-    <!-- 11. Schema.org JSON-LD Structured Data Markup (Google Rich Snippets) -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@graph": [
-        {
-          "@type": "Organization",
-          "@id": "https://bxstrength.com/#organization",
-          "name": "BxStrength",
-          "url": "https://bxstrength.com/",
-          "logo": "https://bxstrength.com/favicon.svg",
-          "description": "BxStrength is the UK & India premier performance digital coaching platform offering bespoke strength training, boxing instruction, and physiotherapy-based rehabilitation.",
-          "contactPoint": {
-            "@type": "ContactPoint",
-            "telephone": "+44-20-7946-0912",
-            "contactType": "customer service",
-            "areaServed": ["GB", "IN"],
-            "availableLanguage": ["English", "Hindi", "Urdu"]
-          },
-          "sameAs": [
-            "https://instagram.com/bxstrength",
-            "https://linkedin.com/company/bxstrength"
-          ]
-        },
-        {
-          "@type": "SportsActivityLocation",
-          "@id": "https://bxstrength.com/#gym",
-          "name": "BxStrength Elite Performance Gym & Coaching Hub",
-          "url": "https://bxstrength.com/",
-          "image": "https://res.cloudinary.com/yuyxn5b0/image/upload/v1793983602/BXStrength-logo.png",
-          "priceRange": "£££",
-          "aggregateRating": {
-            "@type": "AggregateRating",
-            "ratingValue": "4.9",
-            "reviewCount": "1000",
-            "bestRating": "5",
-            "worstRating": "1"
-          }
-        },
-        {
-          "@type": "WebSite",
-          "@id": "https://bxstrength.com/#website",
-          "url": "https://bxstrength.com/",
-          "name": "BxStrength Performance Coaching",
-          "description": "UK & India Digital Coaching, Boxing, Strength & Fitness Platform",
-          "publisher": {
-            "@id": "https://bxstrength.com/#organization"
-          },
-          "potentialAction": {
-            "@type": "SearchAction",
-            "target": "https://bxstrength.com/?s={search_term_string}",
-            "query-input": "required name=search_term_string"
-          }
-        },
-        {
-          "@type": "FAQPage",
-          "mainEntity": [
-            {
-              "@type": "Question",
-              "name": "What makes BxStrength coaching different from ordinary gyms?",
-              "acceptedAnswer": {
-                "@type": "Answer",
-                "text": "BxStrength combines elite boxing technique, UK-licensed physiotherapy rehabilitation, and precision strength & conditioning to deliver personalized transformations to over 1,000 clients worldwide."
-              }
-            },
-            {
-              "@type": "Question",
-              "name": "How does the free 15-minute strategy call session work?",
-              "acceptedAnswer": {
-                "@type": "Answer",
-                "text": "During your 15-minute session, a dedicated head coach analyzes your body composition, fitness goals, and injury history to design a custom 12-week transformation plan."
-              }
-            },
-            {
-              "@type": "Question",
-              "name": "Who leads the BxStrength coaching team?",
-              "acceptedAnswer": {
-                "@type": "Answer",
-                "text": "Our Head Coach & Team has 10+ years of experience holding a Diploma in Physiotherapy from Singhania University and Boxing Techniques certification from IG Stadium, having served over 1,000 clients across India, Canada, UK, Australia, Saudi Arabia, and UAE."
-              }
-            }
-          ]
-        }
-      ]
-    }
-    </script>
-
     <!-- 12. Razorpay Standard Web Checkout SDK -->
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
     <!-- React Application -->
     <script type="module" src="/src/main.tsx"></script>
-
   </head>
 
   <body class="bg-[#0a0a0a] text-white antialiased selection:bg-[#CCFF00] selection:text-black font-sans">
@@ -257,17 +160,6 @@
     <!-- <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:bg-[#CCFF00] focus:text-black focus:p-3 focus:z-50 font-bold">Skip to Main Content</a> -->
 
     <div id="root"></div>
-
-    <!-- Google Tag Manager (noscript) -->
-    <noscript>
-      <iframe
-        src="https://www.googletagmanager.com/ns.html?id=GTM-M7ZFVV8C"
-        height="0"
-        width="0"
-        style="display:none;visibility:hidden"
-        title="Google Tag Manager"
-      ></iframe>
-    </noscript>
 
   </body>
 </html>
